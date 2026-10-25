@@ -4,6 +4,8 @@
   var V = 6;
   var AKEY = 'wwyf.admin';
   var $ = function (id) { return document.getElementById(id); };
+  var SHORT = { '真正領袖': '真領袖', '假領袖': '假領袖', '真領袖支持者': '真支持', '假領袖支持者': '假支持', '平民': '平民' };
+  function short(r) { return r ? (SHORT[r] || r) : '未分配'; }
   var ROLE_COLORS = { '真正領袖': 'var(--r-true)', '假領袖': 'var(--r-fake)', '真領袖支持者': 'var(--r-tsup)', '假領袖支持者': 'var(--r-fsup)', '平民': 'var(--r-civ)' };
   var chars = {};
   var state = null;
@@ -21,13 +23,6 @@
     var el = $('toast'); el.textContent = msg; el.className = 'toast show' + (bad ? ' bad' : '');
     clearTimeout(tt); tt = setTimeout(function () { el.className = 'toast' + (bad ? ' bad' : ''); }, 2800);
   }
-  function ago(t) {
-    if (!t || !state) return '從未連線';
-    var s = Math.max(0, Math.round((state.serverTime - t) / 1000));
-    if (s < 60) return s + ' 秒前';
-    if (s < 3600) return Math.round(s / 60) + ' 分鐘前';
-    return Math.round(s / 3600) + ' 小時前';
-  }
   function fail(e) {
     if (e.status === 401) { logout('登入已過期，請重新登入'); return; }
     toast(e.message || '操作失敗', true);
@@ -36,7 +31,7 @@
   /* ---------- auth ---------- */
   function showLogin(msg) {
     clearInterval(timer);
-    $('dash').hidden = true; $('topRight').hidden = true; $('login').hidden = false;
+    $('dash').hidden = true; $('topRight').hidden = true; $('bar').hidden = true; document.body.classList.remove('has-bar'); $('login').hidden = false;
     $('loginErr').textContent = msg || '';
     setTimeout(function () { $('pw').focus(); }, 50);
   }
@@ -54,19 +49,19 @@
   $('logout').addEventListener('click', function () { logout(''); });
 
   /* ---------- polling ---------- */
-  function sync(ok, text) { $('sync').className = 'sync ' + (ok ? 'ok' : 'bad'); $('syncText').textContent = text; }
+  function sync(ok) { $('sync').hidden = ok; }
   function refresh() {
     return WWYF.admin('GET', 'state').then(function (s) {
-      state = s; overlay(); sync(true, '即時同步');
+      state = s; overlay(); sync(true);
       render();
     }).catch(function (e) {
       if (e.status === 401) { logout('登入已過期，請重新登入'); return; }
-      sync(false, '連線中斷…');
+      sync(false);
     });
   }
   function start() {
     setLocked(true);
-    $('login').hidden = true; $('dash').hidden = false; $('topRight').hidden = false;
+    $('login').hidden = true; $('dash').hidden = false; $('topRight').hidden = false; $('bar').hidden = false; document.body.classList.add('has-bar');
     refresh();
     clearInterval(timer);
     timer = setInterval(function () { if (!document.hidden) refresh(); }, 2000);
@@ -76,25 +71,20 @@
   function render() {
     if (!state) return;
     var s = state;
-    $('gameId').textContent = s.meta.gameId || '–';
     $('joined').textContent = s.players.length;
     $('cap').textContent = s.capacity;
     $('online').textContent = s.players.filter(function (p) { return p.online; }).length;
 
-    // role chips + warnings
-    var chips = '', warn = [];
+    // no chip row: one plain "已分配 n/m" in the header, red text only when a role is over its limit
+    var warn = [];
     s.roleOrder.forEach(function (r) {
       var n = s.assigned[r] || 0, max = s.roles[r] || 0;
-      chips += '<span class="chip' + (n > max ? ' over' : n === max && max ? ' full' : '') + '" style="--c:' + (ROLE_COLORS[r] || '#ccc') + '"><i></i>' + esc(r) + ' <b>' + n + '/' + max + '</b></span>';
-      if (n > max) warn.push(['bad', '「' + r + '」超出上限：' + n + ' / ' + max]);
+      if (n > max) warn.push('「' + short(r) + '」超出上限 ' + n + '/' + max);
     });
-    $('roleChips').innerHTML = chips;
-    var un = s.players.filter(function (p) { return !p.role; }).length;
-    if (s.players.length > s.capacity) warn.push(['bad', '玩家人數 (' + s.players.length + ') 超過角色總數 (' + s.capacity + ')，部分玩家將無法分配身分']);
-    if (un && s.players.length) warn.push(['', '尚有 ' + un + ' 位玩家未分配身分']);
-    var off = s.players.filter(function (p) { return !p.online; }).length;
-    if (off) warn.push(['', off + ' 位玩家目前離線（超過 15 秒沒有回應）']);
-    $('warnings').innerHTML = warn.map(function (w) { return '<li class="' + w[0] + '">' + esc(w[1]) + '</li>'; }).join('');
+    if (s.players.length > s.capacity) warn.push('玩家 ' + s.players.length + ' 人，超過角色總數 ' + s.capacity);
+    $('warnings').innerHTML = warn.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('');
+    $('assigned').textContent = s.players.filter(function (p) { return p.role; }).length;
+    $('assignedOf').textContent = s.players.length;
 
     renderGrid();
     renderArchive();
@@ -103,40 +93,30 @@
   function renderGrid() {
     var s = state;
     $('empty').hidden = s.players.length > 0;
-    var sig = JSON.stringify([s.players.map(function (p) { return [p.id, p.characterId, p.nickname, p.role, p.leader, p.online]; }), s.roles]);
-    if (sig === lastSig) { updateTimes(); return; }
+    var sig = JSON.stringify([s.players.map(function (p) { return [p.id, p.characterId, p.nickname, p.role, p.leader, p.online]; }), s.roles, !!chars.__ok]);
+    if (sig === lastSig) return;
     lastSig = sig;
     var html = '';
     s.players.forEach(function (p) {
       var isLeader = p.role && s.leaderRoles.indexOf(p.role) >= 0;
       var name = esc(charName(p.characterId));
-      html += '<article class="pc card' + (p.role ? '' : ' unassigned') + (pend[p.id] ? ' saving' : '') + '" data-id="' + esc(p.id) + '" style="--c:' + (p.role ? ROLE_COLORS[p.role] : 'var(--line)') + '">' +
-        '<div class="pc__icon"><img src="' + img(p.characterId) + '" alt="" loading="lazy" /></div>' +
-        '<p class="pc__name" lang="en">' + name + '</p>' +
-        '<p class="pc__meta"><i class="dot' + (p.online ? ' on' : '') + '"></i><span class="pc__seen">' + (p.online ? '在線' : '離線 · ' + ago(p.lastSeen)) + '</span>' +
-        (p.nickname ? '<span>·</span><span class="pc__nick">' + esc(p.nickname) + '</span>' : '') + '</p>' +
-        '<div class="pc__ctrl">' +
-          '<button class="pill' + (p.role ? '' : ' pill--none') + '" type="button" data-act="role" style="--c:' + (p.role ? ROLE_COLORS[p.role] : '#b9b4a4') + '" aria-label="身分：' + esc(p.role || '未分配') + '（點一下切換）">' + esc(p.role || '未分配') + '</button>' +
-          (isLeader ? '<button class="badge" type="button" data-act="leader" aria-label="領袖 ' + esc(p.leader || '?') + '（點一下切換）">' + esc(p.leader || '?') + '</button>' : '') +
-        '</div>' +
-        '<button class="kick" type="button" data-act="kick" title="移出玩家" aria-label="移出 ' + name + '"><svg viewBox="0 0 14 14"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>' +
-        '</article>';
+      html += '<div class="pc' + (p.role ? '' : ' unassigned') + (p.online ? '' : ' off') + (pend[p.id] ? ' saving' : '') + '" data-id="' + esc(p.id) + '">' +
+        '<img class="pc__icon" src="' + img(p.characterId) + '" alt="" loading="lazy" />' +
+        '<div class="pc__main"><i class="dot' + (p.online ? ' on' : '') + '" title="' + (p.online ? '在線' : '離線') + '"></i>' +
+          '<span class="pc__name" lang="en">' + name + '</span>' +
+          (p.nickname ? '<span class="pc__nick">' + esc(p.nickname) + '</span>' : '') + '</div>' +
+        '<button class="pill' + (p.role ? '' : ' pill--none') + '" type="button" data-act="role" style="--c:' + (p.role ? ROLE_COLORS[p.role] : '#b9b4a4') + '" aria-label="身分：' + esc(p.role || '未分配') + '（點一下切換）">' + esc(short(p.role)) + '</button>' +
+        (isLeader ? '<button class="badge" type="button" data-act="leader" style="--c:' + ROLE_COLORS[p.role] + '" aria-label="領袖 ' + esc(p.leader || '?') + '（點一下切換）">' + esc(p.leader || '?') + '</button>' : '<span class="badge badge--none"></span>') +
+        '<button class="kick" type="button" data-act="kick" title="移出玩家" aria-label="移出 ' + name + '">⋯</button>' +
+        '</div>';
     });
     $('grid').innerHTML = html;
-  }
-  function updateTimes() {
-    var els = $('grid').querySelectorAll('.pc');
-    for (var i = 0; i < els.length; i++) {
-      var p = state.players.find(function (q) { return q.id === els[i].getAttribute('data-id'); });
-      if (!p) continue;
-      els[i].querySelector('.pc__seen').textContent = p.online ? '在線' : '離線 · ' + ago(p.lastSeen);
-    }
   }
 
   var archiveSig = '';
   function renderArchive() {
     var keys = state.archive || [];
-    $('archiveCount').textContent = keys.length ? '（' + keys.length + '）' : '（尚無）';
+    $('archiveCount').textContent = '(' + keys.length + ')';
     var sig = keys.join();
     if (sig === archiveSig) return;
     archiveSig = sig;
@@ -247,7 +227,7 @@
     b.classList.toggle('is-open', !locked);
     b.setAttribute('aria-pressed', String(!locked));
     $('lockIcon').textContent = locked ? '🔒' : '🔓';
-    $('lockText').textContent = locked ? '已鎖定' : '已解鎖 · ' + left + ' 秒後自動鎖定';
+    $('lockText').textContent = locked ? '已鎖定' : left + ' 秒後鎖定';
   }
   function touchLock() { if (!locked) lockAt = Date.now() + LOCK_MS; lockUi(); }
   var hintT = 0;
@@ -296,7 +276,7 @@
 
   /* ---------- boot ---------- */
   fetch('../data/characters.json?v=' + V, { cache: 'no-cache' }).then(function (r) { return r.json(); })
-    .then(function (d) { (d.characters || []).forEach(function (c) { chars[c.id] = c; }); lastSig = ''; render(); })
+    .then(function (d) { (d.characters || []).forEach(function (c) { chars[c.id] = c; }); chars.__ok = 1; lastSig = ''; render(); })
     .catch(function () {});
   if (token()) start(); else showLogin('');
 })();
