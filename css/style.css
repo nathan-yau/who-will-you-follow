@@ -7,14 +7,12 @@
 *::after { box-sizing: border-box; }
 
 :root {
-  --sky: #e8f2e3;
   --ink: #45301e;          /* title brown */
   --ink-soft: #524b3e;     /* welcome text */
   --green: #6b8e65;        /* primary button */
   --green-dark: #5f845a;
   --cream: #f1f2df;
   --sky-top: #e9f2e3;       /* top row of the artwork */
-  --edge-color: #acc090;    /* bottom meadow row of the artwork */
 }
 
 /* ---------- layout ----------
@@ -24,21 +22,21 @@
    bushes continued with content-aware seam insertion; the original pixels are
    untouched in the middle). Text and buttons are placed on the 576 x 1024 grid.
    Each extended canvas is pw x 1343 design units: the original sits at
-   x = --ox, y = 159.77 inside it. The narrowest canvas that still covers the
+   y = 159.77 inside it, centred horizontally. The narrowest canvas that still covers the
    screen width is picked per aspect ratio. */
-:root { --pw: 576; --ox: 0.0; --scene: url("../assets/img/scene-576.webp?v=3"); --edge: url("../assets/img/edge-576.png?v=3"); }
-@media (min-aspect-ratio: 576.01/1024) { :root { --pw: 608; --ox: 15.91; --scene: url("../assets/img/scene-608.webp?v=3"); --edge: url("../assets/img/edge-608.png?v=3"); } }
-@media (min-aspect-ratio: 608.01/1024) { :root { --pw: 640; --ox: 31.83; --scene: url("../assets/img/scene-640.webp?v=3"); --edge: url("../assets/img/edge-640.png?v=3"); } }
-@media (min-aspect-ratio: 640.01/1024) { :root { --pw: 700; --ox: 61.82; --scene: url("../assets/img/scene-700.webp?v=3"); --edge: url("../assets/img/edge-700.png?v=3"); } }
-@media (min-aspect-ratio: 700.01/1024) { :root { --pw: 768; --ox: 96.1; --scene: url("../assets/img/scene-768.webp?v=3"); --edge: url("../assets/img/edge-768.png?v=3"); } }
-@media (min-aspect-ratio: 768.01/1024) { :root { --pw: 896; --ox: 159.76; --scene: url("../assets/img/scene-896.webp?v=3"); --edge: url("../assets/img/edge-896.png?v=3"); } }
-@media (min-aspect-ratio: 896.01/1024) { :root { --pw: 1024; --ox: 224.03; --scene: url("../assets/img/scene-1024.webp?v=3"); --edge: url("../assets/img/edge-1024.png?v=3"); } }
-@media (min-aspect-ratio: 1024.01/1024) { :root { --pw: 1180; --ox: 301.77; --scene: url("../assets/img/scene-1180.webp?v=3"); --edge: url("../assets/img/edge-1180.png?v=3"); } }
-@media (min-aspect-ratio: 1180.01/1024) { :root { --pw: 1365; --ox: 394.2; --scene: url("../assets/img/scene-1365.webp?v=3"); --edge: url("../assets/img/edge-1365.png?v=3"); } }
-@media (min-aspect-ratio: 1365.01/1024) { :root { --pw: 1580; --ox: 501.93; --scene: url("../assets/img/scene-1580.webp?v=3"); --edge: url("../assets/img/edge-1580.png?v=3"); } }
-@media (min-aspect-ratio: 1580.01/1024) { :root { --pw: 1820; --ox: 621.91; --scene: url("../assets/img/scene-1820.webp?v=3"); --edge: url("../assets/img/edge-1820.png?v=3"); } }
-@media (min-aspect-ratio: 1820.01/1024) { :root { --pw: 2048; --ox: 735.76; --scene: url("../assets/img/scene-2048.webp?v=3"); --edge: url("../assets/img/edge-2048.png?v=3"); } }
-@media (min-aspect-ratio: 2048.01/1024) { :root { --pw: 2400; --ox: 912.05; --scene: url("../assets/img/scene-2400.webp?v=3"); --edge: url("../assets/img/edge-2400.png?v=3"); } }
+:root { --pw: 576; --scene: url("../assets/img/scene-576.webp?v=4"); --edge: url("../assets/img/edge-576.png?v=4"); }
+@media (min-aspect-ratio: 576.01/1024) { :root { --pw: 608; --scene: url("../assets/img/scene-608.webp?v=4"); --edge: url("../assets/img/edge-608.png?v=4"); } }
+@media (min-aspect-ratio: 608.01/1024) { :root { --pw: 640; --scene: url("../assets/img/scene-640.webp?v=4"); --edge: url("../assets/img/edge-640.png?v=4"); } }
+@media (min-aspect-ratio: 640.01/1024) { :root { --pw: 700; --scene: url("../assets/img/scene-700.webp?v=4"); --edge: url("../assets/img/edge-700.png?v=4"); } }
+@media (min-aspect-ratio: 700.01/1024) { :root { --pw: 768; --scene: url("../assets/img/scene-768.webp?v=4"); --edge: url("../assets/img/edge-768.png?v=4"); } }
+@media (min-aspect-ratio: 768.01/1024) { :root { --pw: 896; --scene: url("../assets/img/scene-896.webp?v=4"); --edge: url("../assets/img/edge-896.png?v=4"); } }
+@media (min-aspect-ratio: 896.01/1024) { :root { --pw: 1024; --scene: url("../assets/img/scene-1024.webp?v=4"); --edge: url("../assets/img/edge-1024.png?v=4"); } }
+@media (min-aspect-ratio: 1024.01/1024) { :root { --pw: 1180; --scene: url("../assets/img/scene-1180.webp?v=4"); --edge: url("../assets/img/edge-1180.png?v=4"); } }
+@media (min-aspect-ratio: 1180.01/1024) { :root { --pw: 1365; --scene: url("../assets/img/scene-1365.webp?v=4"); --edge: url("../assets/img/edge-1365.png?v=4"); } }
+@media (min-aspect-ratio: 1365.01/1024) { :root { --pw: 1580; --scene: url("../assets/img/scene-1580.webp?v=4"); --edge: url("../assets/img/edge-1580.png?v=4"); } }
+@media (min-aspect-ratio: 1580.01/1024) { :root { --pw: 1820; --scene: url("../assets/img/scene-1820.webp?v=4"); --edge: url("../assets/img/edge-1820.png?v=4"); } }
+@media (min-aspect-ratio: 1820.01/1024) { :root { --pw: 2048; --scene: url("../assets/img/scene-2048.webp?v=4"); --edge: url("../assets/img/edge-2048.png?v=4"); } }
+@media (min-aspect-ratio: 2048.01/1024) { :root { --pw: 2400; --scene: url("../assets/img/scene-2400.webp?v=4"); --edge: url("../assets/img/edge-2400.png?v=4"); } }
 
 /* The page never scrolls in any direction. */
 html,
@@ -54,12 +52,11 @@ body {
   touch-action: none;
 }
 html {
-  /* anything outside the page (iOS toolbars / safe areas) continues the art:
-     sky above, the canvas' own bottom row repeated below */
+  /* light sky green sampled from the top of the artwork (#e9f2e3) */
   background: var(--sky-top);
 }
 body {
-  background: transparent;
+  background: var(--sky-top);
   font-family: "Chiron GoRound TC", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
@@ -69,43 +66,55 @@ body {
   -webkit-touch-callout: none;
 }
 
+/* Fixed art layer. It covers the LARGE viewport (100lvh: the whole screen,
+   including what sits under iOS Safari's floating translucent toolbars) plus
+   a bleed above and below, so the artwork runs to the physical edges of the
+   screen. Being position:fixed with overflow:hidden it never creates scroll. */
 .app {
+  --bleed: calc(160px + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+  --vis: 100vh;                                     /* visible area for the composition */
+  --u: min(calc(100vw / 576), calc(var(--vis) / 1024));
+  --extra: calc(var(--vis) - 1024 * var(--u));
+  /* canvas width: the chosen panorama, never narrower than the screen (the
+     panorama is picked from the aspect ratio; when the toolbars shrink the
+     visible height it may need a few % of horizontal stretch) */
+  --cw: max(calc(var(--pw) * var(--u)), 100vw);
   position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  height: 100dvh;
+  left: 0;
+  right: 0;
+  top: calc(-1 * var(--bleed));
+  height: calc(100vh + 2 * var(--bleed));
+  height: calc(100lvh + 2 * var(--bleed));
   margin: 0;
   padding: 0;
   overflow: hidden;
-  container-type: size;
-  --u0: min(calc(100vw / 576), calc(100vh / 1024));
+  /* outside the extended canvas: sky above, the canvas' own bottom row
+     (bushes / grass) continued below, never a flat band */
   background:
     linear-gradient(var(--sky-top) 0 50%, transparent 50%),
-    var(--edge) 50% 0 / calc(var(--pw) * var(--u0)) 1px repeat-y,
-    var(--edge-color);
+    var(--edge) 50% 0 / var(--cw) 1px repeat-y,
+    var(--sky-top);
 }
 @supports (height: 100dvh) {
-  .app { --u0: min(calc(100vw / 576), calc(100dvh / 1024)); }
+  /* keep the whole original composition inside the visible (dynamic) viewport
+     so the button is never hidden behind a toolbar */
+  .app { --vis: 100dvh; }
 }
 
 .stage {
-  --u: min(calc(100cqw / 576), calc(100cqh / 1024));
-  --extra: calc(100cqh - 1024 * var(--u));
   position: absolute;
   width: calc(576 * var(--u));
   height: calc(1024 * var(--u));
-  left: calc((100cqw - 576 * var(--u)) / 2);
-  /* leftover height: a bit more above (open sky) than below (bushes), each
-     side capped by how far the artwork was extended */
-  top: max(calc(var(--extra) * 0.5), min(calc(var(--extra) * 0.55), calc(159.7 * var(--u))));
+  left: calc((100vw - 576 * var(--u)) / 2);
+  /* leftover visible height: a bit more above (open sky) than below (bushes) */
+  top: calc(var(--bleed) + max(calc(var(--extra) * 0.5), min(calc(var(--extra) * 0.55), calc(159.7 * var(--u)))));
 }
 
 .scene {
   position: absolute;
-  left: calc(var(--ox) * var(--u) * -1);
+  left: calc((576 * var(--u) - var(--cw)) / 2);
   top: calc(-159.77 * var(--u));
-  width: calc(var(--pw) * var(--u));
+  width: var(--cw);
   height: calc(1343.02 * var(--u));
   background: var(--scene) 0 0 / 100% 100% no-repeat;
   pointer-events: none;
