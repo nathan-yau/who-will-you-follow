@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=9" />
+  <link rel="stylesheet" href="../css/admin.css?v=10" />
 </head>
 <body>
   <header class="top">
@@ -57,7 +57,14 @@
       </div>
       <ul class="warnings" id="warnings"></ul>
 
-      <div class="grid" id="grid"></div>
+      <div class="listhead">
+        <h2>玩家名單 <span class="muted">點身分或代號即可切換</span></h2>
+        <div class="lockwrap">
+          <span class="lock__hint" id="lockHint">先解鎖</span>
+          <button class="lock" id="lock" type="button" aria-pressed="false" title="鎖定可避免誤觸"><span id="lockIcon" aria-hidden="true">🔒</span><span id="lockText">已鎖定</span></button>
+        </div>
+      </div>
+      <div class="grid is-locked" id="grid"></div>
       <div class="empty card" id="empty" hidden>
         <p>目前還沒有玩家加入。</p>
         <p class="muted">玩家打開遊戲、選擇角色並按「加入遊戲」後會出現在這裡。</p>
@@ -74,6 +81,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=7"></script>
-  <script src="../js/admin.js?v=9"></script>
+  <script src="../js/admin.js?v=10"></script>
 </body>
 </html>

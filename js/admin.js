@@ -8,7 +8,6 @@
   var chars = {};
   var state = null;
   var timer = 0;
-  var pendingRender = false;
   var lastSig = '';
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -58,7 +57,7 @@
   function sync(ok, text) { $('sync').className = 'sync ' + (ok ? 'ok' : 'bad'); $('syncText').textContent = text; }
   function refresh() {
     return WWYF.admin('GET', 'state').then(function (s) {
-      state = s; sync(true, '即時同步');
+      state = s; overlay(); sync(true, '即時同步');
       render();
     }).catch(function (e) {
       if (e.status === 401) { logout('登入已過期，請重新登入'); return; }
@@ -66,6 +65,7 @@
     });
   }
   function start() {
+    setLocked(true);
     $('login').hidden = true; $('dash').hidden = false; $('topRight').hidden = false;
     refresh();
     clearInterval(timer);
@@ -73,10 +73,6 @@
   }
 
   /* ---------- render ---------- */
-  function interacting() {
-    var a = document.activeElement;
-    return a && a.tagName === 'SELECT' && $('grid').contains(a);
-  }
   function render() {
     if (!state) return;
     var s = state;
@@ -108,34 +104,22 @@
     var s = state;
     $('empty').hidden = s.players.length > 0;
     var sig = JSON.stringify([s.players.map(function (p) { return [p.id, p.characterId, p.nickname, p.role, p.leader, p.online]; }), s.roles]);
-    if (interacting()) { pendingRender = true; updateTimes(); return; }
     if (sig === lastSig) { updateTimes(); return; }
-    lastSig = sig; pendingRender = false;
+    lastSig = sig;
     var html = '';
     s.players.forEach(function (p) {
       var isLeader = p.role && s.leaderRoles.indexOf(p.role) >= 0;
-      var opts = '<option value="">未分配</option>';
-      s.roleOrder.forEach(function (r) {
-        var left = (s.roles[r] || 0) - (s.assigned[r] || 0) + (p.role === r ? 1 : 0);
-        opts += '<option value="' + esc(r) + '"' + (p.role === r ? ' selected' : '') + (left <= 0 && p.role !== r ? ' disabled' : '') + '>' +
-          esc(r) + (left <= 0 && p.role !== r ? '（已滿）' : '') + '</option>';
-      });
-      var lopts = '';
-      if (isLeader) {
-        var used = {};
-        s.players.forEach(function (q) { if (q.id !== p.id && q.leader && s.leaderRoles.indexOf(q.role) >= 0) used[q.leader] = 1; });
-        s.leaderLabels.forEach(function (l) {
-          lopts += '<option value="' + l + '"' + (p.leader === l ? ' selected' : '') + (used[l] ? ' disabled' : '') + '>' + l + (used[l] ? ' ·' : '') + '</option>';
-        });
-      }
-      html += '<article class="pc card' + (p.role ? '' : ' unassigned') + '" data-id="' + esc(p.id) + '" style="--c:' + (p.role ? ROLE_COLORS[p.role] : 'var(--line)') + '">' +
+      var name = esc(charName(p.characterId));
+      html += '<article class="pc card' + (p.role ? '' : ' unassigned') + (pend[p.id] ? ' saving' : '') + '" data-id="' + esc(p.id) + '" style="--c:' + (p.role ? ROLE_COLORS[p.role] : 'var(--line)') + '">' +
         '<div class="pc__icon"><img src="' + img(p.characterId) + '" alt="" loading="lazy" /></div>' +
-        '<p class="pc__name" lang="en">' + esc(charName(p.characterId)) + '</p>' +
-        '<p class="pc__meta"><i class="dot' + (p.online ? ' on' : '') + '"></i><span class="pc__seen" data-t="' + (p.lastSeen || '') + '">' + (p.online ? '在線' : '離線 · ' + ago(p.lastSeen)) + '</span>' +
+        '<p class="pc__name" lang="en">' + name + '</p>' +
+        '<p class="pc__meta"><i class="dot' + (p.online ? ' on' : '') + '"></i><span class="pc__seen">' + (p.online ? '在線' : '離線 · ' + ago(p.lastSeen)) + '</span>' +
         (p.nickname ? '<span>·</span><span class="pc__nick">' + esc(p.nickname) + '</span>' : '') + '</p>' +
-        '<div class="pc__ctrl"><select class="sel sel--role" aria-label="身分">' + opts + '</select>' +
-        (isLeader ? '<select class="sel sel--leader" aria-label="領袖代號">' + lopts + '</select>' : '') + '</div>' +
-        '<button class="kick" type="button" title="移出玩家" aria-label="移出 ' + esc(charName(p.characterId)) + '"><svg viewBox="0 0 14 14"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>' +
+        '<div class="pc__ctrl">' +
+          '<button class="pill' + (p.role ? '' : ' pill--none') + '" type="button" data-act="role" style="--c:' + (p.role ? ROLE_COLORS[p.role] : '#b9b4a4') + '" aria-label="身分：' + esc(p.role || '未分配') + '（點一下切換）">' + esc(p.role || '未分配') + '</button>' +
+          (isLeader ? '<button class="badge" type="button" data-act="leader" aria-label="領袖 ' + esc(p.leader || '?') + '（點一下切換）">' + esc(p.leader || '?') + '</button>' : '') +
+        '</div>' +
+        '<button class="kick" type="button" data-act="kick" title="移出玩家" aria-label="移出 ' + name + '"><svg viewBox="0 0 14 14"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>' +
         '</article>';
     });
     $('grid').innerHTML = html;
@@ -176,28 +160,117 @@
   /* ---------- actions ---------- */
   function act(btn, fn) {
     btn.disabled = true;
+    for (var k in saveTimers) clearTimeout(saveTimers[k]);
+    pend = {};
     return fn().then(refresh).catch(fail).then(function () { btn.disabled = false; });
   }
-  $('grid').addEventListener('change', function (e) {
-    var card = e.target.closest('.pc'); if (!card) return;
-    var id = card.getAttribute('data-id');
-    var role = card.querySelector('.sel--role').value || null;
-    var body = { playerId: id, role: role };
-    if (e.target.classList.contains('sel--leader')) body.leader = e.target.value;
-    card.classList.add('busy');
-    e.target.blur();
-    WWYF.admin('POST', 'role', body).then(function () { lastSig = ''; return refresh(); })
-      .catch(function (err) { lastSig = ''; fail(err); render(); })
-      .then(function () { card.classList.remove('busy'); });
-  });
-  $('grid').addEventListener('focusout', function () { setTimeout(function () { if (pendingRender && !interacting()) { lastSig = ''; render(); } }, 0); });
+  /* ---------- tap-to-cycle roles & leader letters (optimistic, saved via API) ---------- */
+  var CYCLE = [null, '平民', '真領袖支持者', '假領袖支持者', '假領袖', '真正領袖'];
+  var pend = {};                       // playerId -> {role, leader} not yet confirmed by the server
+  var saveTimers = {};
+  var saveChain = Promise.resolve();
+  function isLeaderRole(r) { return !!r && state.leaderRoles.indexOf(r) >= 0; }
+  function recount() {
+    var a = {}; state.roleOrder.forEach(function (r) { a[r] = 0; });
+    state.players.forEach(function (p) { if (p.role) a[p.role] = (a[p.role] || 0) + 1; });
+    state.assigned = a;
+  }
+  function overlay() {               // keep optimistic values visible across polls until saved
+    if (!state) return;
+    state.players.forEach(function (p) { var o = pend[p.id]; if (o) { p.role = o.role; p.leader = o.leader; } });
+    recount();
+  }
+  function usedLetters(exceptId) {
+    var u = {};
+    state.players.forEach(function (q) { if (q.id !== exceptId && isLeaderRole(q.role) && q.leader) u[q.leader] = 1; });
+    return u;
+  }
+  function nextRole(p) {
+    var i = CYCLE.indexOf(p.role); if (i < 0) i = 0;
+    for (var k = 1; k <= CYCLE.length; k++) {
+      var r = CYCLE[(i + k) % CYCLE.length];
+      if (r === null) return null;
+      var others = state.players.filter(function (q) { return q.id !== p.id && q.role === r; }).length;
+      if (others < (state.roles[r] || 0)) return r;
+    }
+    return null;
+  }
+  function apply(p, role, leader) {
+    pend[p.id] = { role: role, leader: leader };
+    p.role = role; p.leader = leader;
+    recount(); lastSig = ''; render();
+    clearTimeout(saveTimers[p.id]);
+    saveTimers[p.id] = setTimeout(function () { save(p.id); }, 350);   // coalesce quick multi-taps into one save
+  }
+  function save(id) {
+    var sent = pend[id]; if (!sent) return;
+    var body = { playerId: id, role: sent.role };
+    if (isLeaderRole(sent.role) && sent.leader) body.leader = sent.leader;
+    saveChain = saveChain.then(function () {
+      return WWYF.admin('POST', 'role', body).then(function () {
+        if (pend[id] === sent) delete pend[id];
+      }).catch(function (err) {
+        if (pend[id] === sent) delete pend[id];   // revert to the server's value
+        fail(err);
+      }).then(function () { lastSig = ''; return refresh(); });
+    });
+  }
+  function cycleRole(p) {
+    var role = nextRole(p), leader = null;
+    if (isLeaderRole(role)) {
+      var u = usedLetters(p.id);
+      leader = isLeaderRole(p.role) && p.leader && !u[p.leader] ? p.leader
+        : (state.leaderLabels.filter(function (l) { return !u[l]; })[0] || null);
+    }
+    apply(p, role, leader);
+  }
+  function cycleLetter(p) {
+    var u = usedLetters(p.id), L = state.leaderLabels, i = L.indexOf(p.leader);
+    for (var k = 1; k <= L.length; k++) {
+      var l = L[(i + k + L.length) % L.length];
+      if (!u[l]) { if (l !== p.leader) apply(p, p.role, l); else toast('其他領袖代號都已被使用'); return; }
+    }
+  }
+
+  /* ---------- lock (UI only): default locked, auto re-lock after 30 s without role taps ---------- */
+  var LOCK_MS = 30000, locked = true, lockAt = 0, lockTick = 0;
+  function setLocked(v) {
+    locked = v;
+    clearInterval(lockTick);
+    if (!v) { lockAt = Date.now() + LOCK_MS; lockTick = setInterval(lockUi, 500); }
+    lockUi();
+  }
+  function lockUi() {
+    var b = $('lock'), left = Math.ceil((lockAt - Date.now()) / 1000);
+    if (!locked && left <= 0) { setLocked(true); return; }
+    $('grid').classList.toggle('is-locked', locked);
+    b.classList.toggle('is-open', !locked);
+    b.setAttribute('aria-pressed', String(!locked));
+    $('lockIcon').textContent = locked ? '🔒' : '🔓';
+    $('lockText').textContent = locked ? '已鎖定' : '已解鎖 · ' + left + ' 秒後自動鎖定';
+  }
+  function touchLock() { if (!locked) lockAt = Date.now() + LOCK_MS; lockUi(); }
+  var hintT = 0;
+  function nudge(el) {
+    [el, $('lock')].forEach(function (x) { x.classList.remove('shake'); void x.offsetWidth; x.classList.add('shake'); });
+    var h = $('lockHint'); h.classList.add('show');
+    clearTimeout(hintT); hintT = setTimeout(function () { h.classList.remove('show'); }, 1300);
+  }
+  $('lock').addEventListener('click', function () { setLocked(!locked); });
+
   $('grid').addEventListener('click', function (e) {
-    var b = e.target.closest('.kick'); if (!b) return;
+    var b = e.target.closest('[data-act]'); if (!b || !state) return;
     var card = b.closest('.pc'), id = card.getAttribute('data-id');
-    var p = state.players.find(function (q) { return q.id === id; });
-    if (!confirm('確定要把「' + charName(p && p.characterId) + '」移出遊戲嗎？\n該玩家需要重新選擇角色加入。')) return;
-    card.classList.add('busy');
-    WWYF.admin('POST', 'kick', { playerId: id }).then(function () { toast('已移出玩家'); lastSig = ''; return refresh(); }).catch(fail);
+    var p = state.players.find(function (q) { return q.id === id; }); if (!p) return;
+    if (locked) { nudge(b); return; }
+    var act = b.getAttribute('data-act');
+    if (act === 'role') { touchLock(); cycleRole(p); }
+    else if (act === 'leader') { touchLock(); cycleLetter(p); }
+    else if (act === 'kick') {
+      if (!confirm('確定要把「' + charName(p.characterId) + '」移出遊戲嗎？\n該玩家需要重新選擇角色加入。')) return;
+      card.classList.add('busy');
+      WWYF.admin('POST', 'kick', { playerId: id }).then(function () { toast('已移出玩家'); lastSig = ''; return refresh(); }).catch(fail);
+    }
   });
   $('random').addEventListener('click', function () {
     var b = this;
