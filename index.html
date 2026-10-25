@@ -9,18 +9,20 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,600&family=Chiron+GoRound+TC:wght@500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/style.css?v=4" />
+    <link rel="stylesheet" href="css/style.css?v=5" />
 </head>
 <body>
   <main class="app" aria-labelledby="title">
     <div class="stage">
       <!-- scenery: the original 576x1024 artwork extended outward on every side -->
       <div class="scene" aria-hidden="true"></div>
+      <!-- meadow continuing below the canvas, to the physical bottom of the screen -->
+      <div class="ground" aria-hidden="true"></div>
 
       <!-- title block -->
       <header class="title-block anchor-top-group">
-        <img class="deco spark" src="assets/img/spark-l.png?v=4" alt="" style="--x:88;--y:206;--w:29" />
-        <img class="deco spark" src="assets/img/spark-r.png?v=4" alt="" style="--x:486;--y:204;--w:26" />
+        <img class="deco spark" src="assets/img/spark-l.png?v=5" alt="" style="--x:88;--y:206;--w:29" />
+        <img class="deco spark" src="assets/img/spark-r.png?v=5" alt="" style="--x:486;--y:204;--w:26" />
         <h1 id="title" class="title" lang="en" aria-label="Who Will You Follow?">
           <span class="title__line title__line--1" aria-hidden="true"><span class="ch" style="--r:-10.9;--dy:17.6">W</span><span class="ch" style="--r:-7.6;--dy:8.5">h</span><span class="ch" style="--r:-5.3;--dy:4.1">o</span><span class="sp"> </span><span class="ch" style="--r:-1.2;--dy:0.2">W</span><span class="ch" style="--r:1.5;--dy:0.3">i</span><span class="ch" style="--r:2.7;--dy:1.1">l</span><span class="ch" style="--r:4.0;--dy:2.4">l</span><span class="sp"> </span><span class="ch" style="--r:6.9;--dy:7.0">Y</span><span class="ch" style="--r:9.4;--dy:13.1">o</span><span class="ch" style="--r:11.7;--dy:20.1">u</span></span>
           <span class="title__line title__line--2" aria-hidden="true"><span class="ch" style="--r:-2;--dy:0">F</span><span class="ch" style="--r:0;--dy:-1">o</span><span class="ch">l</span><span class="ch">l</span><span class="ch" style="--r:0;--dy:-1">o</span><span class="ch" style="--r:2;--dy:1">w</span><span class="ch" style="--r:8;--dy:3">?</span></span>
@@ -30,7 +32,7 @@
 
       <!-- welcome + actions -->
       <section class="intro">
-        <img class="sprout" src="assets/img/sprout.png?v=4" alt="" />
+        <img class="sprout" src="assets/img/sprout.png?v=5" alt="" />
         <p class="welcome">歡迎參加幸福小組<br />一齊參加遊戲啦</p>
         <!-- TODO: characters/ page is not built yet -->
         <a class="btn btn--primary" href="characters/">

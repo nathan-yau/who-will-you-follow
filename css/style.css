@@ -24,25 +24,30 @@
    Each extended canvas is pw x 1343 design units: the original sits at
    y = 159.77 inside it, centred horizontally. The narrowest canvas that still covers the
    screen width is picked per aspect ratio. */
-:root { --pw: 576; --scene: url("../assets/img/scene-576.webp?v=4"); --edge: url("../assets/img/edge-576.png?v=4"); }
-@media (min-aspect-ratio: 576.01/1024) { :root { --pw: 608; --scene: url("../assets/img/scene-608.webp?v=4"); --edge: url("../assets/img/edge-608.png?v=4"); } }
-@media (min-aspect-ratio: 608.01/1024) { :root { --pw: 640; --scene: url("../assets/img/scene-640.webp?v=4"); --edge: url("../assets/img/edge-640.png?v=4"); } }
-@media (min-aspect-ratio: 640.01/1024) { :root { --pw: 700; --scene: url("../assets/img/scene-700.webp?v=4"); --edge: url("../assets/img/edge-700.png?v=4"); } }
-@media (min-aspect-ratio: 700.01/1024) { :root { --pw: 768; --scene: url("../assets/img/scene-768.webp?v=4"); --edge: url("../assets/img/edge-768.png?v=4"); } }
-@media (min-aspect-ratio: 768.01/1024) { :root { --pw: 896; --scene: url("../assets/img/scene-896.webp?v=4"); --edge: url("../assets/img/edge-896.png?v=4"); } }
-@media (min-aspect-ratio: 896.01/1024) { :root { --pw: 1024; --scene: url("../assets/img/scene-1024.webp?v=4"); --edge: url("../assets/img/edge-1024.png?v=4"); } }
-@media (min-aspect-ratio: 1024.01/1024) { :root { --pw: 1180; --scene: url("../assets/img/scene-1180.webp?v=4"); --edge: url("../assets/img/edge-1180.png?v=4"); } }
-@media (min-aspect-ratio: 1180.01/1024) { :root { --pw: 1365; --scene: url("../assets/img/scene-1365.webp?v=4"); --edge: url("../assets/img/edge-1365.png?v=4"); } }
-@media (min-aspect-ratio: 1365.01/1024) { :root { --pw: 1580; --scene: url("../assets/img/scene-1580.webp?v=4"); --edge: url("../assets/img/edge-1580.png?v=4"); } }
-@media (min-aspect-ratio: 1580.01/1024) { :root { --pw: 1820; --scene: url("../assets/img/scene-1820.webp?v=4"); --edge: url("../assets/img/edge-1820.png?v=4"); } }
-@media (min-aspect-ratio: 1820.01/1024) { :root { --pw: 2048; --scene: url("../assets/img/scene-2048.webp?v=4"); --edge: url("../assets/img/edge-2048.png?v=4"); } }
-@media (min-aspect-ratio: 2048.01/1024) { :root { --pw: 2400; --scene: url("../assets/img/scene-2400.webp?v=4"); --edge: url("../assets/img/edge-2400.png?v=4"); } }
+:root { --pw: 576; --scene: url("../assets/img/scene-576.webp?v=5"); }
+@media (min-aspect-ratio: 576.01/1024) { :root { --pw: 608; --scene: url("../assets/img/scene-608.webp?v=5"); } }
+@media (min-aspect-ratio: 608.01/1024) { :root { --pw: 640; --scene: url("../assets/img/scene-640.webp?v=5"); } }
+@media (min-aspect-ratio: 640.01/1024) { :root { --pw: 700; --scene: url("../assets/img/scene-700.webp?v=5"); } }
+@media (min-aspect-ratio: 700.01/1024) { :root { --pw: 768; --scene: url("../assets/img/scene-768.webp?v=5"); } }
+@media (min-aspect-ratio: 768.01/1024) { :root { --pw: 896; --scene: url("../assets/img/scene-896.webp?v=5"); } }
+@media (min-aspect-ratio: 896.01/1024) { :root { --pw: 1024; --scene: url("../assets/img/scene-1024.webp?v=5"); } }
+@media (min-aspect-ratio: 1024.01/1024) { :root { --pw: 1180; --scene: url("../assets/img/scene-1180.webp?v=5"); } }
+@media (min-aspect-ratio: 1180.01/1024) { :root { --pw: 1365; --scene: url("../assets/img/scene-1365.webp?v=5"); } }
+@media (min-aspect-ratio: 1365.01/1024) { :root { --pw: 1580; --scene: url("../assets/img/scene-1580.webp?v=5"); } }
+@media (min-aspect-ratio: 1580.01/1024) { :root { --pw: 1820; --scene: url("../assets/img/scene-1820.webp?v=5"); } }
+@media (min-aspect-ratio: 1820.01/1024) { :root { --pw: 2048; --scene: url("../assets/img/scene-2048.webp?v=5"); } }
+@media (min-aspect-ratio: 2048.01/1024) { :root { --pw: 2400; --scene: url("../assets/img/scene-2400.webp?v=5"); } }
 
-/* The page never scrolls in any direction. */
+/* The page never scrolls in any direction. Nothing on this page is
+   position:fixed: iOS 26 Safari paints a solid colour behind its floating
+   top/bottom bars taken from the background-color of fixed elements that
+   touch the viewport edge (and ignores theme-color), which hid the artwork.
+   Without fixed elements it falls back to the root background colour at the
+   very top and lets normal content show through the translucent bottom bar.
+   Scrolling is prevented by overflow:hidden here plus the touch/scroll lock
+   script in index.html. */
 html,
 body {
-  position: fixed;
-  inset: 0;
   width: 100%;
   height: 100%;
   margin: 0;
@@ -53,10 +58,10 @@ body {
 }
 html {
   /* light sky green sampled from the top of the artwork (#e9f2e3) */
-  background: var(--sky-top);
+  background-color: var(--sky-top);
 }
 body {
-  background: var(--sky-top);
+  background-color: var(--sky-top);
   font-family: "Chiron GoRound TC", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
@@ -66,12 +71,12 @@ body {
   -webkit-touch-callout: none;
 }
 
-/* Fixed art layer. It covers the LARGE viewport (100lvh: the whole screen,
-   including what sits under iOS Safari's floating translucent toolbars) plus
-   a bleed above and below, so the artwork runs to the physical edges of the
-   screen. Being position:fixed with overflow:hidden it never creates scroll. */
+/* Art layer (absolutely positioned, NOT fixed, no background colour of its
+   own). It is as tall as the LARGE viewport (100lvh: the whole screen,
+   including what sits under Safari's floating translucent toolbars) plus a
+   bleed, so the artwork runs to the physical bottom edge of the screen. */
 .app {
-  --bleed: calc(160px + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+  --bleed: calc(120px + env(safe-area-inset-bottom, 0px));
   --vis: 100vh;                                     /* visible area for the composition */
   --u: min(calc(100vw / 576), calc(var(--vis) / 1024));
   --extra: calc(var(--vis) - 1024 * var(--u));
@@ -79,21 +84,15 @@ body {
      panorama is picked from the aspect ratio; when the toolbars shrink the
      visible height it may need a few % of horizontal stretch) */
   --cw: max(calc(var(--pw) * var(--u)), 100vw);
-  position: fixed;
+  position: absolute;
   left: 0;
   right: 0;
-  top: calc(-1 * var(--bleed));
-  height: calc(100vh + 2 * var(--bleed));
-  height: calc(100lvh + 2 * var(--bleed));
+  top: 0;
+  height: calc(100vh + var(--bleed));
+  height: calc(max(100%, 100lvh) + var(--bleed));
   margin: 0;
   padding: 0;
   overflow: hidden;
-  /* outside the extended canvas: sky above, the canvas' own bottom row
-     (bushes / grass) continued below, never a flat band */
-  background:
-    linear-gradient(var(--sky-top) 0 50%, transparent 50%),
-    var(--edge) 50% 0 / var(--cw) 1px repeat-y,
-    var(--sky-top);
 }
 @supports (height: 100dvh) {
   /* keep the whole original composition inside the visible (dynamic) viewport
@@ -107,7 +106,7 @@ body {
   height: calc(1024 * var(--u));
   left: calc((100vw - 576 * var(--u)) / 2);
   /* leftover visible height: a bit more above (open sky) than below (bushes) */
-  top: calc(var(--bleed) + max(calc(var(--extra) * 0.5), min(calc(var(--extra) * 0.55), calc(159.7 * var(--u)))));
+  top: calc(max(calc(var(--extra) * 0.5), min(calc(var(--extra) * 0.55), calc(159.7 * var(--u)))));
 }
 
 .scene {
@@ -117,6 +116,19 @@ body {
   width: var(--cw);
   height: calc(1343.02 * var(--u));
   background: var(--scene) 0 0 / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+/* Below the extended canvas: open meadow (tiles in both directions) with a
+   few grass tufts, continuing the canvas' own bottom edge, down to the
+   physical bottom of the screen. */
+.ground {
+  position: absolute;
+  left: calc((576 * var(--u) - 100vw) / 2 - 2px);
+  width: calc(100vw + 4px);
+  top: calc(1182.5 * var(--u));
+  height: calc(100lvh + 200px);
+  background: #d0ddb2 url("../assets/img/ground.png?v=5") 50% 0 / calc(576 * var(--u)) calc(240 * var(--u)) repeat;
   pointer-events: none;
 }
 
