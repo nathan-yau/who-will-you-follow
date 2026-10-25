@@ -7,8 +7,10 @@ Netlify publishes the repo root (`netlify.toml`).
 
 Local preview: `python3 -m http.server 8000`, then open http://localhost:8000
 
-- **開始** → `/play` (not built yet)
-- **進入角色選擇** → `/characters` (placeholder)
+- **角色選擇** → `characters/` (relative link, page not built yet)
 
-Layout is drawn on a 576×1024 design grid (container query units) and scales to any portrait phone;
-on tablets and desktops a content-aware widened version of the artwork (`assets/img/scene-wide-*.webp`) fills the full width.
+Layout: the original 576×1024 composition is always fully visible ("contain", scaled by
+`min(width/576, height/1024)`), and the rest of the screen is covered by the same artwork extended
+outward on every side (`assets/img/scene-<width>.webp`, content-aware seam insertion; the narrowest
+one that covers the screen is picked per aspect ratio). The page never scrolls.
+Asset URLs carry `?v=N` for cache-busting; bump it on each visual change.

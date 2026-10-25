@@ -1,6 +1,6 @@
 /* Who Will You Follow? — landing page
    Layout is authored in a 576 × 1024 design grid; 1 design unit = var(--u).
-   See .stage for how the frame fills phones, tablets and desktops edge to edge. */
+   See .stage for how the frame fits every screen. */
 
 *,
 *::before,
@@ -12,130 +12,120 @@
   --ink-soft: #524b3e;     /* welcome text */
   --green: #6b8e65;        /* primary button */
   --green-dark: #5f845a;
-  --green-line: #618a5e;   /* outline button border */
-  --green-text: #587d52;   /* outline button text */
   --cream: #f1f2df;
+  --sky-top: #e9f2e3;       /* top row of the artwork */
+  --edge-color: #acc090;    /* bottom meadow row of the artwork */
 }
 
-html, body {
-  margin: 0;
-  height: 100%;
-  background: var(--sky);
-}
+/* ---------- layout ----------
+   "Contain" the original 576 x 1024 composition (title, cat, signpost, path,
+   bottom bushes are always fully visible), and "cover" the rest of the screen
+   with the same artwork extended outward on every side (sky / hills / meadow /
+   bushes continued with content-aware seam insertion; the original pixels are
+   untouched in the middle). Text and buttons are placed on the 576 x 1024 grid.
+   Each extended canvas is pw x 1343 design units: the original sits at
+   x = --ox, y = 159.77 inside it. The narrowest canvas that still covers the
+   screen width is picked per aspect ratio. */
+:root { --pw: 576; --ox: 0.0; --scene: url("../assets/img/scene-576.webp?v=3"); --edge: url("../assets/img/edge-576.png?v=3"); }
+@media (min-aspect-ratio: 576.01/1024) { :root { --pw: 608; --ox: 15.91; --scene: url("../assets/img/scene-608.webp?v=3"); --edge: url("../assets/img/edge-608.png?v=3"); } }
+@media (min-aspect-ratio: 608.01/1024) { :root { --pw: 640; --ox: 31.83; --scene: url("../assets/img/scene-640.webp?v=3"); --edge: url("../assets/img/edge-640.png?v=3"); } }
+@media (min-aspect-ratio: 640.01/1024) { :root { --pw: 700; --ox: 61.82; --scene: url("../assets/img/scene-700.webp?v=3"); --edge: url("../assets/img/edge-700.png?v=3"); } }
+@media (min-aspect-ratio: 700.01/1024) { :root { --pw: 768; --ox: 96.1; --scene: url("../assets/img/scene-768.webp?v=3"); --edge: url("../assets/img/edge-768.png?v=3"); } }
+@media (min-aspect-ratio: 768.01/1024) { :root { --pw: 896; --ox: 159.76; --scene: url("../assets/img/scene-896.webp?v=3"); --edge: url("../assets/img/edge-896.png?v=3"); } }
+@media (min-aspect-ratio: 896.01/1024) { :root { --pw: 1024; --ox: 224.03; --scene: url("../assets/img/scene-1024.webp?v=3"); --edge: url("../assets/img/edge-1024.png?v=3"); } }
+@media (min-aspect-ratio: 1024.01/1024) { :root { --pw: 1180; --ox: 301.77; --scene: url("../assets/img/scene-1180.webp?v=3"); --edge: url("../assets/img/edge-1180.png?v=3"); } }
+@media (min-aspect-ratio: 1180.01/1024) { :root { --pw: 1365; --ox: 394.2; --scene: url("../assets/img/scene-1365.webp?v=3"); --edge: url("../assets/img/edge-1365.png?v=3"); } }
+@media (min-aspect-ratio: 1365.01/1024) { :root { --pw: 1580; --ox: 501.93; --scene: url("../assets/img/scene-1580.webp?v=3"); --edge: url("../assets/img/edge-1580.png?v=3"); } }
+@media (min-aspect-ratio: 1580.01/1024) { :root { --pw: 1820; --ox: 621.91; --scene: url("../assets/img/scene-1820.webp?v=3"); --edge: url("../assets/img/edge-1820.png?v=3"); } }
+@media (min-aspect-ratio: 1820.01/1024) { :root { --pw: 2048; --ox: 735.76; --scene: url("../assets/img/scene-2048.webp?v=3"); --edge: url("../assets/img/edge-2048.png?v=3"); } }
+@media (min-aspect-ratio: 2048.01/1024) { :root { --pw: 2400; --ox: 912.05; --scene: url("../assets/img/scene-2400.webp?v=3"); --edge: url("../assets/img/edge-2400.png?v=3"); } }
 
+/* The page never scrolls in any direction. */
+html,
 body {
-  min-height: 100vh;
-  min-height: 100dvh;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+html {
+  /* anything outside the page (iOS toolbars / safe areas) continues the art:
+     sky above, the canvas' own bottom row repeated below */
+  background: var(--sky-top);
+}
+body {
+  background: transparent;
   font-family: "Chiron GoRound TC", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .app {
-  position: relative;
+  position: fixed;
+  inset: 0;
   width: 100%;
-  height: 100vh;
+  height: 100%;
   height: 100dvh;
   margin: 0;
   padding: 0;
-  container-type: size;
-  background: var(--sky);
   overflow: hidden;
+  container-type: size;
+  --u0: min(calc(100vw / 576), calc(100vh / 1024));
+  background:
+    linear-gradient(var(--sky-top) 0 50%, transparent 50%),
+    var(--edge) 50% 0 / calc(var(--pw) * var(--u0)) 1px repeat-y,
+    var(--edge-color);
+}
+@supports (height: 100dvh) {
+  .app { --u0: min(calc(100vw / 576), calc(100dvh / 1024)); }
 }
 
-/* The 576 x 1024 design frame. 1 design unit = var(--u).
-   Portrait: the frame is zoomed slightly past the screen width (sides crop a
-   little) so the content reads larger, and the leftover height goes into the
-   empty meadow band.
-   Landscape / tablets: a content-aware widened panorama of the same artwork
-   fills the full width; the frame is fitted to the height (cover). */
 .stage {
-  --wfit: calc(100cqw / 576);
-  --hfit: calc(100cqh / 1024);
-  --u: max(var(--wfit), min(var(--hfit), calc(var(--wfit) * 1.12)));
-  --H: 100cqh;
-  --extra: max(0px, calc(var(--H) - 1024 * var(--u)));
-  --top: calc(var(--extra) * 0.5);                /* leftover height is shared above and below the landscape */
-  --bottom-origin: calc(var(--H) - 1024 * var(--u)); /* y=0 for bottom-anchored items */
+  --u: min(calc(100cqw / 576), calc(100cqh / 1024));
+  --extra: calc(100cqh - 1024 * var(--u));
   position: absolute;
-  left: calc((100cqw - 576 * var(--u)) / 2);
-  top: calc((100cqh - var(--H)) / 2);
   width: calc(576 * var(--u));
-  height: var(--H);
+  height: calc(1024 * var(--u));
+  left: calc((100cqw - 576 * var(--u)) / 2);
+  /* leftover height: a bit more above (open sky) than below (bushes), each
+     side capped by how far the artwork was extended */
+  top: max(calc(var(--extra) * 0.5), min(calc(var(--extra) * 0.55), calc(159.7 * var(--u))));
 }
 
-.scene--wide { display: none; }
-
-@media (min-aspect-ratio: 580/1024) {
-  .stage {
-    --pw: 768;
-    --u: max(var(--hfit), calc(100cqw / var(--pw)));
-    --H: calc(1024 * var(--u));
-  }
-  .scene--top, .scene--mid, .scene--bottom, .deco.anchor-top, .deco.anchor-bottom { display: none; }
-  .scene.scene--wide {
-    display: block;
-    top: 0;
-    height: calc(1024 * var(--u));
-    /* any horizontal slack is cropped mostly from the left, so the signpost
-       (close to the artwork's right edge) stays in view */
-    left: calc((var(--pw) * var(--u) - 100cqw) * -0.85 - (100cqw - 576 * var(--u)) / 2);
-    width: calc(var(--pw) * var(--u));
-    background-image: var(--wide);
-  }
-}
-@media (min-aspect-ratio: 580/1024) and (max-aspect-ratio: 767/1024) { .stage { --pw: 768; } .scene--wide { --wide: url("../assets/img/scene-wide-768.webp"); } }
-@media (min-aspect-ratio: 767.01/1024) and (max-aspect-ratio: 895/1024) { .stage { --pw: 896; } .scene--wide { --wide: url("../assets/img/scene-wide-896.webp"); } }
-@media (min-aspect-ratio: 895.01/1024) and (max-aspect-ratio: 1023/1024) { .stage { --pw: 1024; } .scene--wide { --wide: url("../assets/img/scene-wide-1024.webp"); } }
-@media (min-aspect-ratio: 1023.01/1024) and (max-aspect-ratio: 1179/1024) { .stage { --pw: 1180; } .scene--wide { --wide: url("../assets/img/scene-wide-1180.webp"); } }
-@media (min-aspect-ratio: 1179.01/1024) and (max-aspect-ratio: 1364/1024) { .stage { --pw: 1365; } .scene--wide { --wide: url("../assets/img/scene-wide-1365.webp"); } }
-@media (min-aspect-ratio: 1364.01/1024) and (max-aspect-ratio: 1579/1024) { .stage { --pw: 1580; } .scene--wide { --wide: url("../assets/img/scene-wide-1580.webp"); } }
-@media (min-aspect-ratio: 1579.01/1024) and (max-aspect-ratio: 1819/1024) { .stage { --pw: 1820; } .scene--wide { --wide: url("../assets/img/scene-wide-1820.webp"); } }
-@media (min-aspect-ratio: 1819.01/1024) { .stage { --pw: 2048; } .scene--wide { --wide: url("../assets/img/scene-wide-2048.webp"); } }
-
-/* ---------- scenery ---------- */
 .scene {
   position: absolute;
-  left: 0;
-  width: 100%;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
+  left: calc(var(--ox) * var(--u) * -1);
+  top: calc(-159.77 * var(--u));
+  width: calc(var(--pw) * var(--u));
+  height: calc(1343.02 * var(--u));
+  background: var(--scene) 0 0 / 100% 100% no-repeat;
   pointer-events: none;
-}
-.scene--top {
-  top: var(--top);
-  height: calc(539.88 * var(--u));
-  background-image: url("../assets/img/scene-top.webp");
-}
-.scene--mid {
-  top: calc(var(--top) + 539.5 * var(--u));
-  bottom: calc(153.3 * var(--u));
-  background-image: url("../assets/img/scene-mid.webp");
-}
-.scene--bottom {
-  bottom: 0;
-  height: calc(153.64 * var(--u));
-  background-image: url("../assets/img/scene-bottom.webp");
 }
 
 .deco {
   position: absolute;
   left: calc(var(--x) * var(--u));
+  top: calc(var(--y) * var(--u));
   width: calc(var(--w) * var(--u));
   height: auto;
   pointer-events: none;
   user-select: none;
 }
-.anchor-top { top: calc(var(--top) + var(--y) * var(--u)); }
-.anchor-bottom { top: calc(var(--bottom-origin) + var(--y) * var(--u)); }
-.title-block .deco { top: calc(var(--y) * var(--u)); }
 
 /* ---------- title ---------- */
 .title-block {
   position: absolute;
   left: 0;
-  top: var(--top);
+  top: 0;
   width: 100%;
   height: calc(330 * var(--u));
   margin: 0;
@@ -188,12 +178,12 @@ body {
   transform: translateX(calc(var(--sx, 16) * var(--u)));
 }
 
-/* ---------- intro + buttons (anchored to the bottom of the screen) ---------- */
+/* ---------- intro + button ---------- */
 .intro {
   position: absolute;
   left: 0;
   width: 100%;
-  top: var(--bottom-origin);
+  top: 0;
   height: calc(1024 * var(--u));
   pointer-events: none;
 }
@@ -202,7 +192,7 @@ body {
 .sprout {
   position: absolute;
   left: calc(224 * var(--u));
-  top: calc(566 * var(--u));
+  top: calc(611 * var(--u));
   width: calc(128 * var(--u));
   height: auto;
   pointer-events: none;
@@ -212,7 +202,7 @@ body {
   position: absolute;
   left: 0;
   width: 100%;
-  top: calc(var(--wy, 619) * var(--u));
+  top: calc(var(--wy, 664) * var(--u));
   margin: 0;
   text-align: center;
   font-size: calc(var(--ws, 26.4) * var(--u));
@@ -220,7 +210,7 @@ body {
   font-weight: var(--wwt, 600);
   letter-spacing: calc(var(--wl, 2.2) * var(--u));
   color: var(--ink-soft);
-  transform: translateX(calc(var(--wx, 13) * var(--u)));
+  transform: translateX(calc(var(--wx, 10) * var(--u)));
 }
 
 .btn {
@@ -250,7 +240,7 @@ body {
 
 .btn--primary {
   left: calc(79 * var(--u));
-  top: calc(729 * var(--u));
+  top: calc(774 * var(--u));
   width: calc(418 * var(--u));
   height: calc(80 * var(--u));
   background: var(--green);
@@ -267,27 +257,6 @@ body {
 }
 .btn--primary:hover { background: #658a5f; box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) rgba(80, 115, 74, 0.25); }
 .btn--primary:active { transform: translateY(calc(2 * var(--u))) scale(0.985); background: var(--green-dark); box-shadow: none; }
-
-.btn--outline {
-  left: calc(141 * var(--u));
-  top: calc(828 * var(--u));
-  width: calc(293 * var(--u));
-  height: calc(64 * var(--u));
-  background: rgba(246, 246, 230, 0.45);
-  border: calc(2.2 * var(--u)) solid var(--green-line);
-  color: var(--green-text);
-  font-size: calc(var(--b2s, 19) * var(--u));
-  letter-spacing: calc(var(--b2l, 2.2) * var(--u));
-  gap: calc(var(--b2g, 19) * var(--u));
-  padding-left: calc(var(--b2p, 4) * var(--u));
-}
-.btn--outline .btn__arrow {
-  width: calc(21.5 * var(--u));
-  height: calc(21.5 * var(--u));
-  stroke-width: 2.6;
-}
-.btn--outline:hover { background: rgba(246, 246, 230, 0.85); }
-.btn--outline:active { transform: translateY(calc(2 * var(--u))) scale(0.985); background: rgba(107, 142, 101, 0.12); }
 
 @media (prefers-reduced-motion: reduce) {
   .btn { transition: none; }
