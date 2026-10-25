@@ -20,3 +20,13 @@ No element is `position: fixed` (iOS 26 Safari would paint that element's backgr
 behind its toolbars instead of the artwork); the page never scrolls (`overflow: hidden` on
 html/body plus a touch/scroll lock script).
 Asset URLs carry `?v=N` for cache-busting; bump it on each visual change.
+
+## Page 2 — Character Select (`characters/`)
+
+- `characters/index.html`, `css/characters.css`, `js/characters.js` (cache-bust `?v=6`).
+- Characters are rendered from `data/characters.json` (`{"characters":[{"id","name","tagline"}]}`);
+  images come from the id: `assets/characters/<id>/stale1.webp` / `stale2.webp` (idle loop).
+  Add/remove entries freely — thumbnail pages = ceil(n / 5).
+- Selection is saved in `localStorage["wwyf.character"]`; 「加入遊戲」 goes to `../join/`.
+- Same background treatment as page 1 (page-1 artwork on top, bushes + meadow to the physical
+  bottom, no `position: fixed`, no scrolling), laid out on a 474 x 1024 grid scaled to fit.

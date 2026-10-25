@@ -1,0 +1,24 @@
+{
+  "characters": [
+    { "id": "character_01", "name": "Meowsto",  "tagline": "Good Food, Good Days" },
+    { "id": "character_02", "name": "Bunbun",   "tagline": "Carrots Make Me Happy" },
+    { "id": "character_03", "name": "Poodle Puff", "tagline": "Fluffy and Friendly" },
+    { "id": "character_04", "name": "Pengu",    "tagline": "Cool Head, Warm Heart" },
+    { "id": "character_05", "name": "Dino Mo",  "tagline": "Small Roar, Big Hugs" },
+    { "id": "character_06", "name": "Honey Bear", "tagline": "Sweet Moments Only" },
+    { "id": "character_07", "name": "Calico",   "tagline": "Wink and Win" },
+    { "id": "character_08", "name": "Cloud Lamb", "tagline": "Soft as a Cloud" },
+    { "id": "character_09", "name": "Foxy",     "tagline": "Clever and Curious" },
+    { "id": "character_10", "name": "Koko Koala", "tagline": "Chill Vibes Always" },
+    { "id": "character_11", "name": "Bamboo",   "tagline": "Snack Time Is Best Time" },
+    { "id": "character_12", "name": "Chick Chick", "tagline": "Bright Little Sunshine" },
+    { "id": "character_13", "name": "Spike",    "tagline": "Prickly Outside, Soft Inside" },
+    { "id": "character_14", "name": "Sealy",    "tagline": "Go With the Flow" },
+    { "id": "character_15", "name": "Nutty",    "tagline": "Always Saving for Later" },
+    { "id": "character_16", "name": "Bambi",    "tagline": "Gentle Steps Forward" },
+    { "id": "character_17", "name": "Cheesy",   "tagline": "Say Cheese!" },
+    { "id": "character_18", "name": "Bandit",   "tagline": "Sneaky but Sweet" },
+    { "id": "character_19", "name": "Quacky",   "tagline": "Just Keep Paddling" },
+    { "id": "character_20", "name": "Shiba Sun", "tagline": "Smile Every Day" }
+  ]
+}

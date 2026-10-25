@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#e9f2e3" />
+  <title>角色選擇 · Who Will You Follow? 你會跟隨誰？</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css?v=6" />
+  <link rel="stylesheet" href="../css/characters.css?v=6" />
+</head>
+<body>
+  <main class="cs-app">
+    <div class="cs-stage">
+      <!-- scenery: page-1 artwork (top), its bottom bushes, meadow to the physical bottom -->
+      <div class="cs-bg" aria-hidden="true">
+        <div class="cs-meadow"></div>
+        <div class="cs-scene cs-scene--top"></div>
+        <div class="cs-scene cs-scene--bottom"></div>
+        <div class="cs-ground"></div>
+      </div>
+
+      <div class="cs-title">
+        <header class="title-block">
+          <img class="deco spark" src="../assets/img/spark-l.png?v=6" alt="" style="--x:88;--y:206;--w:29" />
+          <img class="deco spark" src="../assets/img/spark-r.png?v=6" alt="" style="--x:486;--y:204;--w:26" />
+          <h1 id="title" class="title" lang="en" aria-label="Who Will You Follow?">
+            <span class="title__line title__line--1" aria-hidden="true"><span class="ch" style="--r:-10.9;--dy:17.6">W</span><span class="ch" style="--r:-7.6;--dy:8.5">h</span><span class="ch" style="--r:-5.3;--dy:4.1">o</span><span class="sp"> </span><span class="ch" style="--r:-1.2;--dy:0.2">W</span><span class="ch" style="--r:1.5;--dy:0.3">i</span><span class="ch" style="--r:2.7;--dy:1.1">l</span><span class="ch" style="--r:4.0;--dy:2.4">l</span><span class="sp"> </span><span class="ch" style="--r:6.9;--dy:7.0">Y</span><span class="ch" style="--r:9.4;--dy:13.1">o</span><span class="ch" style="--r:11.7;--dy:20.1">u</span></span>
+            <span class="title__line title__line--2" aria-hidden="true"><span class="ch" style="--r:-2;--dy:0">F</span><span class="ch" style="--r:0;--dy:-1">o</span><span class="ch">l</span><span class="ch">l</span><span class="ch" style="--r:0;--dy:-1">o</span><span class="ch" style="--r:2;--dy:1">w</span><span class="ch" style="--r:8;--dy:3">?</span></span>
+          </h1>
+          <p class="subtitle">你會跟隨誰？</p>
+        </header>
+      </div>
+
+      <div class="card abs" aria-hidden="true"></div>
+
+      <h2 class="cs-head abs">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><g fill="#ec8c7b"><ellipse cx="16" cy="21.5" rx="7.6" ry="6.4"/><ellipse cx="7" cy="13.5" rx="3.1" ry="3.9" transform="rotate(-18 7 13.5)"/><ellipse cx="12.4" cy="7.8" rx="3.1" ry="4" transform="rotate(-6 12.4 7.8)"/><ellipse cx="19.6" cy="7.8" rx="3.1" ry="4" transform="rotate(6 19.6 7.8)"/><ellipse cx="25" cy="13.5" rx="3.1" ry="3.9" transform="rotate(18 25 13.5)"/></g></svg>
+        <span lang="en">Choose Your Character</span>
+      </h2>
+      <p class="cs-sub abs">選擇一個你喜歡的角色加入遊戲！</p>
+
+      <div class="hero abs" aria-hidden="true"></div>
+      <svg class="tuft tuft--l abs" viewBox="0 0 24 18" aria-hidden="true"><g fill="#8db07c"><ellipse cx="5.5" cy="12" rx="2.6" ry="5.4" transform="rotate(-28 5.5 12)"/><ellipse cx="12" cy="9.5" rx="2.8" ry="7.5"/><ellipse cx="18.5" cy="12" rx="2.6" ry="5.4" transform="rotate(28 18.5 12)"/></g></svg>
+      <svg class="tuft tuft--r abs" viewBox="0 0 24 18" aria-hidden="true"><g fill="#8db07c"><ellipse cx="5.5" cy="12" rx="2.6" ry="5.4" transform="rotate(-28 5.5 12)"/><ellipse cx="12" cy="9.5" rx="2.8" ry="7.5"/><ellipse cx="18.5" cy="12" rx="2.6" ry="5.4" transform="rotate(28 18.5 12)"/></g></svg>
+      <div class="sprite abs" id="sprite">
+        <img class="f1" id="f1" alt="" draggable="false" />
+        <img class="f2" id="f2" alt="" draggable="false" />
+      </div>
+      <!-- swipe area over the big circle -->
+      <div class="hero-hit swipe abs" id="heroHit" aria-hidden="true"></div>
+
+      <button class="arrow arrow--prev abs" id="prev" type="button" aria-label="上一個角色 Previous">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" /></svg>
+      </button>
+      <button class="arrow arrow--next abs" id="next" type="button" aria-label="下一個角色 Next">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5" /></svg>
+      </button>
+
+      <p class="name abs fade" id="name" aria-live="polite"><span id="nameText" lang="en"></span><svg viewBox="0 0 20 20" aria-hidden="true"><path fill="#8ab27a" d="M2.5 17.5C2 10 6.5 3.5 17.5 2.5 18 10.5 12 16.5 2.5 17.5Z"/><path d="M4 16 13 7" stroke="#fdfaf1" stroke-width="1.3" stroke-linecap="round" fill="none"/></svg></p>
+      <p class="tagline abs fade" id="tagline" lang="en"></p>
+
+      <div class="thumbs swipe abs" id="thumbs" role="group" aria-label="角色 Characters">
+        <div class="thumbs__row" id="thumbRow"></div>
+      </div>
+      <div class="dots abs" id="dots" role="group" aria-label="頁 Pages"></div>
+
+      <section class="ready abs" aria-label="Ready to Join?">
+        <svg class="ready__spark abs" viewBox="0 0 44 44" aria-hidden="true"><path fill="#f1c552" d="M17 4c1.2 8.3 4.3 11.6 12.5 12.8C21.3 18 18.2 21.3 17 29.6 15.8 21.3 12.7 18 4.5 16.8 12.7 15.6 15.8 12.3 17 4Z"/><path fill="#f3cf6a" d="M32 24c.6 4.3 2.2 6 6.4 6.6-4.2.6-5.8 2.3-6.4 6.6-.6-4.3-2.2-6-6.4-6.6 4.2-.6 5.8-2.3 6.4-6.6Z"/></svg>
+        <h3 class="ready__title abs" lang="en">Ready to Join?</h3>
+        <p class="ready__text abs">選擇角色後，點擊「加入遊戲」<br />即可開始！</p>
+        <svg class="ready__sign abs" viewBox="0 0 92 88" aria-hidden="true">
+          <g fill="#8db07c"><ellipse cx="22" cy="80" rx="3" ry="7" transform="rotate(-30 22 80)"/><ellipse cx="28" cy="78" rx="3" ry="8.5"/><ellipse cx="34" cy="80" rx="3" ry="7" transform="rotate(30 34 80)"/><ellipse cx="60" cy="80" rx="3" ry="7" transform="rotate(-30 60 80)"/><ellipse cx="66" cy="78" rx="3" ry="8.5"/><ellipse cx="72" cy="80" rx="3" ry="7" transform="rotate(30 72 80)"/></g>
+          <rect x="41" y="20" width="10" height="64" rx="2.5" fill="#b8875a" stroke="#5e3f26" stroke-width="2.4"/>
+          <g transform="rotate(-7 46 33)">
+            <rect x="6" y="18" width="80" height="31" rx="6" fill="#d9a66d" stroke="#5e3f26" stroke-width="2.6"/>
+            <path d="M12 24h18M60 43h18" stroke="#c18e58" stroke-width="1.6" stroke-linecap="round"/>
+            <text x="46" y="39.5" text-anchor="middle" font-family="Fredoka, system-ui, sans-serif" font-weight="600" font-size="15" fill="#4f321c">Let's Go!</text>
+          </g>
+          <path d="M80 8l4-5M85 13l6-2" stroke="#3b2a1b" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M28 84h44" stroke="#9cbf8a" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </section>
+
+      <button class="btn cs-join abs" id="join" type="button">
+        <span class="btn__label">加入遊戲</span>
+        <svg class="btn__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12h19M14 4.5l7.5 7.5-7.5 7.5" /></svg>
+      </button>
+    </div>
+  </main>
+  <script>
+    // The page never scrolls: block touch panning / rubber-band and pinch zoom (iOS Safari).
+    (function () {
+      var stop = function (e) { e.preventDefault(); };
+      document.addEventListener('touchmove', stop, { passive: false });
+      document.addEventListener('gesturestart', stop, { passive: false });
+      document.addEventListener('gesturechange', stop, { passive: false });
+      document.addEventListener('wheel', function (e) { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+      var reset = function () { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); };
+      window.addEventListener('scroll', reset, { passive: true });
+    })();
+  </script>
+  <script src="../js/characters.js?v=6"></script>
+</body>
+</html>
