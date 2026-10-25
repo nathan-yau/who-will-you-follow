@@ -1,6 +1,6 @@
 /* Who Will You Follow? — landing page
    Layout is authored in a 576 × 1024 design grid; 1 design unit = var(--u).
-   Extra height on tall phones is absorbed by stretching the empty meadow band. */
+   See .stage for how the frame fills phones, tablets and desktops edge to edge. */
 
 *,
 *::before,
@@ -32,37 +32,67 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* soft continuation of the scenery colours on screens wider than the column */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: url("../assets/img/backdrop.webp") center / 100% 100% no-repeat;
-  z-index: 0;
-}
-
 .app {
   position: relative;
-  z-index: 1;
-  width: min(100vw, 56.25vh, 941px);
-  width: min(100vw, 56.25dvh, 941px);
+  width: 100%;
   height: 100vh;
   height: 100dvh;
-  margin: 0 auto;
+  margin: 0;
+  padding: 0;
   container-type: size;
   background: var(--sky);
   overflow: hidden;
-  box-shadow: 0 0 40px rgba(80, 110, 70, 0.12);
 }
 
+/* The 576 x 1024 design frame. 1 design unit = var(--u).
+   Portrait: the frame is zoomed slightly past the screen width (sides crop a
+   little) so the content reads larger, and the leftover height goes into the
+   empty meadow band.
+   Landscape / tablets: a content-aware widened panorama of the same artwork
+   fills the full width; the frame is fitted to the height (cover). */
 .stage {
-  --u: calc(100cqw / 576);
-  --extra: max(0px, calc(100cqh - 1024 * var(--u)));
-  --top: calc(var(--extra) * 0.25);             /* top group shifts down a little */
-  --bottom-origin: calc(100cqh - 1024 * var(--u)); /* y=0 for bottom-anchored items */
+  --wfit: calc(100cqw / 576);
+  --hfit: calc(100cqh / 1024);
+  --u: max(var(--wfit), min(var(--hfit), calc(var(--wfit) * 1.12)));
+  --H: 100cqh;
+  --extra: max(0px, calc(var(--H) - 1024 * var(--u)));
+  --top: calc(var(--extra) * 0.5);                /* leftover height is shared above and below the landscape */
+  --bottom-origin: calc(var(--H) - 1024 * var(--u)); /* y=0 for bottom-anchored items */
   position: absolute;
-  inset: 0;
+  left: calc((100cqw - 576 * var(--u)) / 2);
+  top: calc((100cqh - var(--H)) / 2);
+  width: calc(576 * var(--u));
+  height: var(--H);
 }
+
+.scene--wide { display: none; }
+
+@media (min-aspect-ratio: 580/1024) {
+  .stage {
+    --pw: 768;
+    --u: max(var(--hfit), calc(100cqw / var(--pw)));
+    --H: calc(1024 * var(--u));
+  }
+  .scene--top, .scene--mid, .scene--bottom, .deco.anchor-top, .deco.anchor-bottom { display: none; }
+  .scene.scene--wide {
+    display: block;
+    top: 0;
+    height: calc(1024 * var(--u));
+    /* any horizontal slack is cropped mostly from the left, so the signpost
+       (close to the artwork's right edge) stays in view */
+    left: calc((var(--pw) * var(--u) - 100cqw) * -0.85 - (100cqw - 576 * var(--u)) / 2);
+    width: calc(var(--pw) * var(--u));
+    background-image: var(--wide);
+  }
+}
+@media (min-aspect-ratio: 580/1024) and (max-aspect-ratio: 767/1024) { .stage { --pw: 768; } .scene--wide { --wide: url("../assets/img/scene-wide-768.webp"); } }
+@media (min-aspect-ratio: 767.01/1024) and (max-aspect-ratio: 895/1024) { .stage { --pw: 896; } .scene--wide { --wide: url("../assets/img/scene-wide-896.webp"); } }
+@media (min-aspect-ratio: 895.01/1024) and (max-aspect-ratio: 1023/1024) { .stage { --pw: 1024; } .scene--wide { --wide: url("../assets/img/scene-wide-1024.webp"); } }
+@media (min-aspect-ratio: 1023.01/1024) and (max-aspect-ratio: 1179/1024) { .stage { --pw: 1180; } .scene--wide { --wide: url("../assets/img/scene-wide-1180.webp"); } }
+@media (min-aspect-ratio: 1179.01/1024) and (max-aspect-ratio: 1364/1024) { .stage { --pw: 1365; } .scene--wide { --wide: url("../assets/img/scene-wide-1365.webp"); } }
+@media (min-aspect-ratio: 1364.01/1024) and (max-aspect-ratio: 1579/1024) { .stage { --pw: 1580; } .scene--wide { --wide: url("../assets/img/scene-wide-1580.webp"); } }
+@media (min-aspect-ratio: 1579.01/1024) and (max-aspect-ratio: 1819/1024) { .stage { --pw: 1820; } .scene--wide { --wide: url("../assets/img/scene-wide-1820.webp"); } }
+@media (min-aspect-ratio: 1819.01/1024) { .stage { --pw: 2048; } .scene--wide { --wide: url("../assets/img/scene-wide-2048.webp"); } }
 
 /* ---------- scenery ---------- */
 .scene {

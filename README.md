@@ -11,4 +11,4 @@ Local preview: `python3 -m http.server 8000`, then open http://localhost:8000
 - **進入角色選擇** → `/characters` (placeholder)
 
 Layout is drawn on a 576×1024 design grid (container query units) and scales to any portrait phone;
-on wide screens it shows a centered column.
+on tablets and desktops a content-aware widened version of the artwork (`assets/img/scene-wide-*.webp`) fills the full width.
