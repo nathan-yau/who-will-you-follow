@@ -164,8 +164,10 @@
   -webkit-user-drag: none;
 }
 /* idle loop: stale1 / stale2 swap every 0.5 s */
-.sprite .f2 { animation: flip 1s steps(1, end) infinite; }
-@keyframes flip { 0% { opacity: 0; } 50% { opacity: 1; } }
+.sprite .f1 { animation: flipA 1s steps(1, end) infinite; }
+.sprite .f2 { animation: flipB 1s steps(1, end) infinite; }
+@keyframes flipA { 0% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes flipB { 0% { opacity: 0; } 50% { opacity: 1; } }
 @keyframes bob { 0%, 100% { transform: translateY(0) scale(1, 1); } 50% { transform: translateY(calc(-2.5 * var(--U))) scale(1.01, 0.99); } }
 .sprite.pop { animation: pop 0.32s cubic-bezier(.3,1.5,.5,1), bob 1s ease-in-out 0.32s infinite; }
 @keyframes pop { 0% { opacity: 0; transform: scale(0.82) translateY(calc(6 * var(--U))); } 100% { opacity: 1; transform: none; } }
