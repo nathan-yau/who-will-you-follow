@@ -332,3 +332,46 @@
   .sprite, .sprite.pop { animation: none; }
   .thumbs__row, .fade { transition: none; }
 }
+
+/* ---------- backend states (taken characters, join feedback) ---------- */
+.thumb.taken { background: #efeee6; cursor: not-allowed; }
+.thumb.taken img { filter: grayscale(1); opacity: 0.38; }
+.thumb.taken:active { transform: none; }
+.thumb__lock {
+  position: absolute;
+  left: 50%; bottom: calc(-3 * var(--U));
+  transform: translateX(-50%);
+  padding: 0 calc(6 * var(--U));
+  border-radius: calc(8 * var(--U));
+  background: #8d877a;
+  color: #fff;
+  font-size: calc(10.5 * var(--U));
+  line-height: calc(17 * var(--U));
+  font-weight: 600;
+  letter-spacing: calc(0.6 * var(--U));
+  white-space: nowrap;
+  pointer-events: none;
+}
+.toast {
+  left: calc(57 * var(--U) - var(--side)); width: calc(360 * var(--U) + 2 * var(--side));
+  top: calc(836 * var(--U));
+  padding: calc(9 * var(--U)) calc(14 * var(--U));
+  border-radius: calc(16 * var(--U));
+  background: rgba(69, 48, 30, 0.92);
+  color: #fffaf0;
+  font-size: calc(13.5 * var(--U));
+  line-height: calc(20 * var(--U));
+  font-weight: 600;
+  letter-spacing: calc(0.6 * var(--U));
+  text-align: center;
+  box-sizing: border-box;
+  opacity: 0;
+  transform: translateY(calc(8 * var(--U)));
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  z-index: 5;
+}
+.toast.show { opacity: 1; transform: none; }
+.cs-join.is-busy { opacity: 0.75; pointer-events: none; }
+.cs-join.is-busy .btn__arrow { animation: nudge 0.6s ease-in-out infinite alternate; }
+@keyframes nudge { to { transform: translateX(calc(5 * var(--U))); } }

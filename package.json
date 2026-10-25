@@ -1,0 +1,9 @@
+{
+  "name": "who-will-you-follow",
+  "private": true,
+  "type": "module",
+  "description": "Who Will You Follow? 你會跟隨誰？ — static game pages + Netlify Functions backend",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.6"
+  }
+}

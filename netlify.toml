@@ -1,3 +1,9 @@
 [build]
   publish = "."
   command = ""
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# API: netlify/functions/api.mjs is mounted at /api/* via its config.path.

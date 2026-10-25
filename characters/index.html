@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/style.css?v=6" />
-  <link rel="stylesheet" href="../css/characters.css?v=7" />
+  <link rel="stylesheet" href="../css/characters.css?v=8" />
 </head>
 <body>
   <main class="cs-app">
@@ -84,6 +84,8 @@
         </svg>
       </section>
 
+      <div class="toast abs" id="toast" role="status" aria-live="polite"></div>
+
       <button class="btn cs-join abs" id="join" type="button">
         <span class="btn__label">加入遊戲</span>
         <svg class="btn__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12h19M14 4.5l7.5 7.5-7.5 7.5" /></svg>
@@ -102,6 +104,7 @@
       window.addEventListener('scroll', reset, { passive: true });
     })();
   </script>
-  <script src="../js/characters.js?v=6"></script>
+  <script src="../js/api.js?v=7"></script>
+  <script src="../js/characters.js?v=7"></script>
 </body>
 </html>

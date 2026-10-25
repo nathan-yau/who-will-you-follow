@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#e9f2e3" />
+  <meta name="robots" content="noindex" />
+  <title>主持人控制台 · Who Will You Follow?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/admin.css?v=9" />
+</head>
+<body>
+  <header class="top">
+    <div class="top__brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><g fill="#ec8c7b"><ellipse cx="16" cy="21.5" rx="7.6" ry="6.4"/><ellipse cx="7" cy="13.5" rx="3.1" ry="3.8"/><ellipse cx="12.4" cy="7.6" rx="3.1" ry="3.9"/><ellipse cx="19.6" cy="7.6" rx="3.1" ry="3.9"/><ellipse cx="25" cy="13.5" rx="3.1" ry="3.8"/></g></svg>
+      <div>
+        <h1>主持人控制台</h1>
+        <p lang="en">Who Will You Follow? 你會跟隨誰？</p>
+      </div>
+    </div>
+    <div class="top__right" id="topRight" hidden>
+      <span class="sync" id="sync"><i></i><span id="syncText">同步中…</span></span>
+      <span class="game">場次 <b id="gameId">–</b></span>
+      <button class="btn btn--ghost btn--sm" id="logout" type="button">登出</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- login -->
+    <section class="login card" id="login" hidden>
+      <h2>主持人登入</h2>
+      <p>請輸入管理密碼以查看玩家與分配身分。</p>
+      <form id="loginForm" autocomplete="on">
+        <input type="text" name="username" value="admin" autocomplete="username" hidden />
+        <input class="input input--pin" id="pw" type="password" name="password" inputmode="numeric" autocomplete="current-password" placeholder="管理密碼" maxlength="64" required />
+        <button class="btn btn--primary" id="loginBtn" type="submit">登入</button>
+      </form>
+      <p class="login__err" id="loginErr" role="alert"></p>
+    </section>
+
+    <!-- dashboard -->
+    <section id="dash" hidden>
+      <div class="summary card">
+        <div class="summary__count">
+          <span class="label">已加入玩家</span>
+          <span class="big"><b id="joined">0</b> / <span id="cap">17</span></span>
+          <span class="sub"><i class="dot on"></i>在線 <b id="online">0</b></span>
+        </div>
+        <div class="summary__roles" id="roleChips"></div>
+        <div class="summary__actions">
+          <button class="btn btn--primary" id="random" type="button">隨機分配角色</button>
+          <button class="btn btn--ghost" id="clear" type="button">清除所有角色</button>
+          <button class="btn btn--danger" id="reset" type="button">開始新一場 / 重設</button>
+        </div>
+      </div>
+      <ul class="warnings" id="warnings"></ul>
+
+      <div class="grid" id="grid"></div>
+      <div class="empty card" id="empty" hidden>
+        <p>目前還沒有玩家加入。</p>
+        <p class="muted">玩家打開遊戲、選擇角色並按「加入遊戲」後會出現在這裡。</p>
+      </div>
+
+      <details class="archive card" id="archiveBox">
+        <summary>過往場次紀錄 <span class="muted" id="archiveCount"></span></summary>
+        <ul id="archiveList"></ul>
+        <div id="archiveView"></div>
+      </details>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="../js/api.js?v=7"></script>
+  <script src="../js/admin.js?v=9"></script>
+</body>
+</html>
