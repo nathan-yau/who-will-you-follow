@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#e8f2e3" />
+  <title>Who Will You Follow? 你會跟隨誰？</title>
+  <meta name="description" content="歡迎來到遊戲世界，一起開始這趟旅程！" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,600&family=Chiron+GoRound+TC:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="preload" as="image" href="assets/img/scene-top.webp" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <main class="app" aria-labelledby="title">
+    <div class="stage">
+      <!-- scenery layers (artwork only, no text) -->
+      <div class="scene scene--top" aria-hidden="true"></div>
+      <div class="scene scene--mid" aria-hidden="true"></div>
+      <div class="scene scene--bottom" aria-hidden="true"></div>
+
+      <img class="deco anchor-top" src="assets/img/tuft-r1.png" alt="" style="--x:484;--y:519;--w:40" />
+      <img class="deco anchor-top" src="assets/img/flower-l.png" alt="" style="--x:27;--y:529;--w:34" />
+      <img class="deco anchor-top" src="assets/img/tuft-l1.png" alt="" style="--x:53;--y:554;--w:44" />
+      <img class="deco anchor-bottom" src="assets/img/flower-r.png" alt="" style="--x:500;--y:581;--w:44;--h:49" />
+      <img class="deco anchor-bottom" src="assets/img/tuft-l2.png" alt="" style="--x:10;--y:795;--w:41;--h:31" />
+
+      <!-- title block -->
+      <header class="title-block anchor-top-group">
+        <img class="deco spark" src="assets/img/spark-l.png" alt="" style="--x:88;--y:206;--w:29" />
+        <img class="deco spark" src="assets/img/spark-r.png" alt="" style="--x:486;--y:204;--w:26" />
+        <h1 id="title" class="title" lang="en" aria-label="Who Will You Follow?">
+          <span class="title__line title__line--1" aria-hidden="true"><span class="ch" style="--r:-10.9;--dy:17.6">W</span><span class="ch" style="--r:-7.6;--dy:8.5">h</span><span class="ch" style="--r:-5.3;--dy:4.1">o</span><span class="sp"> </span><span class="ch" style="--r:-1.2;--dy:0.2">W</span><span class="ch" style="--r:1.5;--dy:0.3">i</span><span class="ch" style="--r:2.7;--dy:1.1">l</span><span class="ch" style="--r:4.0;--dy:2.4">l</span><span class="sp"> </span><span class="ch" style="--r:6.9;--dy:7.0">Y</span><span class="ch" style="--r:9.4;--dy:13.1">o</span><span class="ch" style="--r:11.7;--dy:20.1">u</span></span>
+          <span class="title__line title__line--2" aria-hidden="true"><span class="ch" style="--r:-2;--dy:0">F</span><span class="ch" style="--r:0;--dy:-1">o</span><span class="ch">l</span><span class="ch">l</span><span class="ch" style="--r:0;--dy:-1">o</span><span class="ch" style="--r:2;--dy:1">w</span><span class="ch" style="--r:8;--dy:3">?</span></span>
+        </h1>
+        <p class="subtitle">你會跟隨誰？</p>
+      </header>
+
+      <!-- welcome + actions -->
+      <section class="intro">
+        <img class="sprout" src="assets/img/sprout.png" alt="" />
+        <p class="welcome">歡迎來到遊戲世界，<br />一起開始這趟旅程！</p>
+        <!-- TODO: /play and /characters pages are not built yet -->
+        <a class="btn btn--primary" href="/play">
+          <span class="btn__label">開始</span>
+          <svg class="btn__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12h19M14 4.5l7.5 7.5-7.5 7.5" /></svg>
+        </a>
+        <a class="btn btn--outline" href="/characters">
+          <span class="btn__label">進入角色選擇</span>
+          <svg class="btn__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12h19M14 4.5l7.5 7.5-7.5 7.5" /></svg>
+        </a>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
