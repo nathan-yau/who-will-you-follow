@@ -230,18 +230,17 @@ async function me(req, s, heartbeatOnly) {
   return out;
 }
 
-/** What a phone may know about its OWN role:
-    - leaders: their letter
-    - 假領袖支持者: the one 假領袖 they back (letter + character), from syncPairs()
+/** What a phone may know about its OWN role (never a leader letter — the slot letter is internal only;
+    phones/TV show character names from data/characters.json):
+    - 假領袖支持者: the one 假領袖 they back (character only), from syncPairs()
     - 假領袖: only a yes/no "someone secretly helps you" (never who) */
 async function roleView(s, p) {
   const out = { role: p.role };
-  if (p.leader && LEADER_ROLES.includes(p.role)) out.leader = p.leader;
   if (p.role === FAKE_SUPPORTER || p.role === FAKE_LEADER) {
     const players = (await allPlayers(s)).map(normalize);
     if (p.role === FAKE_SUPPORTER) {
       const l = players.find((q) => q.id === p.supports && q.role === FAKE_LEADER);
-      out.supports = l ? { leader: l.leader || null, characterId: l.characterId } : null;
+      out.supports = l ? { characterId: l.characterId } : null;
     } else {
       out.helped = players.some((q) => q.role === FAKE_SUPPORTER && q.supports === p.id);
     }
@@ -331,8 +330,8 @@ async function setRole(req, s) {
   if (LEADER_ROLES.includes(role)) {
     const used = new Set(others.filter((p) => LEADER_ROLES.includes(p.role) && p.leader).map((p) => p.leader));
     if (b.leader) {
-      if (!LEADER_LABELS.includes(b.leader)) fail(400, 'bad_leader', '領袖代號只能是 A–D');
-      if (used.has(b.leader)) fail(409, 'leader_taken', `領袖 ${b.leader} 已被使用`);
+      if (!LEADER_LABELS.includes(b.leader)) fail(400, 'bad_leader', 'bad leader slot');
+      if (used.has(b.leader)) fail(409, 'leader_taken', '這個領袖位置（顏色）已被使用');
       leader = b.leader;
     } else if (LEADER_ROLES.includes(target.role) && target.leader && !used.has(target.leader)) {
       leader = target.leader;
@@ -341,7 +340,7 @@ async function setRole(req, s) {
     }
   }
   await update(s, 'players/' + target.id, (p) => {
-    if (p.role !== role || (p.leader || null) !== leader) p.revealedAt = null;   // changed -> the phone shows 揭曉 again
+    if (p.role !== role) p.revealedAt = null;   // role changed -> the phone shows 揭曉 again (the internal slot is never shown, so moving it doesn't)
     p.role = role; p.leader = leader; return p;
   });
   await syncPairs(s);
@@ -362,7 +361,7 @@ async function randomAssign(s) {
   await Promise.all(players.map((pl, i) => {
     const role = roles[i];
     const leader = LEADER_ROLES.includes(role) ? (labels[li++] || null) : null;
-    return update(s, 'players/' + pl.id, (p) => { if (p.role !== role || (p.leader || null) !== leader) p.revealedAt = null; p.role = role; p.leader = leader; p.supports = null; return p; });
+    return update(s, 'players/' + pl.id, (p) => { if (p.role !== role) p.revealedAt = null; p.role = role; p.leader = leader; p.supports = null; return p; });
   }));
   await syncPairs(s);   // fresh deal -> fresh pairing
   const missing = pool.slice(special.length);
@@ -521,28 +520,28 @@ async function miniState(s) {
   const mini = new Map(miniBlobs.map((b, i) => [b.key.slice(5), minis[i]]));
   const list = players.filter(Boolean).map((p) => {
     const m = mini.get(p.id) || {};
-    // rv = this player has tapped 揭曉 on the phone (a yes/no only — the TV never learns any role)
-    return { id: p.id, characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, push: m.push || 0, dodge: m.dodge || 0, pt: m.pt || 0, dt: m.dt || 0, rv: p.revealedAt ? 1 : 0 };
+    // no reveal info here: this endpoint is public (TV) and must not say who has looked at their identity
+    return { id: p.id, characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, push: m.push || 0, dodge: m.dodge || 0, pt: m.pt || 0, dt: m.dt || 0 };
   }).sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
   const screen = screenOf(meta);
   const out = { phase: phaseOf(meta), screen, gameId: meta.gameId, joined: list.length, players: list, t: now() };
-  // round screens: the 4 leader cards (letter + character only — never the true/fake role)
+  // round screens: the 4 leader cards (character only, in stable slot order — no letter, never the true/fake role)
   if (ROUND_SCREENS.includes(screen)) out.leaders = leaderCards(players.filter(Boolean).map(normalize));
-  if (screen === REVEAL) out.reveal = { done: list.filter((p) => p.rv).length, total: list.length };
   return out;
 }
-/** leader cards for the TV, in A–D order. The letter is the one the host assigned (setRole/randomAssign),
-    so the same leader keeps the same slot/colour on every round screen. Leaders without a letter fill
-    free slots in join order; empty slots are null (the TV shows a '?' card). */
+/** leader cards for the TV: 4 slots in the order of the host-assigned internal slot (player.leader, A–D —
+    never displayed), so the same leader keeps the same position/colour on every round screen. The TV
+    labels each card with the character name. Leaders without a slot fill free ones in join order;
+    empty slots are null (the TV shows a '?' card). */
 function leaderCards(players) {
   const slots = [null, null, null, null];
   const leaders = players.filter((p) => LEADER_ROLES.includes(p.role)).sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
   const rest = [];
   for (const p of leaders) {
     const i = LEADER_LABELS.indexOf(p.leader);
-    if (i >= 0 && !slots[i]) slots[i] = { letter: p.leader, characterId: p.characterId }; else rest.push(p);
+    if (i >= 0 && !slots[i]) slots[i] = { characterId: p.characterId }; else rest.push(p);
   }
-  for (const p of rest) { const i = slots.indexOf(null); if (i < 0) break; slots[i] = { letter: LEADER_LABELS[i], characterId: p.characterId }; }
+  for (const p of rest) { const i = slots.indexOf(null); if (i < 0) break; slots[i] = { characterId: p.characterId }; }
   return slots;
 }
 /* Phase + TV screen. 開始遊戲 (admin/start) -> started, TV shows the "Let's play!" screen;

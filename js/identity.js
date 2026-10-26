@@ -12,8 +12,9 @@
   if (!me) { window.location.replace('../characters/'); return; }
 
   var app = $('app');
-  var roles = {}, leaderLabel = '領袖 {letter}';
-  var state = 'loading', role = null, leader = null, supports = null, helped = false, charId = null;
+  var roles = {}, leaderLabel = '{name}', names = {};
+  function nameOf(id) { return (names[id] && names[id].name) || ''; }
+  var state = 'loading', role = null, supports = null, helped = false, charId = null;
   var ackSeq = 0;   // ignore /me answers that were requested before the latest 揭曉 tap
 
   var ICONS = {
@@ -50,8 +51,9 @@
     $('roleName').textContent = r.name || role || '';
     $('pill').style.setProperty('--rc', r.color || '#f2c14e');
     var lb = $('roleLeader');
-    if (leader && LEADERS.indexOf(role) >= 0) {
-      lb.innerHTML = esc(leaderLabel).replace('{letter}', '<b lang="en">' + esc(leader) + '</b>');
+    // leaders: their own character NAME (never a letter)
+    if (LEADERS.indexOf(role) >= 0 && nameOf(charId)) {
+      lb.innerHTML = esc(leaderLabel).replace('{name}', '<b lang="en">' + esc(nameOf(charId)) + '</b>');
       lb.hidden = false;
     } else { lb.hidden = true; lb.textContent = ''; }
     // 假領袖: the helper line only when the server paired a 假領袖支持者 with this fake leader
@@ -59,8 +61,8 @@
     // 假領袖支持者: the one fake leader they back
     var sp = $('sup');
     if (role === '假領袖支持者' && supports) {
-      var lab = supports.leader ? esc(leaderLabel).replace('{letter}', '<b lang="en">' + esc(supports.leader) + '</b>') : '一位假領袖';
-      $('supText').innerHTML = esc(r.supportsLabel || '你支持：{leader}').replace('{leader}', lab);
+      var nm = nameOf(supports.characterId), lab = nm ? '<b lang="en">' + esc(nm) + '</b>' : '一位假領袖';
+      $('supText').innerHTML = esc(r.supportsLabel || '你支持：{name}').replace('{name}', lab);
       $('supImg').src = img(supports.characterId, 'stale1');
       sp.style.setProperty('--rc', r.color || '#8fb3d9');
       sp.hidden = false;
@@ -69,8 +71,8 @@
   }
   function clearRole() { $('pillIcon').innerHTML = ''; $('roleName').textContent = ''; $('roleLeader').hidden = true; $('descText').textContent = ''; $('sup').hidden = true; $('supText').textContent = ''; $('supImg').removeAttribute('src'); }
   function take(r) {
-    var key = JSON.stringify([r.role, r.leader || null, r.supports || null, !!r.helped]);
-    role = r.role || '平民'; leader = r.leader || null; supports = r.supports || null; helped = !!r.helped;
+    var key = JSON.stringify([r.role, r.supports || null, !!r.helped]);
+    role = r.role || '平民'; supports = r.supports || null; helped = !!r.helped;
     var changed = key !== roleKey; roleKey = key; return changed;
   }
   var roleKey = '';
@@ -123,7 +125,7 @@
       if (!r.revealed) { window.location.replace('../lobby/'); return; }
       if (ackAt !== ackSeq || busy) return;   // a 揭曉 tap happened meanwhile: its answer wins
       if (!r.seen) {                           // first time, or the host changed this player's role
-        role = null; leader = null; supports = null; helped = false; roleKey = '';
+        role = null; supports = null; helped = false; roleKey = '';
         if (state !== 'pre') setState('pre');
         return;
       }
@@ -151,7 +153,10 @@
   $('ok').addEventListener('click', function () { if (state === 'shown') setState('wait'); });
   $('again').addEventListener('click', function () { if (state === 'wait' && role) setState('shown', 'is-pop'); });
 
-  fetch('../data/roles.json?v=1', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+  fetch('../data/characters.json', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+    .then(function (d) { ((d && d.characters) || []).forEach(function (c) { names[c.id] = c; }); if (state === 'shown') fillRole(); })
+    .catch(function () {});
+  fetch('../data/roles.json?v=2', { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) { roles = (d && d.roles) || {}; if (d && d.leaderLabel) leaderLabel = d.leaderLabel; if (state === 'shown') fillRole(); })
     .catch(function () {});
   window.addEventListener('resize', fitDesc);

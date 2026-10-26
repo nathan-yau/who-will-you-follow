@@ -101,7 +101,7 @@
     $('phaseDot').classList.toggle('on', !started);
     $('phaseDot').classList.toggle('live', started);
     $('tvNote').textContent = started
-      ? '遊戲已開始：TV 顯示' + (sc === 'reveal' ? '「身份揭曉」進度畫面' : rnd ? '「' + rnd + '」標題畫面（含四位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
+      ? '遊戲已開始：TV 顯示' + (sc === 'reveal' ? '「身份揭曉」畫面' : rnd ? '「' + rnd + '」標題畫面（含四位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
       : '等候中：玩家可在手機按「避開啊／衝過去」玩 TV 上的泡泡大戰。';
     $('startGame').disabled = started;
     if (started) disarm();
@@ -187,10 +187,10 @@
     $('rvDot').classList.toggle('on', !r.stage && r.revealed);
     $('rvBar').style.width = (r.total ? Math.round(100 * r.done / r.total) : 0) + '%';
     $('rvNote').textContent = r.stage
-      ? '揭曉中：玩家在手機按「揭曉我的身份」，TV 顯示進度（已揭曉 ' + r.done + ' / ' + r.total + '），不會顯示任何身分。'
+      ? '揭曉中：玩家在手機按「揭曉我的身份」（已揭曉 ' + r.done + ' / ' + r.total + '，只有主持人看得到）。TV 只顯示「請看你的手機」，不會顯示任何玩家資料。'
       : r.revealed
         ? '身份已揭曉：玩家可隨時在手機「再看一次身份」。如有改動身分，該玩家的手機會重新顯示「揭曉」。'
-        : '開始後，每位玩家的手機會顯示「揭曉我的身份」，TV 顯示揭曉進度（不會顯示任何身分）。請先在上方分配好身分。';
+        : '開始後，每位玩家的手機會顯示「揭曉我的身份」，TV 只顯示「請看你的手機」（不會顯示任何玩家資料或進度）。請先在上方分配好身分。';
     if (!b.classList.contains('is-armed')) b.textContent = r.stage ? '揭曉進行中' : r.revealed ? '再次開始揭曉' : '開始身份揭曉';
     b.disabled = r.stage;
     $('rvEnd').disabled = !r.stage;
@@ -221,10 +221,11 @@
     }).then(render);
   });
 
+  var SLOT_COLORS = { A: '#a9cf8f', B: '#f5ab9b', C: '#f2c46e', D: '#9fbedd' };   // TV leader-card pastels, a bit stronger
   function supTag(p, s) {
     var l = p.supports && s.players.filter(function (q) { return q.id === p.supports && q.role === '假領袖'; })[0];
-    var txt = l ? '→' + (l.leader || '?') : '→—';
-    return '<span class="sup" style="--c:' + ROLE_COLORS['假領袖'] + '" title="' + (l ? '暗中支持 假領袖 ' + esc(l.leader || '') + '（' + esc(charName(l.characterId)) + '）' : '未配對（沒有假領袖）') + '">' + txt + '</span>';
+    var txt = l ? '→' + esc(charName(l.characterId)) : '→—';
+    return '<span class="sup" lang="en" style="--c:' + ROLE_COLORS['假領袖'] + '" title="' + (l ? '暗中支持 假領袖 ' + esc(charName(l.characterId)) : '未配對（沒有假領袖）') + '">' + txt + '</span>';
   }
   function renderGrid() {
     var s = state;
@@ -238,7 +239,8 @@
       var name = esc(charName(p.characterId));
       html += '<div class="pc' + (p.role ? '' : ' unassigned') + (p.online ? '' : ' off') + (pend[p.id] ? ' saving' : '') + '" data-id="' + esc(p.id) + '" title="' + name + (p.nickname ? '（' + esc(p.nickname) + '）' : '') + (p.online ? '' : ' · 離線') + '">' +
         '<div class="pc__icon"><img src="' + img(p.characterId) + '" alt="" loading="lazy" />' + (p.online ? '' : '<i class="pc__off" aria-label="離線"></i>') +
-          (isLeader ? '<button class="badge" type="button" data-act="leader" style="--c:' + ROLE_COLORS[p.role] + '" aria-label="領袖 ' + esc(p.leader || '?') + '（點一下切換）">' + esc(p.leader || '?') + '</button>' : '') +
+          // leaders: a colour dot = their card's position/colour on the TV round screens (tap to move); no letter is ever shown
+          (isLeader ? '<button class="badge" type="button" data-act="leader" style="--c:' + (SLOT_COLORS[p.leader] || '#d8d2c0') + '" title="TV 領袖卡位置／顏色（點一下切換）" aria-label="TV 領袖卡位置 ' + (state.leaderLabels.indexOf(p.leader) + 1 || '?') + '（點一下切換）"></button>' : '') +
           // 假領袖支持者: the fake leader the server paired them with (admin-only, read-only)
           (p.role === '假領袖支持者' ? supTag(p, s) : '') + '</div>' +
         '<span class="pc__name" lang="en">' + name + '</span>' +
@@ -321,7 +323,7 @@
     var u = usedLetters(p.id), L = state.leaderLabels, i = L.indexOf(p.leader);
     for (var k = 1; k <= L.length; k++) {
       var l = L[(i + k + L.length) % L.length];
-      if (!u[l]) { if (l !== p.leader) apply(p, p.role, l); else toast('其他領袖代號都已被使用'); return; }
+      if (!u[l]) { if (l !== p.leader) apply(p, p.role, l); else toast('其他領袖卡位置都已被使用'); return; }
     }
   }
 

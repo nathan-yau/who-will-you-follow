@@ -1,6 +1,6 @@
 {
-  "_comment": "身份揭曉 (identity reveal) texts shown on the player's phone. Edit freely: name = the pill text, icon = crown | mask | heart | shield | leaf, color = pill accent, desc = the description box. helperLine (假領袖 only) is appended to desc ONLY when the server has paired a 假領袖支持者 with that fake leader. supportsLabel (假領袖支持者 only) is the line above the description naming the fake leader they back ({leader} = leaderLabel). leaderLabel is the small badge in the pill for 真正領袖 / 假領袖 ({letter} = A–D). Only 真正領袖's description is final; the others are PLACEHOLDERS.",
-  "leaderLabel": "領袖 {letter}",
+  "_comment": "身份揭曉 (identity reveal) texts shown on the player's phone. Edit freely: name = the pill text, icon = crown | mask | heart | shield | leaf, color = pill accent, desc = the description box. helperLine (假領袖 only) is appended to desc ONLY when the server has paired a 假領袖支持者 with that fake leader. supportsLabel (假領袖支持者 only) is the line above the description naming the fake leader they back ({name} = that leader's character name from characters.json, shown with their icon). leaderLabel is the small badge in the pill for 真正領袖 / 假領袖 ({name} = the player's own character name). Leader letters are never shown. Only 真正領袖's description is final; the others are PLACEHOLDERS.",
+  "leaderLabel": "{name}",
   "roles": {
     "真正領袖": {
       "name": "真正領袖",
@@ -29,7 +29,7 @@
       "color": "#8fb3d9",
       "placeholder": true,
       "desc": "你是假領袖的支持者！暗中幫助你支持的領袖，讓大家相信他才是真正的領袖。",
-      "supportsLabel": "你支持：{leader}"
+      "supportsLabel": "你支持：{name}"
     },
     "平民": {
       "name": "平民",

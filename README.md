@@ -54,13 +54,13 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 |---|---|---|---|
 | GET | `/api/lobby` | anyone | `{gameId, taken[], joined, capacity}` – no roles |
 | POST | `/api/join` | player | `{characterId, nickname?}` → `{player, token}`; send `X-Player-Id`/`X-Player-Token` to reconnect or switch character; `409 taken` |
-| GET | `/api/me` | player | own status (`assigned` flag; `phase` lobby/started; `screen`; once revealed: `role`, `leader` (leaders), `supports:{leader, characterId}\|null` (假領袖支持者), `helped` (假領袖), `seen`) |
-| POST | `/api/reveal-ack` | player | marks the caller's identity as seen (returns the same role view + `seen:true`); reset whenever their role/leader/pairing/helped changes |
+| GET | `/api/me` | player | own status (`assigned` flag; `phase` lobby/started; `screen`; once revealed: `role`, `supports:{characterId}\|null` (假領袖支持者; no leader letter), `helped` (假領袖), `seen`) |
+| POST | `/api/reveal-ack` | player | marks the caller's identity as seen (returns the same role view + `seen:true`); reset whenever their role/pairing/helped changes (a leader-slot change alone does not reset it) |
 | POST | `/api/heartbeat` | player | keep-alive |
 | POST | `/api/admin/login` | host | `{password}` → `{token}` (send as `X-Admin-Token`) |
 | GET | `/api/admin/state` | host | players, online, roles, counts, archive list |
-| POST | `/api/admin/role` | host | `{playerId, role\|null, leader?}` (limits enforced, leaders A–D) |
-| POST | `/api/admin/random` | host | random roles, 4 leaders get A–D |
+| POST | `/api/admin/role` | host | `{playerId, role\|null, leader?}` (limits enforced; `leader` = internal TV card slot A–D, never displayed) |
+| POST | `/api/admin/random` | host | random roles, 4 leaders get internal slots A–D (TV card order/colour only) |
 | POST | `/api/admin/clear-roles` | host | |
 | POST | `/api/admin/kick` | host | `{playerId}` |
 | POST | `/api/admin/reset` | host | archive current game, start a new empty one |
@@ -75,11 +75,12 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 
 ### 身份揭曉 (identity reveal)
 
-* Host: admin section 「身份揭曉」 → 開始揭曉 (tap twice to confirm) / 結束揭曉; shows 已揭曉 X / N and who has looked.
+* Host: admin section 「身份揭曉」 → 開始揭曉 (tap twice to confirm) / 結束揭曉; shows 已揭曉 X / N and who has looked (host only, authenticated).
 * Phone `identity/` (`css/identity.css`, `js/identity.js`): silhouette + 「揭曉我的身份」 → flip → role pill + description → 「知道了」 → 「再看一次身份」 (re-viewable for the rest of the game). The lobby jumps here once `revealed`.
-* TV screen `reveal`: banner 「身份揭曉」, 已揭曉 X / N and player icons that light up — it only ever receives seen booleans, never roles.
-* Texts: `data/roles.json` — `desc` per role; 假領袖 `helperLine` (appended only for a fake leader who has a fake supporter); 假領袖支持者 `supportsLabel` (「你支持：{leader}」, shown with that leader's icon); `leaderLabel`. Entries with `placeholder:true` are draft copy.
-* Fake-supporter pairing (`syncPairs` in api.mjs, server-side, stored as `player.supports` = the fake leader's player id): runs after every role change / random / kick and when the stage starts. Existing pairs are kept while the target is still a 假領袖; every unpaired 假領袖支持者 (in join order) takes the 假領袖 with the fewest supporters, ties → letter A–D, then join order — so supporters get distinct fake leaders while possible and only share once every fake leader has one. No fake leaders → `supports:null`. Admin tiles show it as a small `→B` badge.
+* TV screen `reveal`: banner 「身份揭曉」/「請看你的手機，揭曉你的秘密身份！」 plus a calm animated phone illustration — NO per-player info (no count, icons or checks). `/api/mini/state` (public) carries no seen flags and no reveal count.
+* Leader letters (A–D) are internal only and never shown to anyone: phones, TV round cards and the admin pairing badge use the character name from `data/characters.json`; admin shows the slot as a colour dot.
+* Texts: `data/roles.json` — `desc` per role; 假領袖 `helperLine` (appended only for a fake leader who has a fake supporter); 假領袖支持者 `supportsLabel` (「你支持：{name}」, shown with that leader's icon); `leaderLabel` (「{name}」 = the leader's own character name). Entries with `placeholder:true` are draft copy.
+* Fake-supporter pairing (`syncPairs` in api.mjs, server-side, stored as `player.supports` = the fake leader's player id): runs after every role change / random / kick and when the stage starts. Existing pairs are kept while the target is still a 假領袖; every unpaired 假領袖支持者 (in join order) takes the 假領袖 with the fewest supporters, ties → internal slot order, then join order — so supporters get distinct fake leaders while possible and only share once every fake leader has one. No fake leaders → `supports:null`. Admin tiles show it as a small `→<character name>` badge (truncated).
 
 Default roles (17): 真正領袖 1 · 假領袖 3 · 真領袖支持者 1 · 假領袖支持者 2 · 平民 10.
 

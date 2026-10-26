@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
-  <link rel="stylesheet" href="../css/tv.css?v=7" />
+  <link rel="stylesheet" href="../css/tv.css?v=8" />
 </head>
 <body>
   <main class="tv" id="tv">
@@ -60,7 +60,7 @@
         <div id="lambs" class="lambs" hidden aria-hidden="true"></div>
       </section>
 
-      <!-- 身份揭曉 stage (admin → 身份揭曉): who has revealed on their phone — never any role -->
+      <!-- 身份揭曉 stage (admin → 身份揭曉): banner + calm phone illustration only — never any per-player info -->
       <section class="tv-round tv-reveal" id="reveal" data-r="r2" hidden>
         <div class="tv-round__ext" aria-hidden="true"></div>
         <img class="tv-round__bg" src="../assets/img/round-r2-bg.webp?v=1" alt="" draggable="false" />
@@ -70,11 +70,22 @@
           <h1 class="rv-banner__title">身份揭曉</h1>
           <p class="rv-banner__sub">請看你的手機，揭曉你的秘密身份！</p>
         </div>
-        <div class="rv-progress" aria-live="polite">
-          <p class="rv-progress__text" id="rvText">已揭曉 <b id="rvDone" lang="en">0</b> <span lang="en">/</span> <b id="rvTotal" lang="en">0</b></p>
-          <div class="rv-progress__bar" aria-hidden="true"><i id="rvBar"></i></div>
+        <!-- calm "look at your phone" illustration: no per-player info at all on the TV during this stage -->
+        <div class="rv-phone" aria-hidden="true">
+          <i class="rv-ring"></i><i class="rv-ring rv-ring--2"></i>
+          <svg class="rv-phone__svg" viewBox="0 0 120 190">
+            <rect x="8" y="6" width="104" height="178" rx="22" fill="#fdfaf1" stroke="#6f5a43" stroke-width="5"/>
+            <rect x="20" y="24" width="80" height="128" rx="10" fill="#e4eed8"/>
+            <rect x="46" y="13" width="28" height="5" rx="2.5" fill="#cdbfa6"/>
+            <circle cx="60" cy="168" r="6" fill="none" stroke="#cdbfa6" stroke-width="3"/>
+            <path d="M60 58c-12 0-21 9-21 20v6h42v-6c0-11-9-20-21-20z" fill="#b8cfa6"/>
+            <circle cx="60" cy="56" r="13" fill="#b8cfa6"/>
+            <text x="60" y="128" text-anchor="middle" font-family="Fredoka, system-ui, sans-serif" font-weight="700" font-size="34" fill="#6f9a63">?</text>
+          </svg>
+          <svg class="rv-spark rv-spark--1" viewBox="0 0 20 20"><path d="M10 0l2.4 7.6L20 10l-7.6 2.4L10 20l-2.4-7.6L0 10l7.6-2.4z" fill="#f2c14e"/></svg>
+          <svg class="rv-spark rv-spark--2" viewBox="0 0 20 20"><path d="M10 0l2.4 7.6L20 10l-7.6 2.4L10 20l-2.4-7.6L0 10l7.6-2.4z" fill="#f5ab9b"/></svg>
+          <svg class="rv-spark rv-spark--3" viewBox="0 0 20 20"><path d="M10 0l2.4 7.6L20 10l-7.6 2.4L10 20l-2.4-7.6L0 10l7.6-2.4z" fill="#9fbedd"/></svg>
         </div>
-        <div class="rv-grid" id="rvGrid"></div>
       </section>
     </div>
   </main>
@@ -91,6 +102,6 @@
     })();
   </script>
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/tv.js?v=4"></script>
+  <script src="../js/tv.js?v=5"></script>
 </body>
 </html>

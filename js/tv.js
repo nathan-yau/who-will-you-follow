@@ -355,7 +355,13 @@
     r2: { title: 'Round 2 誰是真領袖？' },
     r3: { title: 'Round 3 破解密碼 — 最後的線索' }
   };
-  var LETTERS = ['A', 'B', 'C', 'D'];
+  var SLOTS4 = ['a', 'b', 'c', 'd'];   // internal colour slots only — the card label is the character NAME
+  var names = {};
+  fetch('../data/characters.json', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+    .then(function (d) { ((d && d.characters) || []).forEach(function (c) { names[c.id] = c.name; }); if (ROUNDS[screen]) renderCards(lastLeaders); })
+    .catch(function () {});
+  var lastLeaders = null, cardsNames = -1;
+  function esc(t) { return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   var screen = 'lobby', cardsKey = '';
   function roundImg(r, part) { return '../assets/img/round-' + r + '-' + part + '.webp?v=1'; }
   function setScreen(sc, leaders, s) {
@@ -364,7 +370,7 @@
       document.body.classList.toggle('is-round', sc !== 'lobby');
       // 身份揭曉 has its own layer (no leader cards / lambs)
       var rv = $('reveal');
-      if (sc === 'reveal') { rv.hidden = true; void rv.offsetWidth; rvKey = ''; rvDoneSet = null; }
+      if (sc === 'reveal') { rv.hidden = true; void rv.offsetWidth; }
       rv.hidden = sc !== 'reveal';
       var on = !!ROUNDS[sc];
       var el = $('round');
@@ -381,43 +387,18 @@
       renderLambs(sc === 'r1' ? 1 : 0);
     }
     if (ROUNDS[screen]) renderCards(leaders);
-    if (screen === 'reveal') renderReveal(s);
-  }
-  /* 身份揭曉 progress: one icon per joined player; it lights up + gets a ✓ once that phone tapped 揭曉 (rv) */
-  var rvKey = '', rvDoneSet = null;
-  function renderReveal(s) {
-    var list = (s && s.players) || [];
-    var done = list.filter(function (p) { return p.rv; }).length, total = list.length;
-    $('rvDone').textContent = done; $('rvTotal').textContent = total;
-    $('rvBar').style.width = (total ? Math.round(100 * done / total) : 0) + '%';
-    var all = total > 0 && done === total;
-    $('rvText').parentNode.classList.toggle('is-all', all);
-    var key = list.map(function (p) { return p.id + ':' + p.characterId + ':' + (p.rv ? 1 : 0); }).join('|');
-    if (key === rvKey) return;
-    rvKey = key;
-    var grid = $('rvGrid');
-    // icons shrink a little when the room is big (3 rows max)
-    var sz = total > 27 ? 40 : total > 18 ? 46 : 54;
-    grid.style.setProperty('--s', sz + 'px');
-    var prev = rvDoneSet, now = {};
-    grid.innerHTML = list.map(function (p, i) {
-      if (p.rv) now[p.id] = 1;
-      var fresh = p.rv && prev && !prev[p.id];
-      return '<div class="rv-p' + (p.rv ? ' is-done' : '') + (fresh ? ' is-new' : '') + '" data-id="' + p.id + '"' + (prev ? ' style="animation-delay:0s"' : ' style="animation-delay:' + (i * 0.03).toFixed(2) + 's"') + '>' +
-        '<div class="rv-p__c"><img alt="" src="' + img(p.characterId, 'stale1') + '"></div></div>';
-    }).join('');
-    rvDoneSet = now;
   }
   function renderCards(leaders) {
     var L = [0, 1, 2, 3].map(function (i) { var c = leaders && leaders[i]; return c && c.characterId ? c.characterId : ''; });
-    var key = L.join('|');
-    if (key === cardsKey) return;
-    cardsKey = key;
+    lastLeaders = leaders;
+    var key = L.join('|'), nk = Object.keys(names).length;
+    if (key === cardsKey && nk === cardsNames) return;
+    cardsKey = key; cardsNames = nk;
     $('cards').innerHTML = L.map(function (cid, i) {
-      var l = LETTERS[i];
-      return '<div class="lc lc--' + l.toLowerCase() + (cid ? '' : ' is-empty') + '" data-slot="' + l + '">' +
+      var l = SLOTS4[i], nm = cid ? (names[cid] || '') : '';
+      return '<div class="lc lc--' + l + (cid ? '' : ' is-empty') + '" data-slot="' + (i + 1) + '">' +
         '<div class="lc__circle">' + (cid ? '<img alt="" src="' + img(cid, 'stale1') + '">' : '<span class="lc__q" lang="en">?</span>') + '</div>' +
-        '<p class="lc__pill">領袖 <b lang="en">' + l + '</b></p></div>';
+        '<p class="lc__pill"><b lang="en">' + (nm ? esc(nm) : '?') + '</b></p></div>';
     }).join('');
   }
   /* ---------- lambs easter egg (bottom-right, below the signpost) ---------- */
@@ -487,5 +468,5 @@
   poll();
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get revealKey() { return rvKey; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
 })();
