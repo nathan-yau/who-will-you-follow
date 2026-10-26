@@ -57,6 +57,8 @@
     },
     me: function () { return request('GET', '/me', null, playerHeaders()); },
     heartbeat: function () { return request('POST', '/heartbeat', {}, playerHeaders()); },
+    // 身份揭曉: the player tapped 揭曉我的身份 -> { role, leader }
+    revealAck: function () { return request('POST', '/reveal-ack', {}, playerHeaders()); },
     // waiting-room mini game: phones send batched inputs, the TV polls the state
     miniAct: function (push, dodge, seq) { return request('POST', '/mini/act', { push: push, dodge: dodge ? 1 : 0, seq: seq }, playerHeaders()); },
     miniState: function () { return request('GET', '/mini/state'); },

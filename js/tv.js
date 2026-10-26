@@ -345,7 +345,7 @@
     emptyEl.hidden = list.length > 0;
     var started = s.phase === 'started';
     // round title screen (r1–r3) only while started; an older backend without `screen` = placeholder
-    setScreen(started && ROUNDS[s.screen] ? s.screen : 'lobby', s.leaders);
+    setScreen(started && (ROUNDS[s.screen] || s.screen === 'reveal') ? s.screen : 'lobby', s.leaders, s);
     setPhase(started ? 'started' : 'lobby', list);
   }
 
@@ -358,11 +358,15 @@
   var LETTERS = ['A', 'B', 'C', 'D'];
   var screen = 'lobby', cardsKey = '';
   function roundImg(r, part) { return '../assets/img/round-' + r + '-' + part + '.webp?v=1'; }
-  function setScreen(sc, leaders) {
+  function setScreen(sc, leaders, s) {
     if (sc !== screen) {
       screen = sc;
-      var on = sc !== 'lobby';
-      document.body.classList.toggle('is-round', on);
+      document.body.classList.toggle('is-round', sc !== 'lobby');
+      // 身份揭曉 has its own layer (no leader cards / lambs)
+      var rv = $('reveal');
+      if (sc === 'reveal') { rv.hidden = true; void rv.offsetWidth; rvKey = ''; rvDoneSet = null; }
+      rv.hidden = sc !== 'reveal';
+      var on = !!ROUNDS[sc];
       var el = $('round');
       if (on) {
         el.dataset.r = sc;
@@ -376,7 +380,33 @@
       // easter egg: Round 1 = exactly 1 lamb. TODO: r2/r3 = number of players who voted for the true leader
       renderLambs(sc === 'r1' ? 1 : 0);
     }
-    if (screen !== 'lobby') renderCards(leaders);
+    if (ROUNDS[screen]) renderCards(leaders);
+    if (screen === 'reveal') renderReveal(s);
+  }
+  /* 身份揭曉 progress: one icon per joined player; it lights up + gets a ✓ once that phone tapped 揭曉 (rv) */
+  var rvKey = '', rvDoneSet = null;
+  function renderReveal(s) {
+    var list = (s && s.players) || [];
+    var done = list.filter(function (p) { return p.rv; }).length, total = list.length;
+    $('rvDone').textContent = done; $('rvTotal').textContent = total;
+    $('rvBar').style.width = (total ? Math.round(100 * done / total) : 0) + '%';
+    var all = total > 0 && done === total;
+    $('rvText').parentNode.classList.toggle('is-all', all);
+    var key = list.map(function (p) { return p.id + ':' + p.characterId + ':' + (p.rv ? 1 : 0); }).join('|');
+    if (key === rvKey) return;
+    rvKey = key;
+    var grid = $('rvGrid');
+    // icons shrink a little when the room is big (3 rows max)
+    var sz = total > 27 ? 40 : total > 18 ? 46 : 54;
+    grid.style.setProperty('--s', sz + 'px');
+    var prev = rvDoneSet, now = {};
+    grid.innerHTML = list.map(function (p, i) {
+      if (p.rv) now[p.id] = 1;
+      var fresh = p.rv && prev && !prev[p.id];
+      return '<div class="rv-p' + (p.rv ? ' is-done' : '') + (fresh ? ' is-new' : '') + '" data-id="' + p.id + '"' + (prev ? ' style="animation-delay:0s"' : ' style="animation-delay:' + (i * 0.03).toFixed(2) + 's"') + '>' +
+        '<div class="rv-p__c"><img alt="" src="' + img(p.characterId, 'stale1') + '"></div></div>';
+    }).join('');
+    rvDoneSet = now;
   }
   function renderCards(leaders) {
     var L = [0, 1, 2, 3].map(function (i) { var c = leaders && leaders[i]; return c && c.characterId ? c.characterId : ''; });
@@ -409,6 +439,7 @@
   // warm the cache so the first switch to a round is instant
   setTimeout(function () {
     Object.keys(ROUNDS).forEach(function (r) { ['bg', 'banner', 'ext'].forEach(function (p) { new Image().src = roundImg(r, p); }); });
+    new Image().src = '../assets/img/banner-blank.webp?v=1';
     LAMB.forEach(function (u) { new Image().src = u; });
   }, 2500);
 
@@ -456,5 +487,5 @@
   poll();
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get revealKey() { return rvKey; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
 })();

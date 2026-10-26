@@ -1,0 +1,42 @@
+{
+  "_comment": "身份揭曉 (identity reveal) texts shown on the player's phone. Edit freely: name = the pill text, icon = crown | mask | heart | shield | leaf, color = pill accent, desc = the description box. helperLine (假領袖 only) is appended to desc ONLY when the server has paired a 假領袖支持者 with that fake leader. supportsLabel (假領袖支持者 only) is the line above the description naming the fake leader they back ({leader} = leaderLabel). leaderLabel is the small badge in the pill for 真正領袖 / 假領袖 ({letter} = A–D). Only 真正領袖's description is final; the others are PLACEHOLDERS.",
+  "leaderLabel": "領袖 {letter}",
+  "roles": {
+    "真正領袖": {
+      "name": "真正領袖",
+      "icon": "crown",
+      "color": "#f2c14e",
+      "desc": "你是真正的領袖！想辦法邀請其他玩家跟隨你。"
+    },
+    "假領袖": {
+      "name": "假領袖",
+      "icon": "mask",
+      "color": "#b99ad6",
+      "placeholder": true,
+      "desc": "你是假領袖！裝作真正的領袖，邀請其他玩家跟隨你，千萬別被識破。",
+      "helperLine": "遊戲中有一個人知道你的身份，會暗中幫你。"
+    },
+    "真領袖支持者": {
+      "name": "真領袖支持者",
+      "icon": "heart",
+      "color": "#ef9a8a",
+      "placeholder": true,
+      "desc": "你是真領袖的支持者！暗中幫真正的領袖贏得更多人跟隨。"
+    },
+    "假領袖支持者": {
+      "name": "假領袖支持者",
+      "icon": "shield",
+      "color": "#8fb3d9",
+      "placeholder": true,
+      "desc": "你是假領袖的支持者！暗中幫助你支持的領袖，讓大家相信他才是真正的領袖。",
+      "supportsLabel": "你支持：{leader}"
+    },
+    "平民": {
+      "name": "平民",
+      "icon": "leaf",
+      "color": "#8db07c",
+      "placeholder": true,
+      "desc": "你是平民！仔細聆聽每位領袖的話，找出真正的領袖並跟隨他。"
+    }
+  }
+}

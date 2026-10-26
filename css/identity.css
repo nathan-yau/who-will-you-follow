@@ -1,0 +1,175 @@
+/* 身份揭曉 (identity reveal) — same 474 x 1024 design grid as Character Select / Lobby (characters.css).
+   States on #app[data-state]: pre (silhouette + 揭曉) -> shown (role) -> wait (calm, 再看一次). */
+
+.id-card { top: calc(253 * var(--U)); height: calc(600 * var(--U)); transition: height 0.45s cubic-bezier(.3, 1.2, .5, 1); }
+[data-state="shown"] .id-card { height: calc(652 * var(--U)); }
+
+.id-head { top: calc(288 * var(--U)); }
+.id-head .id-ticks { width: calc(14 * var(--U)); height: calc(22 * var(--U)); }
+.id-head > svg:first-child { margin-right: calc(10 * var(--U)); }
+
+.id-sub {
+  left: 0; width: 100%; margin: 0; text-align: center;
+  font-size: calc(16.6 * var(--U)); line-height: calc(29 * var(--U));
+  font-weight: 500; letter-spacing: calc(1.4 * var(--U)); color: #574d40;
+}
+.id-sub--pre { top: calc(340 * var(--U)); }
+.id-sub--shown { top: calc(330 * var(--U)); }
+
+/* per-state visibility (fade) */
+[data-for] { opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0s linear 0.3s; }
+[data-state="pre"] [data-for="pre"],
+[data-state="shown"] [data-for="shown"],
+[data-state="wait"] [data-for="wait"] { opacity: 1; visibility: visible; transition: opacity 0.35s ease 0.1s, visibility 0s; }
+[data-state="loading"] .id-box { opacity: 0; }
+
+/* the circle + character: big in "pre", smaller and higher once revealed */
+.id-box {
+  left: calc(107 * var(--U)); top: calc(437 * var(--U));
+  width: calc(260 * var(--U)); height: calc(260 * var(--U));
+  transition: left 0.5s cubic-bezier(.3, 1.2, .5, 1), top 0.5s cubic-bezier(.3, 1.2, .5, 1), width 0.5s cubic-bezier(.3, 1.2, .5, 1), height 0.5s cubic-bezier(.3, 1.2, .5, 1), opacity 0.3s;
+  perspective: calc(700 * var(--U));
+}
+[data-state="shown"] .id-box, [data-state="wait"] .id-box {
+  left: calc(132 * var(--U)); top: calc(373 * var(--U)); width: calc(210 * var(--U)); height: calc(210 * var(--U));
+}
+.id-box > * { position: absolute; }
+.id-hero { inset: 0; border-radius: 50%; background: #e9f0dd; }
+.id-ground { left: 12%; width: 76%; top: 88%; height: 11%; border-radius: 50%; background: #dbe8c8; transition: opacity 0.3s; }
+[data-state="shown"] .id-ground, [data-state="wait"] .id-ground { opacity: 0; }
+.id-tuft { width: 10%; height: 7.5%; }
+.id-tuft--l { left: -7%; top: 83%; }
+.id-tuft--r { left: 96%; top: 81%; }
+.id-star { width: 11%; height: 11%; animation: idtw 2.4s ease-in-out infinite; }
+.id-star--r { left: 102%; top: 10%; }
+.id-star--l { left: -17%; top: 47%; width: 10%; height: 10%; animation-delay: 1.2s; }
+.id-dash { width: 11%; height: 11%; }
+.id-dash--l { left: -10%; top: 12%; }
+.id-dash--r { left: 104%; top: 28%; }
+@keyframes idtw { 0%, 100% { transform: scale(1) rotate(0); opacity: 1; } 50% { transform: scale(0.72) rotate(12deg); opacity: 0.75; } }
+
+/* silhouette of the player's own character (alpha mask of stale1) + a white "?" */
+.id-sil, .id-spr { left: 13%; width: 74%; top: 12%; height: 86%; backface-visibility: hidden; }
+.id-sil {
+  background: #6e8f66;
+  -webkit-mask: var(--sil) 50% 100% / contain no-repeat;
+  mask: var(--sil) 50% 100% / contain no-repeat;
+  transform-origin: 50% 60%;
+  display: flex; align-items: center; justify-content: center;
+}
+.id-sil__q {
+  font-style: normal; font-family: "Fredoka", system-ui, sans-serif; font-weight: 700;
+  font-size: calc(96 * var(--U)); line-height: 1; color: #fff; margin-top: 18%;
+}
+[data-state="pre"] .id-sil { animation: idwob 2.6s ease-in-out infinite; }
+@keyframes idwob { 0%, 100% { transform: none; } 50% { transform: translateY(calc(-3 * var(--U))) rotate(-1.5deg); } }
+.id-spr { pointer-events: none; transform-origin: 50% 92%; opacity: 0; }
+.id-spr img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; -webkit-user-drag: none; }
+.id-spr .f1 { animation: flipA 1s steps(1, end) infinite; }
+.id-spr .f2 { animation: flipB 1s steps(1, end) infinite; }
+[data-state="shown"] .id-spr, [data-state="wait"] .id-spr { opacity: 1; animation: bob 1s ease-in-out infinite; }
+[data-state="shown"] .id-sil, [data-state="wait"] .id-sil { opacity: 0; }
+
+/* the reveal: silhouette flips away, the character flips in with a pop + sparkle burst */
+.is-flip .id-sil { animation: idflipout 0.34s ease-in forwards !important; opacity: 1 !important; }
+.is-flip .id-spr { animation: idflipin 0.6s cubic-bezier(.3, 1.5, .5, 1) 0.3s backwards, bob 1s ease-in-out 0.9s infinite !important; }
+.is-flip .id-hero { animation: idglow 0.9s ease-out 0.25s; }
+@keyframes idflipout { 0% { transform: rotateY(0); opacity: 1; } 100% { transform: rotateY(90deg) scale(0.9); opacity: 0; } }
+@keyframes idflipin { 0% { transform: rotateY(-90deg) scale(0.8); opacity: 0; } 60% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+@keyframes idglow { 0% { box-shadow: 0 0 0 0 rgba(243, 201, 85, 0.75); } 100% { box-shadow: 0 0 0 calc(30 * var(--U)) rgba(243, 201, 85, 0); } }
+.is-pop .id-spr { animation: pop 0.4s cubic-bezier(.3, 1.5, .5, 1), bob 1s ease-in-out 0.4s infinite !important; }
+.id-burst { left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
+.id-burst i {
+  position: absolute; left: calc(-7 * var(--U)); top: calc(-7 * var(--U)); width: calc(14 * var(--U)); height: calc(14 * var(--U));
+  background: #f3c955; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  animation: idspark 0.85s cubic-bezier(.2, .7, .3, 1) forwards;
+}
+.id-burst i:nth-child(3n) { background: #9cc58a; }
+.id-burst i:nth-child(3n+1) { background: #f1a493; }
+@keyframes idspark { 0% { transform: translate(0, 0) scale(0.3); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 0; } }
+
+/* role pill + description */
+.id-role { left: 0; width: 100%; top: calc(600 * var(--U)); height: calc(190 * var(--U)); }
+.id-pill {
+  position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+  min-width: calc(294 * var(--U)); height: calc(60 * var(--U)); box-sizing: border-box; margin: 0;
+  padding: 0 calc(24 * var(--U));
+  display: flex; align-items: center; justify-content: center; gap: calc(12 * var(--U));
+  border-radius: 999px; background: #e9f0dd; color: #3b2a1b; white-space: nowrap;
+  font-size: calc(29 * var(--U)); line-height: 1; font-weight: 700; letter-spacing: calc(2 * var(--U));
+}
+.id-pill__icon { display: flex; flex: none; width: calc(44 * var(--U)); height: calc(38 * var(--U)); }
+.id-pill__icon svg { width: 100%; height: 100%; }
+.id-pill__leader {
+  flex: none; font-size: calc(15 * var(--U)); letter-spacing: calc(1 * var(--U)); font-weight: 700;
+  padding: calc(6 * var(--U)) calc(11 * var(--U)); border-radius: 999px; background: #fdfaf1; color: #3b2a1b;
+  box-shadow: inset 0 0 0 calc(2 * var(--U)) var(--rc, #f2c14e);
+}
+.id-pill__leader b { font-family: "Fredoka", system-ui, sans-serif; font-weight: 700; font-size: calc(17 * var(--U)); }
+.id-desc {
+  position: absolute; left: calc(36 * var(--U) - var(--side)); right: calc(36 * var(--U) - var(--side)); top: calc(75 * var(--U)); height: calc(115 * var(--U));
+  box-sizing: border-box; padding: calc(12 * var(--U)) calc(22 * var(--U));
+  border-radius: calc(16 * var(--U)); background: #f1f1e4;
+  display: flex; flex-direction: column; justify-content: center; gap: calc(5 * var(--U)); overflow: hidden;
+}
+.id-desc p {
+  margin: 0; font-size: calc(var(--fs, 16.4) * var(--U)); line-height: 1.75; font-weight: 500;
+  letter-spacing: calc(0.8 * var(--U)); color: #4a4033;
+}
+[data-state="shown"].is-flip .id-pill { animation: idpill 0.55s cubic-bezier(.3, 1.6, .5, 1) 0.55s backwards; }
+[data-state="shown"].is-flip .id-desc { animation: idup 0.45s ease-out 0.75s backwards; }
+[data-state="shown"].is-flip .id-btn--ok { transition-delay: 0.95s; }
+@keyframes idpill { 0% { transform: translateX(-50%) scale(0.4); opacity: 0; } 100% { transform: translateX(-50%); opacity: 1; } }
+@keyframes idup { 0% { transform: translateY(calc(14 * var(--U))); opacity: 0; } 100% { transform: none; opacity: 1; } }
+
+/* buttons */
+.id-btn { height: calc(68 * var(--U)); }
+.id-btn--reveal { top: calc(737 * var(--U)); height: calc(70 * var(--U)); }
+.id-btn--ok { top: calc(808 * var(--U)); height: calc(64 * var(--U)); }
+.id-btn.is-busy { opacity: 0.75; pointer-events: none; }
+.id-btn.is-busy .btn__arrow { animation: nudge 0.6s ease-in-out infinite alternate; }
+
+/* waiting state */
+.id-waitbox { left: 0; width: 100%; top: calc(612 * var(--U)); text-align: center; }
+.id-wait { margin: 0; font-size: calc(19 * var(--U)); line-height: calc(28 * var(--U)); font-weight: 700; letter-spacing: calc(1.4 * var(--U)); color: #3b2a1b; }
+.id-hint { margin: calc(8 * var(--U)) 0 0; font-size: calc(14.5 * var(--U)); line-height: calc(22 * var(--U)); font-weight: 500; letter-spacing: calc(1 * var(--U)); color: #6b6152; }
+.id-dots i { font-style: normal; display: inline-block; animation: iddot 1.2s ease-in-out infinite; }
+.id-dots i:nth-child(2) { animation-delay: 0.2s; }
+.id-dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes iddot { 0%, 60%, 100% { opacity: 0.3; transform: none; } 30% { opacity: 1; transform: translateY(calc(-3 * var(--U))); } }
+.id-again {
+  left: calc(112 * var(--U)); width: calc(250 * var(--U)); top: calc(728 * var(--U)); height: calc(54 * var(--U));
+  box-sizing: border-box; padding: 0; margin: 0; gap: calc(10 * var(--U));
+  background: #fdfaf1; color: #4e6b48; border: calc(2.2 * var(--U)) solid #a9bf9c;
+  font-family: inherit; font-size: calc(17 * var(--U)); letter-spacing: calc(1.6 * var(--U));
+  -webkit-tap-highlight-color: transparent;
+}
+.id-again svg { width: calc(22 * var(--U)); height: calc(22 * var(--U)); flex: none; }
+.id-again:active { transform: translateY(calc(2 * var(--U))) scale(0.97); background: #f1f0e4; }
+.id-again:focus-visible { outline: calc(3 * var(--U)) solid #f2d58f; outline-offset: calc(2 * var(--U)); }
+
+.id-err {
+  left: calc(30 * var(--U)); right: calc(30 * var(--U)); top: calc(862 * var(--U)); margin: 0;
+  text-align: center; font-size: calc(14 * var(--U)); line-height: calc(20 * var(--U)); color: #b65b4a; font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .id-box, .id-card, [data-for] { transition: none !important; }
+  .id-star, .id-sil, .id-spr, .id-dots i, .id-pill, .id-desc, .id-hero { animation: none !important; }
+  .id-burst { display: none; }
+}
+
+/* 假領袖支持者: which fake leader they back (character icon + 領袖 X), above the description */
+.id-desc .id-sup {
+  display: flex; align-items: center; justify-content: center; gap: calc(8 * var(--U)); flex: none;
+  font-size: calc(16 * var(--U)); line-height: 1; font-weight: 700; letter-spacing: calc(1 * var(--U)); color: #3b2a1b;
+}
+.id-desc .id-sup[hidden] { display: none; }
+.id-desc:has(.id-sup:not([hidden])) { gap: calc(4 * var(--U)); padding-top: calc(9 * var(--U)); padding-bottom: calc(9 * var(--U)); }
+.id-desc:has(.id-sup:not([hidden])) #descText { line-height: 1.55; }
+.id-sup__img {
+  position: relative; flex: none; width: calc(30 * var(--U)); height: calc(30 * var(--U)); border-radius: 50%; overflow: hidden;
+  background: #fdfaf1; box-shadow: inset 0 0 0 calc(2 * var(--U)) var(--rc, #8fb3d9);
+}
+.id-sup__img img { position: absolute; left: 6%; top: 12%; width: 88%; height: 92%; object-fit: contain; }
+.id-sup b { font-family: "Fredoka", system-ui, sans-serif; font-weight: 700; font-size: calc(18 * var(--U)); }

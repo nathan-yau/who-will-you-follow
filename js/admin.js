@@ -90,17 +90,18 @@
 
     renderGrid();
     renderPhase();
+    renderReveal();
   }
 
   /* ---------- TV／遊戲 section ---------- */
   function renderPhase() {
     var started = !!(state && state.meta && state.meta.phase === 'started');
-    var sc = curScreen(), rnd = sc.charAt(0) === 'r' ? SCREEN_NAMES[sc] : '';
+    var sc = curScreen(), rnd = SCREEN_NAMES[sc] && sc !== 'lobby' ? SCREEN_NAMES[sc] : '';
     $('phaseText').textContent = started ? '遊戲已開始' + (rnd ? ' · ' + rnd : '') : '等候中 · 泡泡大戰進行中';
     $('phaseDot').classList.toggle('on', !started);
     $('phaseDot').classList.toggle('live', started);
     $('tvNote').textContent = started
-      ? '遊戲已開始：TV 顯示' + (rnd ? '「' + rnd + '」標題畫面（含四位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
+      ? '遊戲已開始：TV 顯示' + (sc === 'reveal' ? '「身份揭曉」進度畫面' : rnd ? '「' + rnd + '」標題畫面（含四位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
       : '等候中：玩家可在手機按「避開啊／衝過去」玩 TV 上的泡泡大戰。';
     $('startGame').disabled = started;
     if (started) disarm();
@@ -109,7 +110,7 @@
   }
 
   /* TV 畫面 segmented control: 等候 / Round 1–3 (POST admin/screen; a round implies 開始遊戲) */
-  var SCREEN_NAMES = { lobby: '等候', r1: 'Round 1', r2: 'Round 2', r3: 'Round 3' };
+  var SCREEN_NAMES = { lobby: '等候', r1: 'Round 1', r2: 'Round 2', r3: 'Round 3', reveal: '身份揭曉' };
   var segPending = null, segArm = null, segArmT = 0;
   function curScreen() {
     var m = state && state.meta;
@@ -122,7 +123,7 @@
       var sc = b.dataset.screen, armed = segArm === sc;
       b.setAttribute('aria-pressed', String(sc === cur));
       b.classList.toggle('is-armed', armed);
-      b.textContent = armed ? '再按確認' : SCREEN_NAMES[sc];
+      b.textContent = armed ? '再按確認' : SCREEN_NAMES[sc];   // (身份揭曉 has its own section: no button is pressed)
       b.disabled = !!segPending;
     });
   }
@@ -164,10 +165,71 @@
     act(this, function () { return WWYF.admin('POST', 'lobby').then(function () { toast('已回到等候'); }); }).then(renderPhase);
   });
 
+  /* ---------- 身份揭曉 section: start (two taps) / end the stage; X/N players have tapped 揭曉 ---------- */
+  var rvArmT = 0, rvSig = '';
+  function rvInfo() {
+    var s = state, m = s.meta || {};
+    var stage = m.phase === 'started' && m.tvScreen === 'reveal';
+    var done = s.players.filter(function (p) { return p.seen; }).length;
+    return { stage: stage, revealed: !!m.revealed, done: done, total: s.players.length };
+  }
+  function rvDisarm() {
+    clearTimeout(rvArmT); rvArmT = 0;
+    var b = $('rvStart'); b.classList.remove('is-armed');
+    if (state) renderReveal();
+  }
+  function renderReveal() {
+    if (!state) return;
+    var r = rvInfo(), b = $('rvStart');
+    $('rvDone').textContent = r.done; $('rvTotal').textContent = r.total;
+    $('rvText').textContent = r.stage ? '進行中' : r.revealed ? '已結束（身分可重看）' : '未開始';
+    $('rvDot').classList.toggle('rv-on', r.stage);
+    $('rvDot').classList.toggle('on', !r.stage && r.revealed);
+    $('rvBar').style.width = (r.total ? Math.round(100 * r.done / r.total) : 0) + '%';
+    $('rvNote').textContent = r.stage
+      ? '揭曉中：玩家在手機按「揭曉我的身份」，TV 顯示進度（已揭曉 ' + r.done + ' / ' + r.total + '），不會顯示任何身分。'
+      : r.revealed
+        ? '身份已揭曉：玩家可隨時在手機「再看一次身份」。如有改動身分，該玩家的手機會重新顯示「揭曉」。'
+        : '開始後，每位玩家的手機會顯示「揭曉我的身份」，TV 顯示揭曉進度（不會顯示任何身分）。請先在上方分配好身分。';
+    if (!b.classList.contains('is-armed')) b.textContent = r.stage ? '揭曉進行中' : r.revealed ? '再次開始揭曉' : '開始身份揭曉';
+    b.disabled = r.stage;
+    $('rvEnd').disabled = !r.stage;
+    var sig = JSON.stringify([state.players.map(function (p) { return [p.id, p.characterId, p.seen]; }), !!chars.__ok]);
+    if (sig === rvSig) return;
+    rvSig = sig;
+    $('rvList').innerHTML = state.players.map(function (p) {
+      var n = esc(charName(p.characterId));
+      return '<span class="rv' + (p.seen ? ' done' : '') + '" title="' + n + (p.seen ? ' · 已揭曉' : ' · 未揭曉') + '"><img src="' + img(p.characterId) + '" alt="' + n + '" loading="lazy" /></span>';
+    }).join('');
+  }
+  $('rvStart').addEventListener('click', function () {
+    var b = this; if (!state) return;
+    if (!b.classList.contains('is-armed')) {           // first tap arms, second tap (within 3 s) confirms
+      var anySpecial = state.players.some(function (p) { return p.role && p.role !== CIV; });
+      b.classList.add('is-armed'); b.textContent = anySpecial ? '再按一次確認' : '尚未分配身分！再按確認';
+      clearTimeout(rvArmT); rvArmT = setTimeout(rvDisarm, 3000);
+      return;
+    }
+    rvDisarm();
+    act(b, function () {
+      return WWYF.admin('POST', 'reveal-stage', { on: true }).then(function () { toast('身份揭曉開始！請玩家看手機'); });
+    }).then(render);
+  });
+  $('rvEnd').addEventListener('click', function () {
+    act(this, function () {
+      return WWYF.admin('POST', 'reveal-stage', { on: false }).then(function () { toast('身份揭曉已結束（玩家仍可重看身分）'); });
+    }).then(render);
+  });
+
+  function supTag(p, s) {
+    var l = p.supports && s.players.filter(function (q) { return q.id === p.supports && q.role === '假領袖'; })[0];
+    var txt = l ? '→' + (l.leader || '?') : '→—';
+    return '<span class="sup" style="--c:' + ROLE_COLORS['假領袖'] + '" title="' + (l ? '暗中支持 假領袖 ' + esc(l.leader || '') + '（' + esc(charName(l.characterId)) + '）' : '未配對（沒有假領袖）') + '">' + txt + '</span>';
+  }
   function renderGrid() {
     var s = state;
     $('empty').hidden = s.players.length > 0;
-    var sig = JSON.stringify([s.players.map(function (p) { return [p.id, p.characterId, p.nickname, p.role, p.leader, p.online]; }), s.roles, !!chars.__ok]);
+    var sig = JSON.stringify([s.players.map(function (p) { return [p.id, p.characterId, p.nickname, p.role, p.leader, p.online, p.supports]; }), s.roles, !!chars.__ok]);
     if (sig === lastSig) return;
     lastSig = sig;
     var html = '';
@@ -176,7 +238,9 @@
       var name = esc(charName(p.characterId));
       html += '<div class="pc' + (p.role ? '' : ' unassigned') + (p.online ? '' : ' off') + (pend[p.id] ? ' saving' : '') + '" data-id="' + esc(p.id) + '" title="' + name + (p.nickname ? '（' + esc(p.nickname) + '）' : '') + (p.online ? '' : ' · 離線') + '">' +
         '<div class="pc__icon"><img src="' + img(p.characterId) + '" alt="" loading="lazy" />' + (p.online ? '' : '<i class="pc__off" aria-label="離線"></i>') +
-          (isLeader ? '<button class="badge" type="button" data-act="leader" style="--c:' + ROLE_COLORS[p.role] + '" aria-label="領袖 ' + esc(p.leader || '?') + '（點一下切換）">' + esc(p.leader || '?') + '</button>' : '') + '</div>' +
+          (isLeader ? '<button class="badge" type="button" data-act="leader" style="--c:' + ROLE_COLORS[p.role] + '" aria-label="領袖 ' + esc(p.leader || '?') + '（點一下切換）">' + esc(p.leader || '?') + '</button>' : '') +
+          // 假領袖支持者: the fake leader the server paired them with (admin-only, read-only)
+          (p.role === '假領袖支持者' ? supTag(p, s) : '') + '</div>' +
         '<span class="pc__name" lang="en">' + name + '</span>' +
         '<button class="pill' + (p.role ? '' : ' pill--none') + '" type="button" data-act="role" style="--c:' + (p.role ? ROLE_COLORS[p.role] : '#b9b4a4') + '" aria-label="' + name + ' 身分：' + esc(p.role || '未分配') + '（點一下切換）">' + esc(short(p.role)) + '</button>' +
         '<button class="kick" type="button" data-act="kick" title="移出玩家" aria-label="移出 ' + name + '"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2 2 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>' +

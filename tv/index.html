@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
-  <link rel="stylesheet" href="../css/tv.css?v=6" />
+  <link rel="stylesheet" href="../css/tv.css?v=7" />
 </head>
 <body>
   <main class="tv" id="tv">
@@ -59,6 +59,23 @@
              (hidden until the round logic / voting is implemented). -->
         <div id="lambs" class="lambs" hidden aria-hidden="true"></div>
       </section>
+
+      <!-- 身份揭曉 stage (admin → 身份揭曉): who has revealed on their phone — never any role -->
+      <section class="tv-round tv-reveal" id="reveal" data-r="r2" hidden>
+        <div class="tv-round__ext" aria-hidden="true"></div>
+        <img class="tv-round__bg" src="../assets/img/round-r2-bg.webp?v=1" alt="" draggable="false" />
+        <div class="rv-banner">
+          <img class="rv-banner__img" src="../assets/img/banner-blank.webp?v=1" alt="" draggable="false" />
+          <p class="rv-banner__pill" lang="en">Identity Reveal</p>
+          <h1 class="rv-banner__title">身份揭曉</h1>
+          <p class="rv-banner__sub">請看你的手機，揭曉你的秘密身份！</p>
+        </div>
+        <div class="rv-progress" aria-live="polite">
+          <p class="rv-progress__text" id="rvText">已揭曉 <b id="rvDone" lang="en">0</b> <span lang="en">/</span> <b id="rvTotal" lang="en">0</b></p>
+          <div class="rv-progress__bar" aria-hidden="true"><i id="rvBar"></i></div>
+        </div>
+        <div class="rv-grid" id="rvGrid"></div>
+      </section>
     </div>
   </main>
   <script>
@@ -73,7 +90,7 @@
       window.addEventListener('scroll', reset, { passive: true });
     })();
   </script>
-  <script src="../js/api.js?v=9"></script>
-  <script src="../js/tv.js?v=3"></script>
+  <script src="../js/api.js?v=10"></script>
+  <script src="../js/tv.js?v=4"></script>
 </body>
 </html>

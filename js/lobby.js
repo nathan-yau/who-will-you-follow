@@ -51,6 +51,8 @@
 
   function poll() {
     return WWYF.me().then(function (r) {
+      // 身份揭曉: once the host has started the stage, the phone moves to the identity page (and stays there)
+      if (r.revealed) { window.location.replace('../identity/'); return; }
       show(r.player.characterId);
       if (r.player.characterId !== me.characterId) { me.characterId = r.player.characterId; WWYF.setPlayer(me); }
       setCount(r.joined);

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=15" />
+  <link rel="stylesheet" href="../css/admin.css?v=16" />
 </head>
 <body>
   <header class="top">
@@ -64,6 +64,25 @@
         </div>
       </section>
 
+      <section class="acc" data-acc="reveal" id="accReveal">
+        <div class="acc__head">
+          <button class="acc__toggle" type="button" aria-expanded="true" aria-controls="accRevealBody">
+            <span class="acc__title">身份揭曉</span>
+            <span class="acc__sum"><i class="dot" id="rvDot"></i> <span id="rvText">未開始</span> · 已揭曉 <b id="rvDone">0</b>/<span id="rvTotal">0</span></span>
+            <svg class="acc__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="acc__body" id="accRevealBody">
+          <p class="tvnote" id="rvNote">開始後，每位玩家的手機會顯示「揭曉我的身份」，TV 顯示揭曉進度（不會顯示任何身分）。</p>
+          <div class="rvbar" aria-hidden="true"><i id="rvBar"></i></div>
+          <div class="rvlist" id="rvList"></div>
+          <div class="acc__foot">
+            <button class="btn btn--primary" id="rvStart" type="button">開始身份揭曉</button>
+            <button class="btn btn--ghost" id="rvEnd" type="button">結束揭曉</button>
+          </div>
+        </div>
+      </section>
+
       <section class="acc" data-acc="tv" id="accTv">
         <div class="acc__head">
           <button class="acc__toggle" type="button" aria-expanded="true" aria-controls="accTvBody">
@@ -95,7 +114,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="../js/api.js?v=9"></script>
-  <script src="../js/admin.js?v=15"></script>
+  <script src="../js/api.js?v=10"></script>
+  <script src="../js/admin.js?v=16"></script>
 </body>
 </html>

@@ -229,3 +229,45 @@ body {
   100% { transform: translateX(0) scaleX(1); }
 }
 @media (prefers-reduced-motion: reduce) { .lamb, .lamb__bob, .lamb__f2 { animation: none !important; } }
+
+/* ---------- 身份揭曉 stage: pastel banner + "已揭曉 X / N" + one icon per joined player (lights up when revealed) ---------- */
+.tv-reveal .rv-banner { position: absolute; left: 232px; top: 8px; width: 560px; height: 241px; animation: tvin 0.55s cubic-bezier(.3, 1.4, .5, 1); }
+.rv-banner__img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.rv-banner > p, .rv-banner > h1 { position: absolute; left: 0; right: 0; margin: 0; text-align: center; white-space: nowrap; }
+.rv-banner__pill {
+  top: 64px; left: 50% !important; right: auto !important; transform: translateX(-50%);
+  padding: 4px 22px; border-radius: 10px; background: #dfe8cc;
+  font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: 21px; line-height: 26px; letter-spacing: 0.5px; color: #4b301d;
+}
+.rv-banner__title { top: 98px; font-size: 54px; line-height: 64px; font-weight: 700; letter-spacing: 8px; color: #4b301d; text-indent: 8px; }
+.rv-banner__sub { top: 168px; font-size: 18px; line-height: 26px; font-weight: 600; letter-spacing: 1.6px; color: #6a5a45; }
+.rv-progress {
+  position: absolute; left: 352px; width: 320px; top: 256px; height: 52px; box-sizing: border-box;
+  padding: 6px 18px 0; border-radius: 26px; background: rgba(253, 250, 241, 0.92); border: 2px solid #ede5d0;
+  text-align: center; box-shadow: 0 3px 10px rgba(90, 110, 70, 0.10);
+}
+.rv-progress__text { margin: 0; font-size: 17px; line-height: 24px; font-weight: 700; letter-spacing: 1.5px; color: #4b301d; }
+.rv-progress__text b { font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: 21px; letter-spacing: 0; }
+.rv-progress__bar { height: 7px; margin: 3px 6px 0; border-radius: 99px; background: #e6e1cf; overflow: hidden; }
+.rv-progress__bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: #7fa36f; transition: width 0.5s ease; }
+.rv-progress.is-all { border-color: #f0cf72; }
+.rv-progress.is-all .rv-progress__bar i { background: #e9b949; }
+.rv-grid {
+  --s: 54px;
+  position: absolute; left: 236px; width: 552px; top: 324px; height: 196px;
+  display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: 8px 8px;
+}
+.rv-p { position: relative; width: var(--s); height: var(--s); flex: none; animation: lcin 0.45s cubic-bezier(.3, 1.5, .5, 1) backwards; }
+.rv-p__c { position: absolute; inset: 0; border-radius: 50%; background: #f1efe4; border: 2px solid #e4ddc8; overflow: hidden; transition: background 0.3s, border-color 0.3s; }
+.rv-p__c img { position: absolute; left: 4%; top: 10%; width: 92%; height: 96%; object-fit: contain; filter: grayscale(1) brightness(1.08); opacity: 0.42; transition: filter 0.4s, opacity 0.4s; -webkit-user-drag: none; }
+.rv-p.is-done .rv-p__c { background: #e4eed8; border-color: #9cc58a; }
+.rv-p.is-done .rv-p__c img { filter: none; opacity: 1; }
+.rv-p.is-done::after {
+  content: ""; position: absolute; right: -3px; bottom: -2px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #fdfaf1;
+  background: #6f9a63 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 6.2l2 2 4-4.4' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 100% no-repeat;
+}
+.rv-p.is-new { animation: rvpop 0.6s cubic-bezier(.3, 1.6, .5, 1); }
+.rv-p.is-new::after { animation: rvcheck 0.5s cubic-bezier(.3, 1.8, .5, 1) 0.15s backwards; }
+@keyframes rvpop { 0% { transform: scale(1); } 35% { transform: scale(1.22) rotate(-6deg); } 100% { transform: none; } }
+@keyframes rvcheck { 0% { transform: scale(0); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tv-reveal .rv-banner, .rv-p, .rv-p.is-new, .rv-p.is-new::after { animation: none !important; } }

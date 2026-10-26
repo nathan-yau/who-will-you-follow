@@ -1,9 +1,13 @@
 // Who Will You Follow? — game backend (Netlify Functions v2 + Netlify Blobs).
 // One game at a time. State lives in the "wwyf-game" blob store:
 //   meta                 { gameId, startedAt, revealed, phase: 'lobby'|'started', phaseAt,
-//                          tvScreen: 'lobby'|'r1'|'r2'|'r3' }   (what the TV shows; set by POST admin/screen)
+//                          tvScreen: 'lobby'|'r1'|'r2'|'r3'|'reveal' }   (what the TV shows; set by POST admin/screen)
+//                        revealed = phones may see their own role (turned on by the 身份揭曉 stage, stays on until 新一場);
+//                        tvScreen 'reveal' = the 身份揭曉 stage itself (POST admin/reveal-stage)
 //   config               { roles: { <special role>: max } }   (平民 has no limit)
-//   players/<playerId>   { id, tokenHash, characterId, nickname, joinedAt, role, leader, gameId }
+//   players/<playerId>   { id, tokenHash, characterId, nickname, joinedAt, role, leader, supports, gameId, revealedAt }
+//                        supports = (假領袖支持者 only) player id of the 假領袖 they secretly back — see syncPairs()
+//                        (revealedAt: the player tapped 揭曉 on the phone; cleared when the host changes the role)
 //   claims/<characterId> { playerId, at }      (created with onlyIfNew -> one player per character)
 //   seen/<playerId>      { t }                 (heartbeats; separate key so they never clobber roles)
 //   mini/<playerId>      { push, dodge, seq, pt, dt, t }  waiting-room mini game: cumulative action counters
@@ -23,6 +27,7 @@ const DEFAULT_ROLES = { '真正領袖': 1, '假領袖': 3, '真領袖支持者':
 const SPECIAL_ROLES = Object.keys(DEFAULT_ROLES);  // also the priority when there are too few players for all of them
 const ROLE_ORDER = [...SPECIAL_ROLES, CIVILIAN];
 const isRole = (r) => r === CIVILIAN || SPECIAL_ROLES.includes(r);
+const FAKE_LEADER = '假領袖', FAKE_SUPPORTER = '假領袖支持者';
 const ALLOWED_ORIGINS = ['https://nathan-yau.github.io'];
 const ONLINE_MS = 15000;
 const SESSION_MS = 12 * 3600 * 1000;
@@ -30,8 +35,10 @@ const CHAR_RE = /^character_\d{2}$/;
 const LOBBY = 'lobby', STARTED = 'started';
 const phaseOf = (m) => (m && m.phase === STARTED ? STARTED : LOBBY);
 const ROUND_SCREENS = ['r1', 'r2', 'r3'];
-// round title screens only make sense once the game has started (lobby -> always the bubble battle)
-const screenOf = (m) => (phaseOf(m) === STARTED && ROUND_SCREENS.includes(m.tvScreen) ? m.tvScreen : LOBBY);
+const REVEAL = 'reveal';   // 身份揭曉 stage
+const SCREENS = [...ROUND_SCREENS, REVEAL];
+// round / reveal screens only make sense once the game has started (lobby -> always the bubble battle)
+const screenOf = (m) => (phaseOf(m) === STARTED && SCREENS.includes(m.tvScreen) ? m.tvScreen : LOBBY);
 const MINI_MAX_PUSH = 4;   // per request; the phone sends at most every 250 ms and caps taps at 2/s
 
 const store = () => getStore({ name: 'wwyf-game', consistency: 'strong' });
@@ -214,9 +221,83 @@ async function me(req, s, heartbeatOnly) {
   if (heartbeatOnly) return { ok: true };
   const [meta, info] = await Promise.all([getMeta(s), lobby(s)]);
   // everyone holds 平民 from the start, so "assigned" only becomes meaningful once the host reveals roles
-  const out = { player: publicPlayer(p), assigned: false, revealed: !!meta.revealed, joined: info.joined, gameId: meta.gameId, phase: phaseOf(meta) };
-  if (meta.revealed && p.role) { out.role = p.role; if (p.leader) out.leader = p.leader; }
+  const out = { player: publicPlayer(p), assigned: false, revealed: !!meta.revealed, joined: info.joined, gameId: meta.gameId, phase: phaseOf(meta), screen: screenOf(meta) };
+  // a phone only ever gets its OWN role, and only once the host has started the 身份揭曉 stage
+  if (meta.revealed) {
+    out.seen = !!p.revealedAt;
+    Object.assign(out, await roleView(s, normalize(p)));
+  }
   return out;
+}
+
+/** What a phone may know about its OWN role:
+    - leaders: their letter
+    - 假領袖支持者: the one 假領袖 they back (letter + character), from syncPairs()
+    - 假領袖: only a yes/no "someone secretly helps you" (never who) */
+async function roleView(s, p) {
+  const out = { role: p.role };
+  if (p.leader && LEADER_ROLES.includes(p.role)) out.leader = p.leader;
+  if (p.role === FAKE_SUPPORTER || p.role === FAKE_LEADER) {
+    const players = (await allPlayers(s)).map(normalize);
+    if (p.role === FAKE_SUPPORTER) {
+      const l = players.find((q) => q.id === p.supports && q.role === FAKE_LEADER);
+      out.supports = l ? { leader: l.leader || null, characterId: l.characterId } : null;
+    } else {
+      out.helped = players.some((q) => q.role === FAKE_SUPPORTER && q.supports === p.id);
+    }
+  }
+  return out;
+}
+
+/** Pair every 假領袖支持者 with exactly one 假領袖 (server-side, deterministic, stable).
+    - an existing pairing is kept as long as that player is still a 假領袖
+    - unpaired supporters (oldest join first) take the 假領袖 with the fewest supporters; ties -> letter A–D,
+      then join order. So with ≤ as many supporters as fake leaders everyone backs a DIFFERENT fake leader;
+      extra supporters double up only once every fake leader has one.
+    - no 假領袖 at all -> supports = null
+    Any player whose card content changes (supporter's leader, fake leader gaining/losing a helper) gets
+    revealedAt cleared so the phone shows 揭曉 again. Called after every role change and when the stage starts. */
+async function syncPairs(s) {
+  const players = (await allPlayers(s)).map(normalize);
+  const order = (a, b) => (a.joinedAt - b.joinedAt) || (a.id < b.id ? -1 : 1);
+  const letterIdx = (p) => { const i = LEADER_LABELS.indexOf(p.leader); return i < 0 ? 99 : i; };
+  const leaders = players.filter((p) => p.role === FAKE_LEADER).sort((a, b) => letterIdx(a) - letterIdx(b) || order(a, b));
+  const sups = players.filter((p) => p.role === FAKE_SUPPORTER).sort(order);
+  const load = new Map(leaders.map((l) => [l.id, 0]));
+  const want = new Map();
+  for (const sp of sups) if (load.has(sp.supports)) { want.set(sp.id, sp.supports); load.set(sp.supports, load.get(sp.supports) + 1); }
+  for (const sp of sups) {
+    if (want.has(sp.id)) continue;
+    let best = null;
+    for (const l of leaders) if (!best || load.get(l.id) < load.get(best.id)) best = l;
+    want.set(sp.id, best ? best.id : null);
+    if (best) load.set(best.id, load.get(best.id) + 1);
+  }
+  const helpedBefore = new Set(players.filter((p) => p.role === FAKE_SUPPORTER && p.supports).map((p) => p.supports));
+  const helpedAfter = new Set([...want.values()].filter(Boolean));
+  const jobs = [];
+  for (const p of players) {
+    const next = p.role === FAKE_SUPPORTER ? (want.get(p.id) || null) : null;
+    const helpFlip = p.role === FAKE_LEADER && helpedBefore.has(p.id) !== helpedAfter.has(p.id);
+    if ((p.supports || null) === next && !helpFlip) continue;
+    jobs.push(update(s, 'players/' + p.id, (q) => {
+      if ((q.supports || null) !== next || helpFlip) q.revealedAt = null;
+      q.supports = next; return q;
+    }));
+  }
+  await Promise.all(jobs);
+  return Object.fromEntries([...want].filter(([, v]) => v));
+}
+
+/** POST /api/reveal-ack — the player tapped 揭曉我的身份 (only while roles are revealed). */
+async function revealAck(req, s) {
+  const p0 = await playerFrom(req, s);
+  if (!p0) fail(404, 'not_joined', '尚未加入或已被移出遊戲');
+  const meta = await getMeta(s);
+  if (!meta.revealed) fail(409, 'not_revealed', '主持人還沒開始身份揭曉');
+  const p = await update(s, 'players/' + p0.id, (q) => { if (!q.revealedAt) q.revealedAt = now(); return q; });
+  if (!p) fail(404, 'not_joined', '尚未加入或已被移出遊戲');
+  return { ok: true, ...(await roleView(s, normalize(p))), seen: true };
 }
 
 async function adminState(s) {
@@ -226,12 +307,14 @@ async function adminState(s) {
   const list = players.map((p, i) => ({
     id: p.id, characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt,
     lastSeen: seen[i] ? seen[i].t : null, online: !!(seen[i] && t - seen[i].t < ONLINE_MS),
-    role: p.role, leader: p.leader || null,
+    role: p.role, leader: p.leader || null, seen: !!p.revealedAt,
+    supports: p.role === FAKE_SUPPORTER ? (p.supports || null) : null,   // admin-only: which 假領袖 (player id) they back
   })).sort((a, b) => a.joinedAt - b.joinedAt);
   const assigned = Object.fromEntries(ROLE_ORDER.map((r) => [r, 0]));
   for (const p of list) assigned[p.role] = (assigned[p.role] || 0) + 1;
   const archive = (await listKeys(s, 'archive/')).sort().reverse().slice(0, 20);
-  return { meta, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, archive, serverTime: t };
+  const reveal = { stage: screenOf(meta) === REVEAL, revealed: !!meta.revealed, done: list.filter((p) => p.seen).length, total: list.length };
+  return { meta, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
 }
 
 async function setRole(req, s) {
@@ -257,7 +340,11 @@ async function setRole(req, s) {
       leader = LEADER_LABELS.find((l) => !used.has(l)) || null;
     }
   }
-  await update(s, 'players/' + target.id, (p) => { p.role = role; p.leader = leader; return p; });
+  await update(s, 'players/' + target.id, (p) => {
+    if (p.role !== role || (p.leader || null) !== leader) p.revealedAt = null;   // changed -> the phone shows 揭曉 again
+    p.role = role; p.leader = leader; return p;
+  });
+  await syncPairs(s);
   return { ok: true, role, leader };
 }
 
@@ -275,8 +362,9 @@ async function randomAssign(s) {
   await Promise.all(players.map((pl, i) => {
     const role = roles[i];
     const leader = LEADER_ROLES.includes(role) ? (labels[li++] || null) : null;
-    return update(s, 'players/' + pl.id, (p) => { p.role = role; p.leader = leader; return p; });
+    return update(s, 'players/' + pl.id, (p) => { if (p.role !== role || (p.leader || null) !== leader) p.revealedAt = null; p.role = role; p.leader = leader; p.supports = null; return p; });
   }));
+  await syncPairs(s);   // fresh deal -> fresh pairing
   const missing = pool.slice(special.length);
   return {
     ok: true, special: special.length, civilians: players.length - special.length,
@@ -286,7 +374,7 @@ async function randomAssign(s) {
 
 async function clearRoles(s) {
   const players = await allPlayers(s);
-  await Promise.all(players.map((pl) => update(s, 'players/' + pl.id, (p) => { p.role = CIVILIAN; p.leader = null; return p; })));
+  await Promise.all(players.map((pl) => update(s, 'players/' + pl.id, (p) => { if (p.role !== CIVILIAN || p.leader) p.revealedAt = null; p.role = CIVILIAN; p.leader = null; p.supports = null; return p; })));
   return { ok: true };
 }
 
@@ -298,6 +386,7 @@ async function kick(req, s) {
   await s.delete('seen/' + p.id);
   await s.delete('mini/' + p.id);
   await release(s, p.characterId, p.id);
+  if (p.role === FAKE_LEADER || p.role === FAKE_SUPPORTER) await syncPairs(s);   // re-pair around the removed player
   return { ok: true };
 }
 
@@ -308,7 +397,7 @@ async function reset(s) {
   if (players.length) {
     await s.setJSON(`archive/${t}-${meta.gameId}`, {
       gameId: meta.gameId, startedAt: meta.startedAt, endedAt: t,
-      players: players.sort((a, b) => a.joinedAt - b.joinedAt).map((p) => ({ characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, role: p.role, leader: p.leader || null })),
+      players: players.sort((a, b) => a.joinedAt - b.joinedAt).map((p) => ({ characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, role: p.role, leader: p.leader || null, supports: (players.find((q) => q.id === p.supports) || {}).characterId || null })),
     });
   }
   const keys = [...await listKeys(s, 'players/'), ...await listKeys(s, 'claims/'), ...await listKeys(s, 'seen/'), ...await listKeys(s, 'mini/')];
@@ -332,8 +421,32 @@ async function setConfig(req, s) {
 
 async function setRevealed(req, s) {
   const b = await body(req);
-  const m = await update(s, 'meta', (m) => { m.revealed = !!b.revealed; return m; });
-  return { ok: true, revealed: m.revealed };
+  const m = await update(s, 'meta', (m) => {
+    m.revealed = !!b.revealed;
+    if (!m.revealed && m.tvScreen === REVEAL) m.tvScreen = LOBBY;   // hiding roles also ends the stage
+    return m;
+  });
+  return { ok: true, revealed: m.revealed, phase: phaseOf(m), screen: screenOf(m) };
+}
+
+/* 身份揭曉 stage. on: phones may see their own role (meta.revealed = true, stays on for the rest of
+   the game), the game counts as started (mini game stops) and the TV shows the reveal progress.
+   off: TV back to the "Let's play" screen; roles stay viewable on the phones. */
+async function setRevealStage(req, s) {
+  const b = await body(req);
+  return revealStage(s, b.on !== false);
+}
+async function revealStage(s, on) {
+  const m = await update(s, 'meta', (m) => {
+    if (on) {
+      if (m.phase !== STARTED) m.phaseAt = now();
+      m.phase = STARTED; m.tvScreen = REVEAL; m.revealed = true;
+    } else if (m.tvScreen === REVEAL) m.tvScreen = LOBBY;
+    return m;
+  });
+  if (!m) { await getMeta(s); return revealStage(s, on); }
+  if (on) await syncPairs(s);   // safety net: every 假領袖支持者 is paired before phones can reveal
+  return { ok: true, phase: phaseOf(m), screen: screenOf(m), revealed: !!m.revealed };
 }
 
 /* ---------------- waiting-room mini game ----------------
@@ -408,12 +521,14 @@ async function miniState(s) {
   const mini = new Map(miniBlobs.map((b, i) => [b.key.slice(5), minis[i]]));
   const list = players.filter(Boolean).map((p) => {
     const m = mini.get(p.id) || {};
-    return { id: p.id, characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, push: m.push || 0, dodge: m.dodge || 0, pt: m.pt || 0, dt: m.dt || 0 };
+    // rv = this player has tapped 揭曉 on the phone (a yes/no only — the TV never learns any role)
+    return { id: p.id, characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, push: m.push || 0, dodge: m.dodge || 0, pt: m.pt || 0, dt: m.dt || 0, rv: p.revealedAt ? 1 : 0 };
   }).sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
   const screen = screenOf(meta);
   const out = { phase: phaseOf(meta), screen, gameId: meta.gameId, joined: list.length, players: list, t: now() };
   // round screens: the 4 leader cards (letter + character only — never the true/fake role)
-  if (screen !== LOBBY) out.leaders = leaderCards(players.filter(Boolean).map(normalize));
+  if (ROUND_SCREENS.includes(screen)) out.leaders = leaderCards(players.filter(Boolean).map(normalize));
+  if (screen === REVEAL) out.reveal = { done: list.filter((p) => p.rv).length, total: list.length };
   return out;
 }
 /** leader cards for the TV, in A–D order. The letter is the one the host assigned (setRole/randomAssign),
@@ -433,7 +548,7 @@ function leaderCards(players) {
 /* Phase + TV screen. 開始遊戲 (admin/start) -> started, TV shows the "Let's play!" screen;
    回到等候 (admin/lobby) -> lobby + bubble battle (mini counters cleared);
    admin/screen r1|r2|r3 -> started (implies 開始遊戲, the mini game stops) + that round's title screen;
-   admin/screen lobby -> same as 回到等候. */
+   admin/screen lobby -> same as 回到等候; admin/screen reveal -> same as admin/reveal-stage {on:true}. */
 async function setPhase(s, phase, screen) {
   const m = await update(s, 'meta', (m) => {
     if (m.phase !== phase) m.phaseAt = now();
@@ -448,6 +563,7 @@ async function setPhase(s, phase, screen) {
 async function setScreen(req, s) {
   const b = await body(req);
   if (b.screen === LOBBY) return setPhase(s, LOBBY);
+  if (b.screen === REVEAL) return revealStage(s, true);
   if (!ROUND_SCREENS.includes(b.screen)) fail(400, 'bad_screen', '未知的畫面');
   return setPhase(s, STARTED, b.screen);
 }
@@ -506,6 +622,7 @@ const ROUTES = {
   'GET me': (req, s) => me(req, s, false),
   'POST heartbeat': (req, s) => me(req, s, true),
   'POST mini/act': miniAct,
+  'POST reveal-ack': revealAck,
   'GET mini/state': (req, s) => miniState(s),
   'POST admin/login': adminLogin,
   'GET admin/state': (req, s) => adminState(s),
@@ -521,6 +638,7 @@ const ROUTES = {
   'POST admin/reset': (req, s) => reset(s),
   'POST admin/config': setConfig,
   'POST admin/reveal': setRevealed,
+  'POST admin/reveal-stage': setRevealStage,
   'POST admin/start': (req, s) => setPhase(s, STARTED),
   'POST admin/lobby': (req, s) => setPhase(s, LOBBY),
   'POST admin/screen': setScreen,
