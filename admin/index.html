@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=12" />
+  <link rel="stylesheet" href="../css/admin.css?v=13" />
 </head>
 <body>
   <header class="top">
@@ -19,8 +19,7 @@
     </div>
     <div class="top__right" id="topRight" hidden>
       <span class="sync" id="sync" hidden>連線中斷…</span>
-      <span class="assigned" title="已分配身分 / 玩家人數">已分配 <b id="assigned">0</b>/<span id="assignedOf">0</span></span>
-      <span class="stat" title="已加入 / 名額"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5" r="3" fill="currentColor"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5" fill="currentColor"/></svg><span><b id="joined">0</b>/<span id="cap">17</span></span></span>
+      <span class="stat" title="已加入人數"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5" r="3" fill="currentColor"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5" fill="currentColor"/></svg><b id="joined">0</b></span>
       <span class="stat" title="在線人數"><i class="dot on"></i><b id="online">0</b></span>
       <button class="iconbtn" id="logout" type="button" title="登出" aria-label="登出"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M9 8l-4 4 4 4M5 12h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
@@ -45,7 +44,7 @@
         <div class="acc__head">
           <button class="acc__toggle" type="button" aria-expanded="true" aria-controls="accPlayersBody">
             <span class="acc__title">玩家管理</span>
-            <span class="acc__sum">已加入 <b id="sumJoined">0</b>/<span id="sumCap">17</span> · 已分配 <b id="sumAssigned">0</b>/<span id="sumAssignedOf">0</span></span>
+            <span class="acc__sum"><b id="sumJoined">0</b> 人 · 領袖 <b id="sumLeaders">0</b>/<span id="sumLeadersMax">4</span> · 支持者 <b id="sumSup">0</b>/<span id="sumSupMax">3</span></span>
             <svg class="acc__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="acc__tools lockwrap">
@@ -70,6 +69,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=7"></script>
-  <script src="../js/admin.js?v=12"></script>
+  <script src="../js/admin.js?v=13"></script>
 </body>
 </html>

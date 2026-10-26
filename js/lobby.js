@@ -33,8 +33,7 @@
       show(r.player.characterId);
       if (r.player.characterId !== me.characterId) { me.characterId = r.player.characterId; WWYF.setPlayer(me); }
       $('joined').textContent = r.joined;
-      $('cap').textContent = r.capacity;
-      conn(true, r.assigned ? '已連線 · 主持人已為你分配身分' : '已連線');
+      conn(true, '已連線');
     }).catch(function (e) {
       if (e.status === 404 || e.status === 401) {
         WWYF.clearPlayer();

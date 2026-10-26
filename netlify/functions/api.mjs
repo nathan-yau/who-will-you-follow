@@ -1,7 +1,7 @@
 // Who Will You Follow? — game backend (Netlify Functions v2 + Netlify Blobs).
 // One game at a time. State lives in the "wwyf-game" blob store:
 //   meta                 { gameId, startedAt, revealed }
-//   config               { roles: { <role>: count } }
+//   config               { roles: { <special role>: max } }   (平民 has no limit)
 //   players/<playerId>   { id, tokenHash, characterId, nickname, joinedAt, role, leader, gameId }
 //   claims/<characterId> { playerId, at }      (created with onlyIfNew -> one player per character)
 //   seen/<playerId>      { t }                 (heartbeats; separate key so they never clobber roles)
@@ -13,8 +13,13 @@ export const config = { path: '/api/*' };
 
 const LEADER_ROLES = ['真正領袖', '假領袖'];
 const LEADER_LABELS = ['A', 'B', 'C', 'D'];
-const DEFAULT_ROLES = { '真正領袖': 1, '假領袖': 3, '真領袖支持者': 1, '假領袖支持者': 2, '平民': 10 };
-const ROLE_ORDER = Object.keys(DEFAULT_ROLES); // also the priority when there are fewer players than roles
+// No player cap (the only natural limit is the number of characters). Everyone joins as 平民 (unlimited);
+// the special roles below have per-game limits (overridable via POST admin/config).
+const CIVILIAN = '平民';
+const DEFAULT_ROLES = { '真正領袖': 1, '假領袖': 3, '真領袖支持者': 1, '假領袖支持者': 2 };
+const SPECIAL_ROLES = Object.keys(DEFAULT_ROLES);  // also the priority when there are too few players for all of them
+const ROLE_ORDER = [...SPECIAL_ROLES, CIVILIAN];
+const isRole = (r) => r === CIVILIAN || SPECIAL_ROLES.includes(r);
 const ALLOWED_ORIGINS = ['https://nathan-yau.github.io'];
 const ONLINE_MS = 15000;
 const SESSION_MS = 12 * 3600 * 1000;
@@ -82,9 +87,16 @@ async function getMeta(s) {
 }
 async function getRoleCounts(s) {
   const c = await s.get('config', { type: 'json' });
-  return { ...DEFAULT_ROLES, ...(c && c.roles || {}) };
+  const saved = (c && c.roles) || {};
+  const out = {};
+  for (const r of SPECIAL_ROLES) out[r] = Number.isInteger(saved[r]) ? saved[r] : DEFAULT_ROLES[r];
+  return out;
 }
-const totalRoles = (counts) => Object.values(counts).reduce((a, b) => a + (+b || 0), 0);
+/** migrate on read: players stored before "everyone starts as 平民" (role null/unknown) become 平民 */
+function normalize(p) {
+  if (p && !isRole(p.role)) { p.role = CIVILIAN; p.leader = null; }
+  return p;
+}
 
 async function listKeys(s, prefix) {
   const out = [];
@@ -94,7 +106,7 @@ async function listKeys(s, prefix) {
 async function allPlayers(s) {
   const keys = await listKeys(s, 'players/');
   const ps = await Promise.all(keys.map((k) => s.get(k, { type: 'json' })));
-  return ps.filter(Boolean);
+  return ps.filter(Boolean).map(normalize);
 }
 async function takenCharacters(s) {
   return (await listKeys(s, 'claims/')).map((k) => k.slice(7));
@@ -108,7 +120,7 @@ async function playerFrom(req, s, b = {}) {
   const p = await s.get('players/' + id, { type: 'json' });
   if (!p) return null;
   const a = Buffer.from(sha(token)), e = Buffer.from(p.tokenHash);
-  return a.length === e.length && timingSafeEqual(a, e) ? p : null;
+  return a.length === e.length && timingSafeEqual(a, e) ? normalize(p) : null;
 }
 const publicPlayer = (p) => ({ id: p.id, characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt });
 
@@ -153,8 +165,8 @@ function verifyAdmin(req) {
 
 /* ---------------- routes ---------------- */
 async function lobby(s) {
-  const [taken, counts, meta, players] = await Promise.all([takenCharacters(s), getRoleCounts(s), getMeta(s), listKeys(s, 'players/')]);
-  return { gameId: meta.gameId, taken, joined: players.length, capacity: totalRoles(counts) };
+  const [taken, meta, players] = await Promise.all([takenCharacters(s), getMeta(s), listKeys(s, 'players/')]);
+  return { gameId: meta.gameId, taken, joined: players.length };
 }
 
 async function join(req, s) {
@@ -180,7 +192,7 @@ async function join(req, s) {
   }
   const id = rid(9), token = rid(24);
   if (!(await claim(s, characterId, id))) fail(409, 'taken', '這個角色已被其他玩家選走了');
-  const p = { id, tokenHash: sha(token), characterId, nickname, joinedAt: now(), role: null, leader: null, gameId: meta.gameId };
+  const p = { id, tokenHash: sha(token), characterId, nickname, joinedAt: now(), role: CIVILIAN, leader: null, gameId: meta.gameId };
   await s.setJSON('players/' + id, p);
   await s.setJSON('seen/' + id, { t: now() });
   return { player: publicPlayer(p), token, rejoined: false };
@@ -192,7 +204,8 @@ async function me(req, s, heartbeatOnly) {
   await s.setJSON('seen/' + p.id, { t: now() });
   if (heartbeatOnly) return { ok: true };
   const [meta, info] = await Promise.all([getMeta(s), lobby(s)]);
-  const out = { player: publicPlayer(p), assigned: !!p.role, revealed: !!meta.revealed, joined: info.joined, capacity: info.capacity, gameId: meta.gameId };
+  // everyone holds 平民 from the start, so "assigned" only becomes meaningful once the host reveals roles
+  const out = { player: publicPlayer(p), assigned: false, revealed: !!meta.revealed, joined: info.joined, gameId: meta.gameId };
   if (meta.revealed && p.role) { out.role = p.role; if (p.leader) out.leader = p.leader; }
   return out;
 }
@@ -204,32 +217,32 @@ async function adminState(s) {
   const list = players.map((p, i) => ({
     id: p.id, characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt,
     lastSeen: seen[i] ? seen[i].t : null, online: !!(seen[i] && t - seen[i].t < ONLINE_MS),
-    role: p.role || null, leader: p.leader || null,
+    role: p.role, leader: p.leader || null,
   })).sort((a, b) => a.joinedAt - b.joinedAt);
   const assigned = Object.fromEntries(ROLE_ORDER.map((r) => [r, 0]));
-  for (const p of list) if (p.role) assigned[p.role] = (assigned[p.role] || 0) + 1;
+  for (const p of list) assigned[p.role] = (assigned[p.role] || 0) + 1;
   const archive = (await listKeys(s, 'archive/')).sort().reverse().slice(0, 20);
-  return { meta, roles: counts, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, capacity: totalRoles(counts), players: list, archive, serverTime: t };
+  return { meta, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, archive, serverTime: t };
 }
 
 async function setRole(req, s) {
   const b = await body(req);
   const counts = await getRoleCounts(s);
-  const role = b.role || null;
-  if (role !== null && !(role in counts)) fail(400, 'bad_role', '未知的角色');
+  const role = b.role == null ? CIVILIAN : b.role;   // there is no "unassigned" any more
+  if (!isRole(role)) fail(400, 'bad_role', '未知的角色');
   const players = await allPlayers(s);
   const target = players.find((p) => p.id === b.playerId);
   if (!target) fail(404, 'no_player', '找不到此玩家');
   const others = players.filter((p) => p.id !== target.id);
-  if (role && others.filter((p) => p.role === role).length >= counts[role]) fail(409, 'role_full', `「${role}」已達上限 ${counts[role]} 人`);
+  if (role !== CIVILIAN && others.filter((p) => p.role === role).length >= counts[role]) fail(409, 'role_full', `「${role}」已達上限 ${counts[role]} 人`);
   let leader = null;
-  if (role && LEADER_ROLES.includes(role)) {
+  if (LEADER_ROLES.includes(role)) {
     const used = new Set(others.filter((p) => LEADER_ROLES.includes(p.role) && p.leader).map((p) => p.leader));
     if (b.leader) {
       if (!LEADER_LABELS.includes(b.leader)) fail(400, 'bad_leader', '領袖代號只能是 A–D');
       if (used.has(b.leader)) fail(409, 'leader_taken', `領袖 ${b.leader} 已被使用`);
       leader = b.leader;
-    } else if (target.role && LEADER_ROLES.includes(target.role) && target.leader && !used.has(target.leader)) {
+    } else if (LEADER_ROLES.includes(target.role) && target.leader && !used.has(target.leader)) {
       leader = target.leader;
     } else {
       leader = LEADER_LABELS.find((l) => !used.has(l)) || null;
@@ -242,24 +255,29 @@ async function setRole(req, s) {
 async function randomAssign(s) {
   const counts = await getRoleCounts(s);
   const players = shuffle(await allPlayers(s));
+  // special roles go to random players; everyone else is 平民. With too few players the
+  // most important special roles are filled first (pool is in priority order).
   const pool = [];
-  for (const r of ROLE_ORDER) for (let i = 0; i < (counts[r] || 0); i++) pool.push(r);
-  for (const r of Object.keys(counts)) if (!ROLE_ORDER.includes(r)) for (let i = 0; i < counts[r]; i++) pool.push(r);
-  // fewer players than roles: keep the most important roles (pool is in priority order)
-  const roles = shuffle(pool.slice(0, players.length));
+  for (const r of SPECIAL_ROLES) for (let i = 0; i < (counts[r] || 0); i++) pool.push(r);
+  const special = pool.slice(0, players.length);
+  const roles = shuffle([...special, ...Array(Math.max(0, players.length - special.length)).fill(CIVILIAN)]);
   const labels = shuffle([...LEADER_LABELS]);
   let li = 0;
   await Promise.all(players.map((pl, i) => {
-    const role = roles[i] || null;
-    const leader = role && LEADER_ROLES.includes(role) ? (labels[li++] || null) : null;
+    const role = roles[i];
+    const leader = LEADER_ROLES.includes(role) ? (labels[li++] || null) : null;
     return update(s, 'players/' + pl.id, (p) => { p.role = role; p.leader = leader; return p; });
   }));
-  return { ok: true, assigned: Math.min(players.length, pool.length), unassigned: Math.max(0, players.length - pool.length), missingRoles: Math.max(0, pool.length - players.length) };
+  const missing = pool.slice(special.length);
+  return {
+    ok: true, special: special.length, civilians: players.length - special.length,
+    missingRoles: missing.length, missing: Object.fromEntries(SPECIAL_ROLES.map((r) => [r, missing.filter((x) => x === r).length]).filter(([, n]) => n)),
+  };
 }
 
 async function clearRoles(s) {
   const players = await allPlayers(s);
-  await Promise.all(players.map((pl) => update(s, 'players/' + pl.id, (p) => { p.role = null; p.leader = null; return p; })));
+  await Promise.all(players.map((pl) => update(s, 'players/' + pl.id, (p) => { p.role = CIVILIAN; p.leader = null; return p; })));
   return { ok: true };
 }
 
@@ -280,7 +298,7 @@ async function reset(s) {
   if (players.length) {
     await s.setJSON(`archive/${t}-${meta.gameId}`, {
       gameId: meta.gameId, startedAt: meta.startedAt, endedAt: t,
-      players: players.sort((a, b) => a.joinedAt - b.joinedAt).map((p) => ({ characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, role: p.role || null, leader: p.leader || null })),
+      players: players.sort((a, b) => a.joinedAt - b.joinedAt).map((p) => ({ characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, role: p.role, leader: p.leader || null })),
     });
   }
   const keys = [...await listKeys(s, 'players/'), ...await listKeys(s, 'claims/'), ...await listKeys(s, 'seen/')];
@@ -293,7 +311,7 @@ async function reset(s) {
 async function setConfig(req, s) {
   const b = await body(req);
   const roles = {};
-  for (const r of ROLE_ORDER) {
+  for (const r of SPECIAL_ROLES) {
     const n = b.roles && Number.isInteger(b.roles[r]) ? b.roles[r] : DEFAULT_ROLES[r];
     if (n < 0 || n > 20) fail(400, 'bad_count', '人數需介於 0–20');
     roles[r] = n;

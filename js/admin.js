@@ -5,7 +5,8 @@
   var AKEY = 'wwyf.admin';
   var $ = function (id) { return document.getElementById(id); };
   var SHORT = { '真正領袖': '真領袖', '假領袖': '假領袖', '真領袖支持者': '真支持', '假領袖支持者': '假支持', '平民': '平民' };
-  function short(r) { return r ? (SHORT[r] || r) : '未分配'; }
+  var CIV = '平民';
+  function short(r) { return r ? (SHORT[r] || r) : '未分配'; }   // null only comes from the old backend
   var ROLE_COLORS = { '真正領袖': 'var(--r-true)', '假領袖': 'var(--r-fake)', '真領袖支持者': 'var(--r-tsup)', '假領袖支持者': 'var(--r-fsup)', '平民': 'var(--r-civ)' };
   var chars = {};
   var state = null;
@@ -72,21 +73,20 @@
     if (!state) return;
     var s = state;
     $('joined').textContent = s.players.length;
-    $('cap').textContent = s.capacity;
     $('online').textContent = s.players.filter(function (p) { return p.online; }).length;
 
-    // no chip row: one plain "已分配 n/m" in the header, red text only when a role is over its limit
+    // no player cap; 平民 is unlimited. Summary: special roles in use / their limits. Red text only when over a limit.
     var warn = [];
-    s.roleOrder.forEach(function (r) {
+    specials().forEach(function (r) {
       var n = s.assigned[r] || 0, max = s.roles[r] || 0;
       if (n > max) warn.push('「' + short(r) + '」超出上限 ' + n + '/' + max);
     });
-    if (s.players.length > s.capacity) warn.push('玩家 ' + s.players.length + ' 人，超過角色總數 ' + s.capacity);
     $('warnings').innerHTML = warn.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('');
-    $('assigned').textContent = s.players.filter(function (p) { return p.role; }).length;
-    $('assignedOf').textContent = s.players.length;
-    $('sumJoined').textContent = s.players.length; $('sumCap').textContent = s.capacity;
-    $('sumAssigned').textContent = $('assigned').textContent; $('sumAssignedOf').textContent = s.players.length;
+    function sum(list, src) { return list.reduce(function (a, r) { return a + (+src[r] || 0); }, 0); }
+    var L = s.leaderRoles, S = specials().filter(function (r) { return L.indexOf(r) < 0; });
+    $('sumJoined').textContent = s.players.length;
+    $('sumLeaders').textContent = sum(L, s.assigned); $('sumLeadersMax').textContent = sum(L, s.roles);
+    $('sumSup').textContent = sum(S, s.assigned); $('sumSupMax').textContent = sum(S, s.roles);
 
     renderGrid();
   }
@@ -120,7 +120,8 @@
     return fn().then(refresh).catch(fail).then(function () { btn.disabled = false; });
   }
   /* ---------- tap-to-cycle roles & leader letters (optimistic, saved via API) ---------- */
-  var CYCLE = [null, '平民', '真領袖支持者', '假領袖支持者', '假領袖', '真正領袖'];
+  var CYCLE = ['平民', '真領袖支持者', '假領袖支持者', '假領袖', '真正領袖'];   // no "unassigned": everyone always has a role
+  function specials() { return state.roleOrder.filter(function (r) { return r !== CIV; }); }
   var pend = {};                       // playerId -> {role, leader} not yet confirmed by the server
   var saveTimers = {};
   var saveChain = Promise.resolve();
@@ -141,14 +142,14 @@
     return u;
   }
   function nextRole(p) {
-    var i = CYCLE.indexOf(p.role); if (i < 0) i = 0;
+    var i = CYCLE.indexOf(p.role);       // -1 (old backend's null) -> starts at 平民
     for (var k = 1; k <= CYCLE.length; k++) {
-      var r = CYCLE[(i + k) % CYCLE.length];
-      if (r === null) return null;
+      var r = CYCLE[(i + k + CYCLE.length) % CYCLE.length];
+      if (r === CIV) return CIV;         // 平民 has no limit
       var others = state.players.filter(function (q) { return q.id !== p.id && q.role === r; }).length;
       if (others < (state.roles[r] || 0)) return r;
     }
-    return null;
+    return CIV;
   }
   function apply(p, role, leader) {
     pend[p.id] = { role: role, leader: leader };
@@ -229,20 +230,24 @@
   });
   $('random').addEventListener('click', function () {
     var b = this;
-    if (state && state.players.some(function (p) { return p.role; }) && !confirm('重新隨機分配會覆蓋目前所有身分，確定嗎？')) return;
+    if (state && state.players.some(function (p) { return p.role && p.role !== CIV; }) && !confirm('重新隨機分配會覆蓋目前所有身分，確定嗎？')) return;
     act(b, function () {
       return WWYF.admin('POST', 'random').then(function (r) {
         lastSig = '';
-        var msg = '已隨機分配 ' + r.assigned + ' 位玩家';
-        if (r.unassigned) msg += '，' + r.unassigned + ' 位因角色不足未分配';
-        if (r.missingRoles) msg += '（尚缺 ' + r.missingRoles + ' 位玩家才滿員）';
-        toast(msg);
+        var msg = r.special != null
+          ? '已隨機分配 ' + r.special + ' 個特殊身分' + (r.civilians ? '，其餘 ' + r.civilians + ' 位為平民' : '')
+          : '已隨機分配 ' + r.assigned + ' 位玩家';                     // old backend response
+        if (r.special != null && r.missingRoles) {
+          var miss = Object.keys(r.missing || {}).map(function (k) { return short(k) + '×' + r.missing[k]; }).join('、');
+          msg += '（人數不足，未分配：' + (miss || r.missingRoles + ' 個特殊身分') + '）';
+        }
+        toast(msg, !!r.missingRoles);
       });
     });
   });
   $('clear').addEventListener('click', function () {
-    if (!confirm('確定要清除所有玩家的身分嗎？')) return;
-    act(this, function () { return WWYF.admin('POST', 'clear-roles').then(function () { lastSig = ''; toast('已清除所有身分'); }); });
+    if (!confirm('確定要把所有玩家重設為平民嗎？')) return;
+    act(this, function () { return WWYF.admin('POST', 'clear-roles').then(function () { lastSig = ''; toast('已全部重設為平民'); }); });
   });
   $('reset').addEventListener('click', function () {
     if (!confirm('開始新一場？\n\n會清空所有玩家與身分，大家需要重新選角色加入。')) return;
