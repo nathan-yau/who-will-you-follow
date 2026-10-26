@@ -90,7 +90,17 @@
     "left": "剩餘時間",
     "unlimited": "不限時",
     "yours": "你的答案",
-    "noAnswer": "你未有作答"
+    "noAnswer": "你未有作答",
+    "must": "請作答！"
   },
-  "_comment_quiz": "Round 3 問答 labels (phone + TV). The questions, threshold, success count and the final clue are edited in admin 「遊戲內容」 (server-side), not here."
+  "_comment_quiz": "Round 3 問答 labels (phone + TV). The questions, threshold, success count and the final clue are edited in admin 「遊戲內容」 (server-side), not here.",
+  "final": {
+    "tag": "最終揭曉",
+    "title": "請看 TV！",
+    "desc": "主持人正在逐一翻開領袖卡，\n看看誰才是真正領袖！",
+    "hidden": "未翻開",
+    "fake": "假領袖",
+    "true": "真正領袖",
+    "supp": "原來一直暗中支持："
+  }
 }

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
-  <link rel="stylesheet" href="../css/tv.css?v=14" />
+  <link rel="stylesheet" href="../css/tv.css?v=15" />
 </head>
 <body>
   <main class="tv" id="tv">
@@ -112,6 +112,14 @@
           <div class="rv-count__bar"><i id="rvBar"></i></div>
         </div>
       </section>
+
+      <!-- 最終揭曉 (admin → 最終揭曉): the leader cards on the lobby meadow; the host flips them in any order.
+           mini/state `final` only carries roles / supporters of cards that are already flipped / revealed. -->
+      <section class="tv-round tv-final" id="final" hidden>
+        <div class="fn-title"><h1>最終揭曉</h1><p id="fnSub">誰才是真正領袖？</p></div>
+        <div class="fn-cards" id="fnCards"></div>
+        <div class="fn-fx" id="fnFx" aria-hidden="true"></div>
+      </section>
     </div>
   </main>
   <script>
@@ -128,6 +136,6 @@
   </script>
   <script src="../js/api.js?v=10"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
-  <script src="../js/tv.js?v=11"></script>
+  <script src="../js/tv.js?v=12"></script>
 </body>
 </html>

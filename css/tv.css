@@ -350,3 +350,79 @@ body {
 .tq-clue__t { margin: 0; font-size: 26px; line-height: 36px; font-weight: 700; letter-spacing: 3px; color: #6b4a1e; }
 .tq-clue__t b { font-size: 15px; padding: 2px 12px; border-radius: 999px; background: #5f8f57; color: #fff; letter-spacing: 1px; vertical-align: middle; }
 .tq-clue__x { margin: 14px 0 0; font-size: 24px; line-height: 36px; font-weight: 700; letter-spacing: 1.5px; color: #3b2a1b; white-space: pre-line; }
+
+/* ---------- 最終揭曉 (screen 'final'): lobby meadow + its banner; flip cards in any order ---------- */
+.tv-final { animation: tvfade 0.45s ease-out; }
+.is-final .tv-started { visibility: hidden; }
+.fn-title { position: absolute; left: 258px; top: 23px; width: 510px; height: 89px; text-align: center; pointer-events: none; animation: tvin 0.55s cubic-bezier(.3, 1.4, .5, 1); }
+.fn-title h1 { margin: 10px 0 0; font-size: 36px; line-height: 44px; font-weight: 700; letter-spacing: 8px; text-indent: 8px; color: #4b301d; }
+.fn-title p { margin: 0; font-size: 18px; line-height: 26px; font-weight: 600; letter-spacing: 1.6px; color: #6a5a45; }
+.fn-cards { position: absolute; left: 0; right: 0; top: 140px; display: flex; justify-content: center; gap: 12px; }
+.fc { position: relative; width: 228px; height: 400px; flex: none; animation: lcin 0.5s cubic-bezier(.3, 1.5, .5, 1) backwards; animation-delay: calc(var(--i) * 0.07s); }
+.fc > .lc { position: absolute; left: 30px; top: 30px; transform: scale(1.15); transform-origin: 0 0; animation: none; z-index: 2; }
+.fc__q { position: absolute; right: -12px; top: -12px; width: 38px; height: 38px; border-radius: 50%; background: #f5ab9b; border: 3px solid #fdfaf1;
+  box-shadow: 0 3px 8px rgba(90, 60, 40, 0.2); display: flex; align-items: center; justify-content: center;
+  font-family: "Fredoka", system-ui, sans-serif; font-size: 24px; font-weight: 700; color: #fff; animation: fnq 2.4s ease-in-out infinite; }
+@keyframes fnq { 0%, 100% { transform: scale(1) rotate(0); } 50% { transform: scale(1.1) rotate(8deg); } }
+.fc.is-flipped .fc__q { display: none; }
+.fc__stamp { position: absolute; left: 50%; top: 44%; z-index: 4; padding: 3px 12px; white-space: nowrap; border-radius: 8px; border: 4px solid currentColor;
+  transform: translate(-50%, -50%) rotate(-12deg); font-size: 25px; line-height: 32px; font-weight: 900; letter-spacing: 3px; text-indent: 3px; opacity: 0; pointer-events: none; }
+.fc.is-flipped .fc__stamp { opacity: 1; }
+.fc.is-fake .fc__stamp { color: #c0634c; background: rgba(253, 250, 241, 0.9); }
+.fc.is-true .fc__stamp { top: 170px; letter-spacing: 2px; transform: translate(-50%, -50%) rotate(-4deg); color: #a3741a; background: #fff4c9; font-size: 23px; box-shadow: 0 0 18px rgba(246, 201, 76, 0.8); }
+.fc.anim.is-true .fc__stamp { animation-name: fnslamT; }
+@keyframes fnslamT { 0% { transform: translate(-50%, -50%) rotate(-20deg) scale(2.8); opacity: 0; } 100% { transform: translate(-50%, -50%) rotate(-4deg) scale(1); opacity: 1; } }
+.fc.is-fake .lc__circle img { filter: grayscale(0.5) brightness(0.96); }
+.fc.is-fake > .lc { border-color: #ead7cf; }
+.fc.is-true > .lc { border-color: #f0c24f; box-shadow: 0 0 0 3px #f6d97a, 0 0 26px 6px rgba(246, 201, 76, 0.75); }
+.fc__glow { position: absolute; left: -12px; top: -30px; width: 252px; height: 252px; border-radius: 50%; opacity: 0; pointer-events: none; z-index: 0;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 233, 150, 0.75) 0 12deg, rgba(255, 233, 150, 0) 12deg 30deg);
+  -webkit-mask: radial-gradient(circle, #000 35%, transparent 70%); mask: radial-gradient(circle, #000 35%, transparent 70%); }
+.fc.is-true .fc__glow { opacity: 1; animation: fnspin 14s linear infinite; }
+@keyframes fnspin { to { transform: rotate(360deg); } }
+.fc__crown { position: absolute; left: 76px; top: -16px; width: 64px; height: 44px; z-index: 5; opacity: 0; pointer-events: none; filter: drop-shadow(0 3px 4px rgba(120, 80, 20, 0.3)); }
+.fc.is-true .fc__crown { opacity: 1; transform: rotate(-8deg); }
+/* supporters pop out beside the card (up to 3, stacked on the right edge) */
+.fc__supp { position: absolute; left: 0; top: 0; width: 100%; height: 0; z-index: 6; }
+.fs { position: absolute; left: 146px; top: calc(100px - var(--k) * 86px); width: 82px; text-align: center; }
+.fs__c { display: block; position: relative; width: 74px; height: 74px; margin: 0 auto; border-radius: 50%; overflow: hidden; background: #fdfaf1;
+  border: 3px solid #fdfaf1; box-shadow: 0 0 0 3px #f5ab9b, 0 4px 10px rgba(90, 60, 40, 0.25); }
+.fc.is-true .fs__c { box-shadow: 0 0 0 3px #f0c24f, 0 4px 10px rgba(120, 80, 20, 0.25); }
+.fs__c img { position: absolute; left: calc(-10px + var(--dx, 0) * 88px); top: 2px; width: 88px; height: 82px; object-fit: contain; }
+.fs b { display: inline-block; margin-top: 2px; padding: 0 7px; border-radius: 9px; background: #fdfaf1; font-family: "Fredoka", system-ui, sans-serif; font-size: 13px; line-height: 18px; font-weight: 600; color: #4b301d; white-space: nowrap; max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
+.fc__cap { position: absolute; left: 0; right: 0; top: 262px; margin: 0; text-align: center; z-index: 3; }
+.fc__cap:empty { display: none; }
+.fc__say { display: inline-block; padding: 5px 12px; border-radius: 14px; background: #fdfaf1; box-shadow: 0 3px 10px rgba(90, 110, 70, 0.18);
+  font-size: 17px; line-height: 23px; font-weight: 800; letter-spacing: 1px; color: #b65b4a; white-space: nowrap; }
+.fc.is-true .fc__say { color: #8a6414; }
+.fc__tag { display: block; width: max-content; margin: 6px auto 0; padding: 2px 12px; border-radius: 10px; background: #fedcd4; font-size: 15px; line-height: 21px; font-weight: 700; letter-spacing: 1px; color: #4b301d; }
+.fc.is-true .fc__tag { background: #fbe7a6; }
+.fc__votes { position: absolute; left: 0; right: 0; top: 344px; margin: 0 auto; width: max-content; padding: 4px 14px; border-radius: 14px;
+  background: rgba(253, 250, 241, 0.92); box-shadow: 0 3px 10px rgba(90, 110, 70, 0.16); font-size: 16px; line-height: 22px; font-weight: 700; letter-spacing: 1px; color: #4b301d; }
+.fc__votes:empty { display: none; }
+.fc.has-supp .fc__votes { top: 352px; }
+/* live animations (class .anim / .anim-supp only for changes seen while the TV is open) */
+.fc.anim > .lc { animation: fnflip 0.7s ease-in-out; }
+@keyframes fnflip { 0% { transform: scale(1.15) rotateY(0); } 50% { transform: scale(1.25) rotateY(90deg); } 100% { transform: scale(1.15) rotateY(0); } }
+.fc.anim .fc__stamp { animation: fnslam 0.45s cubic-bezier(.3, 1.6, .5, 1) 0.6s backwards; }
+@keyframes fnslam { 0% { transform: translate(-50%, -50%) rotate(-30deg) scale(2.8); opacity: 0; } 100% { transform: translate(-50%, -50%) rotate(-12deg) scale(1); opacity: 1; } }
+.fc.anim.is-fake > .lc { animation: fnflip 0.7s ease-in-out, fnwobble 0.6s ease-in-out 1.05s; }
+@keyframes fnwobble { 0%, 100% { transform: scale(1.15) rotate(0); } 20% { transform: scale(1.15) rotate(-5deg); } 40% { transform: scale(1.15) rotate(4deg); } 60% { transform: scale(1.12) rotate(-3deg); } 80% { transform: scale(1.13) rotate(2deg); } }
+.fc.anim.is-true > .lc { animation: fnflip 0.7s ease-in-out, fnjoy 0.8s cubic-bezier(.3, 1.6, .5, 1) 0.7s; }
+@keyframes fnjoy { 0%, 100% { transform: scale(1.15); } 40% { transform: scale(1.32) translateY(-6px); } }
+.fc.anim.is-true .fc__glow { animation: fnglow 0.9s ease-out 0.6s backwards, fnspin 14s linear infinite; }
+@keyframes fnglow { 0% { opacity: 0; transform: scale(0.3); } 100% { opacity: 1; transform: scale(1); } }
+.fc.anim.is-true .fc__crown { animation: fncrown 0.7s cubic-bezier(.3, 1.6, .5, 1) 0.95s backwards; }
+@keyframes fncrown { 0% { transform: translateY(-90px) rotate(-30deg); opacity: 0; } 100% { transform: rotate(-8deg); opacity: 1; } }
+.fc__confetti { position: absolute; left: 108px; top: 112px; width: 0; height: 0; z-index: 7; pointer-events: none; }
+.fc__confetti i { position: absolute; width: 9px; height: 13px; margin: -6px -4px; border-radius: 2px; opacity: 0; animation: fnconf 1.7s cubic-bezier(.2, .7, .4, 1) 0.6s forwards; }
+@keyframes fnconf { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(var(--x), calc(var(--y) + 140px)) rotate(var(--r)); opacity: 0; } }
+.fc.anim-supp .fs { animation: fnpop 0.65s cubic-bezier(.3, 1.7, .5, 1) backwards; animation-delay: calc(var(--k) * 0.25s); }
+@keyframes fnpop { 0% { transform: translate(-70px, 10px) scale(0.1); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.fc.anim-supp .fc__cap { animation: fnup 0.5s ease-out 0.45s backwards; }
+@keyframes fnup { 0% { transform: translateY(12px) scale(0.9); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .tv-final, .fn-title, .fc, .fc__q, .fc.anim > .lc, .fc.anim .fc__stamp, .fc.anim.is-fake > .lc, .fc.anim.is-true > .lc, .fc.is-true .fc__glow,
+  .fc.anim.is-true .fc__glow, .fc.anim.is-true .fc__crown, .fc.anim-supp .fs, .fc.anim-supp .fc__cap { animation: none !important; }
+  .fc__confetti { display: none; }
+}

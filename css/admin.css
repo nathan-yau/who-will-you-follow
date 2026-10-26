@@ -315,3 +315,29 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .ct__err { min-height: 0; margin: 6px 0 0; color: var(--coral-d); font-size: 12.5px; font-weight: 600; }
 .ct__err:empty { display: none; }
 .ct.is-dirty #ctSave { box-shadow: 0 0 0 3px rgba(111, 154, 99, .25); }
+.ct__lbl--sub { margin-top: 6px; font-weight: 600; color: #4f6e48; }
+.qz-miss { margin-top: 6px; padding: 6px 8px; border-radius: 8px; background: #fdeee9; font-size: 12px; line-height: 1.6; color: #8a4a3a; display: flex; flex-wrap: wrap; gap: 2px 8px; }
+.qz-miss b { color: #b65b4a; }
+.qz-miss.is-done { background: #e6f2df; color: #3f6e39; }
+.qz-miss.is-done b { color: #3f6e39; }
+#qzGo.is-armed { background: #c0634c; color: #fff; border-color: #c0634c; }
+/* 最終揭曉 */
+.fn-row { display: flex; gap: 6px; margin-top: 8px; }
+.fn-row .btn { flex: 1 1 0; min-height: 36px; height: 36px; padding: 0 6px; font-size: 13px; }
+.fn-votes[aria-pressed="true"] { background: #e6f2df; border-color: #a9cf8f; color: #3f6e39; }
+.fn-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.fn-t { padding: 7px 8px; border-radius: 12px; background: #fff; border: 1.5px solid var(--line); min-width: 0; }
+.fn-t.is-flipped.is-fake { background: #fdf1ed; border-color: #f0cfc4; }
+.fn-t.is-flipped.is-true { background: #fff7dc; border-color: #f0d68a; }
+.fn-t__n { margin: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fn-t__n small { font-size: 11px; color: var(--muted); }
+.fn-t__r { margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: var(--ink2); min-height: 30px; }
+.fn-t__role { display: inline-block; margin-right: 4px; padding: 0 6px; border-radius: 6px; background: #f1eee3; font-weight: 700; color: var(--ink); }
+.fn-t.is-true .fn-t__role { background: #fbe7a6; }
+.fn-t.is-fake .fn-t__role { background: #fedcd4; }
+.fn-t__r small { font-size: 11px; }
+.fn-t__btns { display: flex; gap: 4px; margin-top: 5px; }
+.fn-t__b { flex: 1 1 0; min-width: 0; min-height: 32px; height: 32px; padding: 0 4px; font-size: 12.5px; letter-spacing: 0; white-space: nowrap; }
+.fn-t__b.is-done { opacity: .6; }
+#fnAll.is-armed, #fnReset.is-armed { background: #c0634c; color: #fff; border-color: #c0634c; }
+@media (min-width: 720px) { .fn-tiles { grid-template-columns: repeat(4, 1fr); } }

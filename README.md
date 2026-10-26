@@ -80,10 +80,11 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | POST | `/api/admin/speak` | host | `{round, duration:30\|60\|90\|120\|0}` start the 發言 timer for a round (0 = 不限) |
 | POST | `/api/admin/speak-end` | host | `{round}` end the 發言 now (→ 提問時間); opening a vote also ends it |
 | POST | `/api/quiz/answer` | player | `{index, choice:0-3}` answer / change the open Round 3 question → `{index, mine}`; `403 no_answer` (leaders), `409 quiz_closed` |
-| GET / POST | `/api/admin/content` | host | game content (persists across games): `{r2:{mystery}, r3:{threshold, need, clue, questions:[5 × {q, options[4], answer}]}}` → `{ok, content}` |
+| GET / POST | `/api/admin/content` | host | game content (persists across games): `{r2:{mystery:{all, true, fake}}, r3:{threshold, need, clue, questions:[5 × {q, options[4], answer}]}}` → `{ok, content}` |
 | POST | `/api/admin/quiz-open` | host | `{index:0-4, duration:0\|20\|30\|45\|60\|90}` open a question (snapshotted; reopening clears its result); needs started + revealed |
 | POST | `/api/admin/quiz-close` | host | close the open question now (the timer also closes it) → result |
 | POST | `/api/admin/quiz-reset` | host | clear all question results / answers |
+| POST | `/api/admin/final` | host | 最終揭曉: `{action:'enter'}` (TV → `final`; also `admin/screen {screen:'final'}`), `{action:'flip', playerId}`, `{action:'supporter', playerId}` (after flip; `409 no_supporter` / `not_flipped`), `{action:'all'}` (flip the rest, 700 ms stagger), `{action:'reset'}`, `{action:'votes', on}`; flip / supporter / all need the TV on `final` (`409 not_final`) → `{ok, screen, final}` |
 | POST | `/api/admin/start` | host | phase → `started` (stops the mini-game) |
 | POST | `/api/admin/lobby` | host | phase → `lobby` (clears mini-game counters) |
 
@@ -123,11 +124,17 @@ Game flow: **等候 (bubble battle) → 身份揭曉 → Round 1 → Round 2 →
 ### Round 2 神秘描述 + Round 3 破解密碼 (quiz)
 
 * Host guide (Traditional Chinese): `docs/HOST-GUIDE.md`.
-* Content: admin 「遊戲內容」 edits the Round 2 mystery text (one text for everyone; `byRole` reserved), the Round 3 threshold % (default 60), success count (default 3), the final clue and 5 questions (A–D + answer). Stored server-side (`content` blob), kept by 新一場.
-* r2 phone: same round page, title 誰是真領袖？, a 「神秘描述」 card (`/api/me` `round.mystery`); speak / vote / knock as in r1.
-* r3 phone: 解鎖進度 (5 circles) + question card (問題 i/5, question, A–D, status). Players answer / change until close; leaders read-only. After close: correct option + 成功 / 未達標 + %. Once `need` questions succeed and no question is open: the clue card. `/api/me` `round.quiz` = summary + `canAnswer` + `q` (`mine`; `answer` / `result` only after close). pct = correct / all non-leader players.
-* Admin 「Round 3 問答」: per-question status, picker, duration chip, 開始第 N 題 / 結束作答, live 已作答 / 答對 / %, 重設問答進度 (tap twice). Enabled while the TV is on Round 3.
+* Content: admin 「遊戲內容」 edits the Round 2 mystery texts — 平民版 `all` (required; 平民 + both supporter roles), 真領袖版 `true`, 假領袖版 `fake` (empty → 平民版) — the Round 3 threshold % (default 60), success count (default 3), the final clue and 5 questions (A–D + answer). Stored server-side (`content` blob), kept by 新一場.
+* r2 phone: same round page, title 誰是真領袖？, a 「神秘描述」 card (`/api/me` `round.mystery` = only the caller's version; the TV / `mini/state` never get it); speak / vote / knock as in r1.
+* r3 phone: 解鎖進度 (5 circles) + question card (問題 i/5, question, A–D, status). Every non-leader must answer: an unanswered phone shows a pulsing 「請作答」 until it answers. The question auto-closes the moment everyone has answered (`q.auto`), or at the optional timer; players change answers until close; leaders read-only. After close: correct option + 成功 / 未達標 + %. Once `need` questions succeed and no question is open: the clue card. `/api/me` `round.quiz` = summary + `canAnswer` + `q` (`mine`; `answer` / `result` only after close). pct = correct / all non-leader players.
+* Admin 「Round 3 問答」: per-question status, picker, duration chip, 開始第 N 題 / 結束作答, live 已作答 / 答對 / %, 未作答 N 人 (names, admin only — `q.missing`), 全部已作答，自動結束; a forced 結束作答 takes two taps and warns 「X 人未作答」; 重設問答進度 (tap twice). Enabled while the TV is on Round 3.
 * TV r3: while a question exists (or the clue is unlocked) a panel replaces the leader cards: 問題 i/5, progress dots, 作答中 + countdown, question, A–D, 已作答 X / N; after close the correct option + 成功 / 未達標 + %; then the clue. Hidden while a vote is shown. `/api/mini/state` `quiz` never carries the answer or choices while open.
+
+### 最終揭曉 (TV screen `final`)
+
+* Admin 「最終揭曉」: 進入最終揭曉, 顯示最後投票結果 toggle (r3 vote closed only), one tile per leader (name, role, supporters — host only) with 翻卡 (any order) and 揭曉支持者 (disabled 沒有支持者 when none), 全部翻開 / 重設揭曉 (two taps each). State `meta.final {flipped, supp, votes}`, cleared by 新一場.
+* TV (`js/tv.js`, `css/tv.css`): face-down cards (sprite + name + 「?」 badge) → flip: fake = 「假領袖」 stamp; true = 「真正領袖」 stamp + crown + glow + confetti; supporters pop out from behind the card with 「原來一直暗中支持！」 + role tag. Animations play only for changes seen live (`at` / `suppAt` timestamps); `prefers-reduced-motion` → simple fades. `/api/mini/state` `final.cards[]` carries `role` / `supporters` only for flipped / revealed cards.
+* Phone `round/` (data-r `final`): 「請看 TV！」 + the list of leaders with 未翻開 / 假領袖 / 真正領袖 and 原來一直暗中支持：<names> once revealed (copy: `data/texts.json` → `final`).
 
 Default roles (17): 真正領袖 1 · 假領袖 3 · 真領袖支持者 1 · 假領袖支持者 2 · 平民 10.
 

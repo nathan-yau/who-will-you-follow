@@ -24,13 +24,15 @@
     round: { speak: { ready: '準備中', live: '發言中', done: '提問時間', left: '剩餘時間', waitLabel: '等待開始', doneLabel: '發言結束', unlimited: '不限時' },
       vote: { wait: '等待投票開始', go: '前往投票', closed: '本輪投票已結束' },
       followers: { label: '跟隨你的人數', pending: '投票結束後公佈', unit: '人' }, again: '再看一次身份', tipTitle: '小提示' },
+    final: { tag: '最終揭曉', title: '請看 TV！', desc: '主持人正在逐一翻開領袖卡，\n看看誰才是真正領袖！', hidden: '未翻開', fake: '假領袖', true: '真正領袖',
+      supp: '原來一直暗中支持：', noSupp: '' },
     rounds: {
       r1: { tag: 'Round 1 / 3', title: '三句話', desc: '{n}位領袖會各自分享三句關於自己的說話。\n你可以聽完發言後提問，\n然後選擇你最相信的一位領袖。', tip: '仔細聆聽每位領袖的說話，\n你可以在發言後向他們提問！' },
       r2: { tag: 'Round 2 / 3', title: '誰是真領袖？', desc: '{n}位領袖會再次發言。', tip: '' },
       r3: { tag: 'Round 3 / 3', title: '破解密碼', desc: '大家將一起完成五道選擇題，\n每題需要至少 {pct} 的玩家答對才算成功。\n只要成功 {need} 題，即可解鎖最後的線索！', tip: '請大家認真討論，選出你認為正確的答案！' }
     },
     quiz: { progress: '解鎖進度', progressNote: '成功 {need} 題即可解鎖最後線索！', qLabel: '問題 {i} / {n}', waiting: '等待主持人開始第 {i} 題', open: '作答中',
-      answered: '已作答', closed: '作答結束', ok: '成功！', fail: '未達標', pctLine: '答對 {pct}% · 門檻 {need}%', leader: '領袖不參與作答', unlockedTitle: '最後的線索',
+      answered: '已作答', closed: '作答結束', ok: '成功！', fail: '未達標', pctLine: '答對 {pct}% · 門檻 {need}%', leader: '領袖不參與作答', must: '請作答！', unlockedTitle: '最後的線索',
       unlocked: '已解鎖！', lost: '未能解鎖最後的線索', left: '剩餘時間', unlimited: '不限時', yours: '你的答案', noAnswer: '你未有作答' }
   };
   var quizEnd = null, optKey = '', descKey = '', pending = null, sending = false;
@@ -41,6 +43,7 @@
   function txt() { return T || DEF; }
   function R(k) { var t = txt(); return (t.round && t.round[k]) || DEF.round[k]; }
   function copy(screen) { var t = txt(), d = DEF.rounds[screen] || DEF.rounds.r1, c = (t.rounds && t.rounds[screen]) || {}, o = {}; for (var k in d) o[k] = d[k]; for (k in c) if (c[k]) o[k] = c[k]; return o; }
+  function FT(k) { var t = txt(); return (t.final && t.final[k] != null ? t.final[k] : DEF.final[k]); }
   function Q(k) { var t = txt(); return (t.quiz && t.quiz[k]) || DEF.quiz[k]; }
   function fill(s, o) { return String(s || '').replace(/\{(\w+)\}/g, function (m, k) { return o[k] != null ? o[k] : m; }); }
   function mmss(ms) { var s = Math.max(0, Math.ceil(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
@@ -71,7 +74,9 @@
   function render() {
     var r = last;
     if (!r || !r.round) return;
-    var rd = r.round, c = copy(rd.screen), leader = !!rd.leaderText || rd.followers != null;
+    var rd = r.round;
+    if (rd.screen === 'final') { renderFinal(rd); return; }
+    var c = copy(rd.screen), leader = !!rd.leaderText || rd.followers != null;
     var n = renderRow(rd.leaders);
     set('tag', c.tag); set('rdTitle', c.title); set('tipTitle', R('tipTitle')); set('againText', R('again'));
     var lt = rd.leaderText || {};
@@ -114,6 +119,29 @@
     tick();
   }
 
+  // 最終揭曉: every phone gets the same public list (only cards the host has flipped carry a role / supporters)
+  var finKey = '';
+  function renderFinal(rd) {
+    app.setAttribute('data-r', 'final');
+    app.setAttribute('data-state', 'player');
+    app.setAttribute('data-vote', 'none');
+    set('tag', FT('tag')); set('rdTitle', FT('title')); set('againText', R('again'));
+    if ($('desc').textContent !== FT('desc')) $('desc').textContent = FT('desc');
+    var cards = ((rd.final && rd.final.cards) || []).filter(Boolean);
+    var key = JSON.stringify(cards) + Object.keys(names).length;
+    if (key === finKey) return;
+    finKey = key;
+    var el = $('fin');
+    el.className = 'rd-fin abs n' + cards.length;
+    el.innerHTML = cards.map(function (c) {
+      var id = c.characterId, dx = window.wwyfSpriteDx ? wwyfSpriteDx(id) : 0, st = c.flipped ? c.role : 'hidden';
+      var sup = c.supporters && c.supporters.length ? '<p class="rd-fin__sup">' + esc(FT('supp')) + c.supporters.map(function (x) { return '<b>' + esc(names[x.characterId] || '') + '</b>'; }).join('、') + '</p>' : '';
+      return '<div class="rd-fin__row is-' + st + '"><span class="rd-fin__c"><img alt="" src="' + img(id, 'stale1') + '" style="--dx:' + dx + '"></span>' +
+        '<p class="rd-fin__n" lang="en">' + esc(names[id] || '') + '</p><span class="rd-fin__st">' + esc(c.flipped ? FT(c.role) : FT('hidden')) + '</span>' +
+        (c.votes != null ? '<span class="rd-fin__v">' + (c.votes | 0) + ' 票</span>' : '') + sup + '</div>';
+    }).join('');
+  }
+
   function renderQuiz(qz, leader) {
     var total = qz.total || 5, q = qz.q, st = qz.states || [];
     set('progLabel', Q('progress'));
@@ -127,6 +155,7 @@
     else if (q && !q.open) mode = 'done';
     else mode = 'wait';
     box.setAttribute('data-q', mode);
+    if (mode !== 'open') box.classList.remove('is-must');
     if (mode === 'clue') { set('clueTitle', Q('unlockedTitle')); set('clueBadge', Q('unlocked')); set('clueText', qz.clue); quizEnd = null; return; }
     var idx = q ? q.index : st.indexOf('none') < 0 ? total - 1 : st.indexOf('none');
     set('qBadge', fill(Q('qLabel'), { i: idx + 1, n: total }));
@@ -136,10 +165,13 @@
     var res = q.result, stEl = $('qStatus');
     if (mode === 'open') {
       quizEnd = q.remain != null ? Date.now() + q.remain : null;
-      set('qStatus', leader ? Q('leader') : mine != null ? Q('answered') + ' ' + 'ABCD'[mine] : Q('open'));
-      stEl.className = 'rd-quiz__st open';
+      var must = !leader && qz.canAnswer && mine == null;   // 所有人都必須作答: emphasise until this phone has answered
+      set('qStatus', leader ? Q('leader') : mine != null ? Q('answered') + ' ' + 'ABCD'[mine] : Q('must'));
+      stEl.className = 'rd-quiz__st open' + (must ? ' must' : '');
+      box.classList.toggle('is-must', must);
     } else {
       quizEnd = null;
+      box.classList.remove('is-must');
       set('qStatus', res ? (res.success ? Q('ok') : Q('fail')) + ' ' + res.pct + '%' : Q('closed'));
       stEl.className = 'rd-quiz__st' + (res ? (res.success ? ' ok' : ' fail') : '');
     }
@@ -218,11 +250,11 @@
     window.location.href = '../vote/';
   });
 
-  fetch('../data/texts.json?v=4', { cache: 'no-cache' }).then(function (r) { return r.json(); })
-    .then(function (d) { if (d && (d.rounds || d.round)) { T = { rounds: d.rounds || {}, round: {}, quiz: d.quiz || {} }; for (var k in DEF.round) T.round[k] = (d.round && d.round[k]) || DEF.round[k]; } render(); })
+  fetch('../data/texts.json?v=5', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+    .then(function (d) { if (d && (d.rounds || d.round)) { T = { rounds: d.rounds || {}, round: {}, quiz: d.quiz || {}, final: d.final || {} }; for (var k in DEF.round) T.round[k] = (d.round && d.round[k]) || DEF.round[k]; } render(); })
     .catch(function () {});
   fetch('../data/characters.json?v=' + V, { cache: 'no-cache' }).then(function (r) { return r.json(); })
-    .then(function (d) { ((d && d.characters) || []).forEach(function (c) { names[c.id] = c.name; }); rowKey = ''; render(); })
+    .then(function (d) { ((d && d.characters) || []).forEach(function (c) { names[c.id] = c.name; }); rowKey = ''; finKey = ''; render(); })
     .catch(function () {});
   if (window.WWYF_KNOCK) WWYF_KNOCK.init($('knockSlot'));
 

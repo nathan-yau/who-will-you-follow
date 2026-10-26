@@ -102,7 +102,7 @@
     $('phaseDot').classList.toggle('on', !started);
     $('phaseDot').classList.toggle('live', started);
     $('tvNote').textContent = started
-      ? '遊戲已開始：TV 顯示' + (sc === 'reveal' ? '「身份揭曉」畫面' : rnd ? '「' + rnd + '」標題畫面（含四位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
+      ? '遊戲已開始：TV 顯示' + (sc === 'reveal' ? '「身份揭曉」畫面' : sc === 'final' ? '「最終揭曉」畫面' : rnd ? '「' + rnd + '」標題畫面（含四位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
       : '等候中：玩家可在手機按「避開啊／衝過去」玩 TV 上的泡泡大戰。';
     $('startGame').disabled = started;
     if (started) disarm();
@@ -111,6 +111,7 @@
     renderGoR1();
     renderVote();
     renderQuiz();
+    renderFinal();
   }
 
   /* 開始 Round 1 (flow: 等候 → 身份揭曉 → Round 1): shown once the reveal stage has started, until a round is on the TV.
@@ -150,7 +151,7 @@
   });
 
   /* TV 畫面 segmented control: 等候 / Round 1–3 (POST admin/screen; a round implies 開始遊戲) */
-  var SCREEN_NAMES = { lobby: '等候', r1: 'Round 1', r2: 'Round 2', r3: 'Round 3', reveal: '身份揭曉' };
+  var SCREEN_NAMES = { lobby: '等候', r1: 'Round 1', r2: 'Round 2', r3: 'Round 3', reveal: '身份揭曉', final: '最終揭曉' };
   var segPending = null, segArm = null, segArmT = 0;
   function curScreen() {
     var m = state && state.meta;
@@ -616,7 +617,7 @@
 
 
   /* ---------- Round 3 問答: live control (admin/quiz-open · quiz-close · quiz-reset) ---------- */
-  var QDUR_KEY = 'wwyf.admin.quizDur', quizDur = 0, qzPick = null, qzBusy = false, qzResetArm = false, qzResetT = 0;
+  var QDUR_KEY = 'wwyf.admin.quizDur', qzCloseArm = false, qzCloseT = 0, quizDur = 0, qzPick = null, qzBusy = false, qzResetArm = false, qzResetT = 0;
   try { var qd = localStorage.getItem(QDUR_KEY); if (qd != null && [0, 20, 30, 45, 60, 90].indexOf(+qd) >= 0) quizDur = +qd; } catch (e) {}
   var ABCD = 'ABCD';
   function quizOpenNow() {
@@ -658,6 +659,11 @@
           '<div class="qz-bar"><i style="width:' + Math.min(100, L.pct) + '%"></i><em style="left:' + thr + '%"></em></div>';
       }
     }
+    // 所有人都必須作答: who still has to answer (admin only; names = character name + nickname)
+    if (q && q.open && q.missing) {
+      html += '<div class="qz-miss' + (q.missing.length ? '' : ' is-done') + '"><b>' + (q.missing.length ? '未作答 ' + q.missing.length + ' 人：' : '全部已作答') + '</b>' +
+        q.missing.map(function (m) { var c = chars[m.characterId]; return '<span>' + esc((c && c.name) || m.characterId) + (m.nickname ? '（' + esc(m.nickname) + '）' : '') + '</span>'; }).join('') + '</div>';
+    } else if (q && !q.open && q.auto) html += '<div class="qz-miss is-done"><b>全部已作答，自動結束</b></div>';
     if ($('qzCur').innerHTML !== html) $('qzCur').innerHTML = html;
     var dur = $('qzDur');
     var dsh = open ? open.q.duration : quizDur;
@@ -666,7 +672,10 @@
     var go = $('qzGo');
     go.disabled = qzBusy || (!on && !open);
     var redo = !open && st[qzPick] && st[qzPick] !== 'none';
-    go.textContent = open ? '結束作答' : (redo ? '重新開始第 ' : '開始第 ') + (qzPick + 1) + ' 題';
+    if (!open) qzCloseArm = false;
+    var nMiss = open && open.q.missing ? open.q.missing.length : 0;
+    go.textContent = open ? (qzCloseArm ? '再按一次結束（' + nMiss + ' 人未作答）' : '結束作答') : (redo ? '重新開始第 ' : '開始第 ') + (qzPick + 1) + ' 題';
+    go.classList.toggle('is-armed', !!open && qzCloseArm);
     go.classList.toggle('btn--primary', !open); go.classList.toggle('btn--danger', !!open);
     var t, dot = '';
     if (open) { t = '第 ' + (open.q.index + 1) + ' 題作答中 · ' + (open.left == null ? '不限時' : '剩 ' + mmss(open.left)) + (open.q.live ? ' · 已作答 ' + open.q.live.answered + '/' + open.q.live.total : ''); dot = 'live'; }
@@ -693,6 +702,11 @@
   $('qzGo').addEventListener('click', function () {
     if (!state || this.disabled) return;
     var open = quizOpenNow(), st = (state.quiz && state.quiz.states) || [], i = qzPick;
+    // 結束作答 = two taps while someone still has to answer (the question closes by itself once everyone answered)
+    if (open && open.q.missing && open.q.missing.length && !qzCloseArm) {
+      qzCloseArm = true; clearTimeout(qzCloseT); qzCloseT = setTimeout(function () { qzCloseArm = false; renderQuiz(); }, 3000); renderQuiz(); return;
+    }
+    clearTimeout(qzCloseT); qzCloseArm = false;
     if (!open && st[i] && st[i] !== 'none' && !confirm('第 ' + (i + 1) + ' 題已經答過，要重新作答嗎？\n（會清除這一題之前的答案和結果）')) return;
     qzBusy = true; renderQuiz();
     (open ? WWYF.admin('POST', 'quiz-close').then(function (r) {
@@ -707,6 +721,66 @@
     act(this, function () { return WWYF.admin('POST', 'quiz-reset').then(function () { qzPick = null; toast('問答進度已重設'); }); });
   });
   setInterval(function () { if (state && !document.hidden && quizOpenNow()) renderQuiz(); }, 500);
+
+  /* ---------- 最終揭曉 (POST admin/final {action: enter | flip | supporter | all | reset | votes}) ---------- */
+  var fnBusy = false, fnArm = null, fnArmT = 0;
+  function fnName(cid) { var c = chars[cid]; return (c && c.name) || cid || '?'; }
+  function renderFinal() {
+    var f = state && state.final;
+    if (!f) return;
+    var on = curScreen() === 'final', started = state.meta && state.meta.phase === 'started' && state.meta.revealed;
+    var L = (f.leaders || []).filter(Boolean), nf = L.filter(function (l) { return l.flipped; }).length;
+    $('fnEnter').disabled = fnBusy || on || !started;
+    $('fnEnter').textContent = on ? 'TV 顯示最終揭曉中' : '進入最終揭曉';
+    $('fnVotes').setAttribute('aria-pressed', String(!!f.votes));
+    $('fnVotes').textContent = (f.votes ? '✓ ' : '') + '顯示最後投票結果';
+    $('fnVotes').disabled = fnBusy || !started;
+    $('fnVotes').title = f.voteReady ? '' : '最後投票（Round 3）未結束：TV 暫時不會顯示票數';
+    var dis = fnBusy || !on;
+    var html = L.map(function (l) {
+      var sup = l.supporters || [], fake = l.role !== '真正領袖';
+      var supTxt = sup.map(function (q) { return esc(fnName(q.characterId)) + (q.nickname ? '（' + esc(q.nickname) + '）' : ''); }).join('、');
+      var b2 = !l.flipped ? '' : !sup.length ? '<button class="btn btn--ghost fn-t__b" type="button" disabled>沒有支持者</button>'
+        : l.suppRevealed ? '<button class="btn btn--ghost fn-t__b is-done" type="button" disabled>已揭曉支持者</button>'
+        : '<button class="btn btn--primary fn-t__b" type="button" data-act="supporter" data-id="' + l.id + '"' + (dis ? ' disabled' : '') + '>揭曉支持者</button>';
+      return '<div class="fn-t' + (l.flipped ? ' is-flipped' : '') + (fake ? ' is-fake' : ' is-true') + '">' +
+        '<p class="fn-t__n"><b>' + esc(fnName(l.characterId)) + '</b>' + (l.nickname ? '<small>（' + esc(l.nickname) + '）</small>' : '') + '</p>' +
+        '<p class="fn-t__r"><span class="fn-t__role">' + esc(l.role) + '</span>' + (sup.length ? '<small>支持者：' + supTxt + '</small>' : '<small>沒有支持者</small>') + '</p>' +
+        '<div class="fn-t__btns">' + (l.flipped ? '<button class="btn btn--ghost fn-t__b is-done" type="button" disabled>已翻開</button>'
+          : '<button class="btn btn--primary fn-t__b" type="button" data-act="flip" data-id="' + l.id + '"' + (dis ? ' disabled' : '') + '>翻卡</button>') + b2 + '</div></div>';
+    }).join('') || '<p class="tvnote">未有領袖。</p>';
+    if ($('fnTiles').innerHTML !== html) $('fnTiles').innerHTML = html;
+    $('fnAll').disabled = dis || nf >= L.length;
+    $('fnAll').textContent = fnArm === 'all' ? '再按一次全部翻開' : '全部翻開';
+    $('fnAll').classList.toggle('is-armed', fnArm === 'all');
+    $('fnReset').disabled = fnBusy || !started;
+    $('fnReset').textContent = fnArm === 'reset' ? '再按一次確認重設' : '重設揭曉';
+    $('fnReset').classList.toggle('is-armed', fnArm === 'reset');
+    $('fnSum').textContent = on ? '已翻開 ' + nf + ' / ' + L.length : nf ? '已翻開 ' + nf + ' / ' + L.length + '（TV 不在最終揭曉）' : '未開始';
+    $('fnDot').className = 'dot' + (on ? ' v-live' : '');
+    $('fnNote').textContent = !started ? '請先完成身份揭曉。' : on ? 'TV 正顯示所有領袖卡（身份以「?」隱藏）。任何次序翻卡；翻開後可「揭曉支持者」。' : '最後投票後按「進入最終揭曉」，再逐張翻卡（任何次序都可以）。';
+  }
+  function fnDo(body, msg) {
+    fnBusy = true; renderFinal();
+    return WWYF.admin('POST', 'final', body).then(function (r) {
+      if (state) { state.final = r.final; if (state.meta && body.action === 'enter') { state.meta.tvScreen = r.screen; } }
+      if (msg) toast(msg);
+    }).catch(fail).then(function () { fnBusy = false; renderPhase(); return refresh(); });
+  }
+  function fnDisarm() { clearTimeout(fnArmT); fnArm = null; renderFinal(); }
+  function fnTwoTap(k) {
+    if (fnArm !== k) { fnArm = k; clearTimeout(fnArmT); fnArmT = setTimeout(fnDisarm, 3000); renderFinal(); return false; }
+    clearTimeout(fnArmT); fnArm = null; return true;
+  }
+  $('fnEnter').addEventListener('click', function () { if (!this.disabled) fnDo({ action: 'enter' }, 'TV 已切換到最終揭曉'); });
+  $('fnVotes').addEventListener('click', function () { if (!this.disabled) fnDo({ action: 'votes', on: !(state.final && state.final.votes) }); });
+  $('fnAll').addEventListener('click', function () { if (!this.disabled && fnTwoTap('all')) fnDo({ action: 'all' }, '全部翻開！'); });
+  $('fnReset').addEventListener('click', function () { if (!this.disabled && fnTwoTap('reset')) fnDo({ action: 'reset' }, '最終揭曉已重設'); });
+  $('fnTiles').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-act]'); if (!b || b.disabled) return;
+    var l = ((state.final && state.final.leaders) || []).filter(Boolean).find(function (x) { return x.id === b.dataset.id; });
+    fnDo({ action: b.dataset.act, playerId: b.dataset.id }, l ? fnName(l.characterId) + (b.dataset.act === 'flip' ? ' 已翻卡' : ' 的支持者已揭曉') : '');
+  });
 
   /* ---------- 遊戲內容 editor (GET / POST admin/content; kept across games) ---------- */
   var content = null, ctDirty = false;
@@ -729,7 +803,7 @@
   }
   function ctFill(c) {
     content = c;
-    $('ctMyst').value = c.r2.mystery.all || '';
+    $('ctMyst').value = c.r2.mystery.all || ''; $('ctMystT').value = c.r2.mystery.true || ''; $('ctMystF').value = c.r2.mystery.fake || '';
     $('ctPct').value = c.r3.threshold; $('ctNeed').value = c.r3.need; $('ctClue').value = c.r3.clue || '';
     c.r3.questions.forEach(function (q, i) {
       var qe = document.querySelector('.ct-q[data-q="' + i + '"]'); if (!qe) return;
@@ -746,7 +820,7 @@
       var r = qe.querySelector('input[type=radio]:checked');
       return { q: qe.querySelector('[data-f=q]').value.trim(), options: [0, 1, 2, 3].map(function (j) { return qe.querySelector('[data-o="' + j + '"]').value.trim(); }), answer: r ? +r.value : -1 };
     });
-    return { r2: { mystery: $('ctMyst').value.trim() }, r3: { threshold: +$('ctPct').value, need: +$('ctNeed').value, clue: $('ctClue').value.trim(), questions: qs } };
+    return { r2: { mystery: { all: $('ctMyst').value.trim(), true: $('ctMystT').value.trim(), fake: $('ctMystF').value.trim() } }, r3: { threshold: +$('ctPct').value, need: +$('ctNeed').value, clue: $('ctClue').value.trim(), questions: qs } };
   }
   function loadContent() {
     return WWYF.admin('GET', 'content').then(function (r) { if (!ctDirty) ctFill(r.content); else content = r.content; renderQuiz(); }).catch(function (e) { if (e.status === 401) fail(e); });
@@ -759,6 +833,7 @@
     e.preventDefault();
     var b = $('ctSave'), body = ctRead(), bad = '';
     body.r3.questions.forEach(function (q, i) { if (!bad && (!q.q || q.options.some(function (o) { return !o; }))) bad = '第 ' + (i + 1) + ' 題的題目或選項未填'; if (!bad && q.answer < 0) bad = '第 ' + (i + 1) + ' 題未選正確答案'; });
+    if (!bad && !body.r2.mystery.all) bad = '平民版神秘描述不可留空';
     if (bad) { $('ctErr').textContent = bad; return; }
     b.disabled = true;
     WWYF.admin('POST', 'content', body).then(function (r) { ctFill(r.content); toast('遊戲內容已儲存'); renderQuiz(); })

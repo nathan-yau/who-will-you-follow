@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=21" />
+  <link rel="stylesheet" href="../css/admin.css?v=22" />
 </head>
 <body>
   <header class="top">
@@ -172,6 +172,30 @@
         </div>
       </section>
 
+      <!-- 最終揭曉: TV shows every leader card with a '?' badge; flip them in ANY order (假領袖 stamp / 真正領袖 celebration),
+           then 揭曉支持者 pops out who secretly backed that leader. The TV / phones only get what has been flipped. -->
+      <section class="acc" data-acc="final" id="accFinal">
+        <div class="acc__head">
+          <button class="acc__toggle" type="button" aria-expanded="true" aria-controls="accFinalBody">
+            <span class="acc__title">最終揭曉</span>
+            <span class="acc__sum"><i class="dot" id="fnDot"></i> <span id="fnSum">未開始</span></span>
+            <svg class="acc__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="acc__body" id="accFinalBody">
+          <p class="tvnote" id="fnNote">最後投票後按「進入最終揭曉」，再逐張翻卡（任何次序都可以）。</p>
+          <div class="fn-row">
+            <button class="btn btn--primary" id="fnEnter" type="button">進入最終揭曉</button>
+            <button class="btn btn--ghost fn-votes" id="fnVotes" type="button" aria-pressed="false">顯示最後投票結果</button>
+          </div>
+          <div class="fn-tiles" id="fnTiles"></div>
+          <div class="acc__foot">
+            <button class="btn btn--ghost" id="fnAll" type="button">全部翻開</button>
+            <button class="btn btn--danger" id="fnReset" type="button">重設揭曉</button>
+          </div>
+        </div>
+      </section>
+
       <!-- 遊戲內容 (saved on the server, kept across games): Round 2 神秘描述 + Round 3 questions / threshold / clue -->
       <section class="acc" data-acc="content" id="accContent">
         <div class="acc__head">
@@ -183,8 +207,14 @@
         </div>
         <div class="acc__body" id="accContentBody">
           <form id="ctForm" class="ct" autocomplete="off">
-            <label class="ct__lbl" for="ctMyst">Round 2 「神秘描述」<small>（所有玩家看到同一段文字）</small></label>
-            <textarea class="ct__ta" id="ctMyst" maxlength="400" rows="4"></textarea>
+            <!-- Round 2 神秘描述 per role group (undercover style); each phone gets only its own version via /api/me, the TV none -->
+            <p class="ct__lbl">Round 2 「神秘描述」<small>（每部手機只會看到自己那一版；TV 不會顯示）</small></p>
+            <label class="ct__lbl ct__lbl--sub" for="ctMyst">平民版<small>（平民、真領袖支持者、假領袖支持者）</small></label>
+            <textarea class="ct__ta" id="ctMyst" maxlength="400" rows="3"></textarea>
+            <label class="ct__lbl ct__lbl--sub" for="ctMystT">真領袖版<small>（留空 = 與平民版相同）</small></label>
+            <textarea class="ct__ta" id="ctMystT" maxlength="400" rows="3"></textarea>
+            <label class="ct__lbl ct__lbl--sub" for="ctMystF">假領袖版<small>（留空 = 與平民版相同）</small></label>
+            <textarea class="ct__ta" id="ctMystF" maxlength="400" rows="3"></textarea>
             <div class="ct__row">
               <label class="ct__lbl ct__lbl--in" for="ctPct">每題門檻</label><input class="ct__num" id="ctPct" type="number" min="1" max="100" inputmode="numeric" /><span class="ct__unit">% 答對</span>
               <label class="ct__lbl ct__lbl--in" for="ctNeed">成功</label><input class="ct__num" id="ctNeed" type="number" min="1" max="5" inputmode="numeric" /><span class="ct__unit">題解鎖</span>
@@ -220,6 +250,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/admin.js?v=22"></script>
+  <script src="../js/admin.js?v=23"></script>
 </body>
 </html>

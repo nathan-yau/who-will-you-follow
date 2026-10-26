@@ -33,7 +33,7 @@ const DEFAULT_ROLES = { '真正領袖': 1, '假領袖': 3, '真領袖支持者':
 const SPECIAL_ROLES = Object.keys(DEFAULT_ROLES);  // also the priority when there are too few players for all of them
 const ROLE_ORDER = [...SPECIAL_ROLES, CIVILIAN];
 const isRole = (r) => r === CIVILIAN || SPECIAL_ROLES.includes(r);
-const FAKE_LEADER = '假領袖', FAKE_SUPPORTER = '假領袖支持者';
+const FAKE_LEADER = '假領袖', FAKE_SUPPORTER = '假領袖支持者', TRUE_SUPPORTER = '真領袖支持者';
 const ALLOWED_ORIGINS = ['https://nathan-yau.github.io'];
 const ONLINE_MS = 15000;
 const SESSION_MS = 12 * 3600 * 1000;
@@ -42,7 +42,8 @@ const LOBBY = 'lobby', STARTED = 'started';
 const phaseOf = (m) => (m && m.phase === STARTED ? STARTED : LOBBY);
 const ROUND_SCREENS = ['r1', 'r2', 'r3'];
 const REVEAL = 'reveal';   // 身份揭曉 stage
-const SCREENS = [...ROUND_SCREENS, REVEAL];
+const FINAL = 'final';     // 最終揭曉 (host flips the leader cards in any order)
+const SCREENS = [...ROUND_SCREENS, REVEAL, FINAL];
 // round / reveal screens only make sense once the game has started (lobby -> always the bubble battle)
 const screenOf = (m) => (phaseOf(m) === STARTED && SCREENS.includes(m.tvScreen) ? m.tvScreen : LOBBY);
 const MINI_MAX_PUSH = 4;   // per request; the phone sends at most every 250 ms and caps taps at 2/s
@@ -252,6 +253,11 @@ async function me(req, s, heartbeatOnly) {
       out.round.followers = await followersOf(s, meta, me1, out.screen, ps);
     }
   }
+  if (meta.revealed && out.screen === FINAL) {
+    // phones on 最終揭曉: 「請看 TV」 + what has been revealed so far (same public data as the TV)
+    const ps = (await cachedGet(s, await listWithEtags(s, 'players/'))).filter(Boolean).map(normalize);
+    out.round = { screen: FINAL, leaders: leaderCards(ps), final: await finalView(s, meta, ps) };
+  }
   if (meta.revealed) {
     const kv = knockView(meta, normalize(p));
     if (kv) out.knock = kv;                    // 真正領袖 only
@@ -347,7 +353,8 @@ async function adminState(s) {
   const votes = await adminVotes(s, meta, players);
   const sc = screenOf(meta), speak = ROUND_SCREENS.includes(sc) ? speakView(meta, sc) : null;
   const quiz = await adminQuiz(s, await quizSettle(s, meta), players, await getContent(s));
-  return { meta, votes, quiz, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
+  const final = await adminFinal(s, meta, players.map(normalize));
+  return { meta, votes, quiz, final, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
 }
 
 async function setRole(req, s) {
@@ -903,6 +910,8 @@ async function miniState(s) {
     out.speak = speakView(meta, screen);   // 發言 timer: state + countdown only
     if (screen === 'r3') out.quiz = await quizForTv(s, await quizSettle(s, meta), await getContent(s), ps.filter(canVote).length);   // question + answered count; result after close
   }
+  // 最終揭曉: the leader cards + ONLY what the host has already flipped / revealed (no roles of unflipped cards)
+  if (screen === FINAL) out.final = await finalView(s, meta, players.filter(Boolean).map(normalize));
   // an open vote: countdown + aggregate count only (never who voted, never for whom)
   // just sealed (everyone voted): keep showing 已封票 + the full count for a while
   const v = currentVote(meta);
@@ -976,6 +985,7 @@ async function setScreen(req, s) {
   const b = await body(req);
   if (b.screen === LOBBY) return setPhase(s, LOBBY);
   if (b.screen === REVEAL) return revealStage(s, true);
+  if (b.screen === FINAL) return finalAction(s, { action: 'enter' });
   if (!ROUND_SCREENS.includes(b.screen)) fail(400, 'bad_screen', '未知的畫面');
   return setPhase(s, STARTED, b.screen);
 }
@@ -1031,14 +1041,17 @@ async function adminLogin(req, s, context) {
 
 /* ---------------- game content (admin 「遊戲內容」; editable without code) ----------------
    blob `content` (kept across games, NOT cleared by 新一場):
-     { r2: { mystery: { all, byRole: {} } },                        Round 2 神秘描述: one shared text for everyone.
-                                                                     byRole[<role>] (optional, not in the admin UI yet) would
-                                                                     override it for that role — reserved for per-role variants.
+     { r2: { mystery: { all, true, fake } },                         Round 2 神秘描述 per role group: all = 平民版 (平民 + both
+                                                                     supporter roles), true = 真領袖版, fake = 假領袖版 ('' = 平民版).
        r3: { threshold (%), need (successes to unlock), clue, questions: [{ q, options: [4], answer: 0-3 }] x 5 } } */
 const QUIZ_N = 5;
 const QUIZ_DURATIONS = [0, 20, 30, 45, 60, 90];
 const DEFAULT_CONTENT = {
-  r2: { mystery: { all: '我係香港一間連鎖米線店，以雲南風味米線為主打，可以自由選擇配料同辣度。我同另一間名字相似嘅米線店有歷史淵源，但我哋係兩個唔同品牌。', byRole: {} } },
+  r2: { mystery: {
+    all: '我係香港一間連鎖米線店，以雲南風味米線為主打，可以自由選擇配料同辣度。我同另一間名字相似嘅米線店有歷史淵源，但我哋係兩個唔同品牌。',   // 平民版 (also both supporter roles)
+    true: '我係香港一間連鎖米線店，以雲南風味米線為主打，可以自由選擇配料同辣度。我同另一間名字相似嘅米線店有歷史淵源，但我哋係兩個唔同品牌。',  // 真領袖版
+    fake: '我係香港一間連鎖車仔麵店，可以自由揀配料、湯底同辣度。我喺香港有好多分店，好多上班族都會嚟食午餐。',                                   // 假領袖版 (placeholder)
+  } },
   r3: { threshold: 60, need: 3, clue: '（最後的線索：請在管理頁「遊戲內容」填寫）', questions: [
     { q: '以下哪個數字最接近一小時的秒數？', options: ['360', '600', '3600', '6000'], answer: 2 },
     { q: '（範例）一星期有幾多日？', options: ['5', '6', '7', '8'], answer: 2 },
@@ -1051,12 +1064,16 @@ const str = (v, max, d = '') => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n
 function cleanContent(b, base) {
   const out = structuredClone(base);
   if (b.r2 && b.r2.mystery != null) {
-    const m = b.r2.mystery;
-    out.r2.mystery.all = str(typeof m === 'string' ? m : m.all, 400, out.r2.mystery.all);
-    if (m && typeof m === 'object' && m.byRole && typeof m.byRole === 'object') {
-      out.r2.mystery.byRole = {};
-      for (const r of ROLE_ORDER) if (typeof m.byRole[r] === 'string' && m.byRole[r].trim()) out.r2.mystery.byRole[r] = str(m.byRole[r], 400);
+    const m = b.r2.mystery, o = out.r2.mystery;
+    // string = the 平民版 only; object = { all (平民版), true (真領袖版), fake (假領袖版) } — '' for a leader version = same as 平民版
+    if (typeof m === 'string') o.all = str(m, 400, o.all);
+    else if (m && typeof m === 'object') {
+      if (m.all != null) o.all = str(m.all, 400, o.all);
+      if (m.true != null) o.true = str(m.true, 400, '');
+      if (m.fake != null) o.fake = str(m.fake, 400, '');
     }
+    if (!o.all) fail(400, 'bad_mystery', '平民版神秘描述不可留空');
+    delete o.byRole;
   }
   if (b.r3) {
     const z = b.r3, o = out.r3;
@@ -1092,7 +1109,13 @@ async function saveContent(req, s) {
   contentCache = { t: now(), data: next };
   return { ok: true, content: next };
 }
-const mysteryFor = (c, p) => { const m = c.r2.mystery; return (p && m.byRole && m.byRole[p.role]) || m.all; };
+/** Round 2 神秘描述 for one phone (undercover style): 真正領袖 -> 真領袖版, 假領袖 -> 假領袖版, everyone else
+    (平民 and BOTH supporter roles, so a supporter's card looks like any civilian's) -> 平民版. Empty leader version = 平民版.
+    Served by /api/me only — never by mini/state (TV). */
+const mysteryFor = (c, p) => {
+  const m = c.r2.mystery, r = p && p.role;
+  return (r === TRUE_LEADER && m.true) || (r === FAKE_LEADER && m.fake) || m.all;
+};
 
 /* ---------------- Round 3 問答 (破解密碼) ----------------
    meta.quiz = { cur: index | null, qs: { <index>: { id, openedAt, duration, deadline, closedAt, snap: { q, options, answer },
@@ -1155,7 +1178,7 @@ function quizQuestion(meta) {
   const t = now(), open = qOpen(x, t);
   const q = { index: i, id: x.id, q: x.snap.q, options: x.snap.options, open, duration: x.duration,
     remain: open && x.deadline ? Math.max(0, x.deadline - t) : null };
-  if (!open && x.result) { q.answer = x.snap.answer; q.result = { success: x.result.success, pct: x.result.pct, correct: x.result.correct, total: x.result.total }; }
+  if (!open && x.result) { q.auto = !!x.auto; q.answer = x.snap.answer; q.result = { success: x.result.success, pct: x.result.pct, correct: x.result.correct, total: x.result.total }; }
   return q;
 }
 async function quizForPhone(s, meta, c, p) {
@@ -1198,7 +1221,16 @@ async function answerQuiz(req, s) {
   const choice = Number(b.choice);
   if (!(choice >= 0 && choice <= 3) || !Number.isInteger(choice)) fail(400, 'bad_choice', '請選擇一個答案');
   await s.setJSON(`answers/${i}/${p.id}`, { choice, at: now(), qid: x.id });
-  return { ok: true, index: i, mine: choice };
+  // 所有人都必須作答: once every non-leader has answered this question it closes at once (like 封票) and the result shows
+  const players = (await allPlayers(s)).map(normalize);
+  const t = await quizTally(s, x, i, players);
+  let closed = false;
+  if (t.total > 0 && t.answered >= t.total) {
+    await update(s, 'meta', (m) => { const y = m.quiz && m.quiz.qs && m.quiz.qs[i]; if (!y || y.id !== x.id || y.closedAt || y.result) return undefined; y.closedAt = now(); y.auto = true; return m; });
+    await closeQuestion(s, await getMeta(s), players);
+    closed = true;
+  }
+  return { ok: true, index: i, mine: choice, closed };
 }
 async function openQuestion(req, s) {
   const b = await body(req);
@@ -1243,11 +1275,95 @@ async function adminQuiz(s, meta, players, c) {
   if (q) {
     const x = meta.quiz.qs[q.index];
     q.answer = x.snap.answer;
-    q.live = await quizTally(s, x, q.index, players.map(normalize));
+    const ps = players.map(normalize);
+    q.live = await quizTally(s, x, q.index, ps);
+    q.auto = !!x.auto;   // closed by itself because everyone answered
+    // admin only: who still has to answer (non-leaders without an answer to this question)
+    const done = new Set((await answersOf(s, q.index, x.id)).map((a) => a.player));
+    q.missing = ps.filter((p) => canVote(p) && !done.has(p.id)).sort((a, b) => a.joinedAt - b.joinedAt).map((p) => ({ id: p.id, characterId: p.characterId, nickname: p.nickname || '' }));
     out.q = q;
   }
   out.durations = QUIZ_DURATIONS;
   return out;
+}
+
+/* ---------------- 最終揭曉 (TV screen 'final') ----------------
+   meta.final = { flipped: { <leaderPlayerId>: t }, supp: { <leaderPlayerId>: t }, votes: bool }  (新一場 replaces meta -> cleared)
+   The host flips the leader cards in ANY order (admin/final {action:'flip', playerId}); after a flip, 揭曉支持者 shows the
+   supporter(s) who backed that leader all along: 假領袖 -> their 假領袖支持者 (player.supports), 真正領袖 -> every 真領袖支持者.
+   Public views (TV mini/state + phones /me) only ever carry roles / supporters of cards that are already flipped. */
+function supportersOf(leader, players) {
+  if (!leader) return [];
+  if (leader.role === FAKE_LEADER) return players.filter((p) => p.role === FAKE_SUPPORTER && p.supports === leader.id);
+  if (leader.role === TRUE_LEADER) return players.filter((p) => p.role === TRUE_SUPPORTER);
+  return [];
+}
+const finalVoteCache = new Map();
+/** final-vote (r3, closed) follower count per player id — only when the host turned 顯示最後投票結果 on */
+async function finalVotes(s, meta, players) {
+  const v = meta.votes && meta.votes.r3;
+  if (!v || voteOpen(v)) return null;
+  const key = `${meta.gameId}:${v.id}:${v.closedAt || v.deadline}:${players.length}`;
+  if (finalVoteCache.has(key)) return finalVoteCache.get(key);
+  const byId = new Map(players.map((p) => [p.id, p])), n = {};
+  for (const b of await ballotsOf(s, 'r3')) if (canVote(byId.get(b.voter)) && byId.has(b.target)) n[b.target] = (n[b.target] || 0) + 1;
+  if (finalVoteCache.size > 20) finalVoteCache.clear();
+  finalVoteCache.set(key, n);
+  return n;
+}
+async function finalView(s, meta, players) {
+  const f = meta.final || {}, fl = f.flipped || {}, sp = f.supp || {};
+  const votes = f.votes ? await finalVotes(s, meta, players) : null;
+  const cards = leaderSlots(players).map((p) => {
+    if (!p) return null;
+    const c = { characterId: p.characterId, flipped: !!fl[p.id] };
+    if (c.flipped) {
+      c.role = p.role === TRUE_LEADER ? 'true' : 'fake';
+      c.at = fl[p.id];
+      if (sp[p.id]) { c.supporters = supportersOf(p, players).map((q) => ({ characterId: q.characterId })); c.suppAt = sp[p.id]; }
+    }
+    if (votes) c.votes = votes[p.id] || 0;
+    return c;
+  });
+  return { cards, showVotes: !!votes, t: now() };
+}
+async function adminFinal(s, meta, players) {
+  const f = meta.final || {}, fl = f.flipped || {}, sp = f.supp || {};
+  const v = meta.votes && meta.votes.r3;
+  return {
+    on: screenOf(meta) === FINAL, votes: !!f.votes, voteReady: !!v && !voteOpen(v),
+    leaders: leaderSlots(players).map((p) => p && {
+      id: p.id, characterId: p.characterId, nickname: p.nickname || '', role: p.role, flipped: !!fl[p.id], suppRevealed: !!sp[p.id],
+      supporters: supportersOf(p, players).map((q) => ({ id: q.id, characterId: q.characterId, nickname: q.nickname || '', role: q.role })),
+    }),
+  };
+}
+async function finalAction(s, b) {
+  const a = b && b.action;
+  const meta = await getMeta(s);
+  if (phaseOf(meta) !== STARTED || !meta.revealed) fail(409, 'not_started', '請先完成身份揭曉');
+  const players = (await allPlayers(s)).map(normalize);
+  const leaders = leaderSlots(players).filter(Boolean);
+  const lp = a === 'flip' || a === 'supporter' ? leaders.find((p) => p.id === b.playerId) : null;
+  if ((a === 'flip' || a === 'supporter') && !lp) fail(400, 'bad_leader', '找不到這位領袖');
+  if (a === 'supporter' && !supportersOf(lp, players).length) fail(409, 'no_supporter', '這位領袖沒有支持者');
+  if (!['enter', 'flip', 'supporter', 'all', 'reset', 'votes'].includes(a)) fail(400, 'bad_action', '未知的操作');
+  // flips only while the TV shows the final screen, so every reveal is seen (and animated) live
+  if (['flip', 'supporter', 'all'].includes(a) && screenOf(meta) !== FINAL) fail(409, 'not_final', '請先進入最終揭曉');
+  const t = now();
+  const m = await update(s, 'meta', (m) => {
+    m.final = m.final || { flipped: {}, supp: {}, votes: false };
+    const f = m.final; f.flipped = f.flipped || {}; f.supp = f.supp || {};
+    if (a === 'enter') { m.phase = STARTED; m.tvScreen = FINAL; }
+    else if (a === 'flip') { if (f.flipped[lp.id]) return undefined; f.flipped[lp.id] = t; }
+    else if (a === 'supporter') { if (!f.flipped[lp.id]) fail(409, 'not_flipped', '請先翻開這張卡'); if (f.supp[lp.id]) return undefined; f.supp[lp.id] = t; }
+    else if (a === 'all') { let k = 0; for (const p of leaders) if (!f.flipped[p.id]) f.flipped[p.id] = t + 700 * k++; }   // staggered so the TV plays them one by one
+    else if (a === 'reset') { m.final = { flipped: {}, supp: {}, votes: false }; }
+    else if (a === 'votes') f.votes = !!b.on;
+    return m;
+  });
+  const mm = m || (await getMeta(s));
+  return { ok: true, screen: screenOf(mm), final: await adminFinal(s, mm, players) };
 }
 
 const ROUTES = {
@@ -1289,6 +1405,7 @@ const ROUTES = {
   'POST admin/quiz-open': openQuestion,
   'POST admin/quiz-close': closeQuestionReq,
   'POST admin/quiz-reset': (req, s) => resetQuiz(s),
+  'POST admin/final': async (req, s) => finalAction(s, await body(req)),
 };
 
 export default async (req, context) => {

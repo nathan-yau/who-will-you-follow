@@ -345,7 +345,8 @@
     emptyEl.hidden = list.length > 0;
     var started = s.phase === 'started';
     // round title screen (r1–r3) only while started; an older backend without `screen` = placeholder
-    setScreen(started && (ROUNDS[s.screen] || s.screen === 'reveal') ? s.screen : 'lobby', s.leaders, s);
+    setScreen(started && (ROUNDS[s.screen] || s.screen === 'reveal' || s.screen === 'final') ? s.screen : 'lobby', s.leaders, s);
+    renderFinal(screen === 'final' ? s.final : null);
     if (screen === 'reveal') renderRevealCount(s.reveal);
     // an open vote shows on any round screen; a just-sealed one only on its own round's screen
     renderVote(ROUNDS[screen] && s.vote && (!s.vote.sealed || s.vote.round === screen) ? s.vote : null);
@@ -363,7 +364,7 @@
   var SLOTS4 = ['a', 'b', 'c', 'd'];   // internal colour slots only — the card label is the character NAME
   var names = {};
   fetch('../data/characters.json', { cache: 'no-cache' }).then(function (r) { return r.json(); })
-    .then(function (d) { ((d && d.characters) || []).forEach(function (c) { names[c.id] = c.name; }); if (ROUNDS[screen]) renderCards(lastLeaders); })
+    .then(function (d) { ((d && d.characters) || []).forEach(function (c) { names[c.id] = c.name; }); if (ROUNDS[screen]) renderCards(lastLeaders); if (screen === 'final') { finalKey = ''; renderFinal(lastFinal); } })
     .catch(function () {});
   var lastLeaders = null, cardsNames = -1;
   function esc(t) { return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -386,10 +387,14 @@
     if (sc !== screen) {
       screen = sc;
       document.body.classList.toggle('is-round', sc !== 'lobby');
+      document.body.classList.toggle('is-final', sc === 'final');
       // 身份揭曉 has its own layer (no leader cards / lambs)
       var rv = $('reveal');
       if (sc === 'reveal') { rv.hidden = true; void rv.offsetWidth; }
       rv.hidden = sc !== 'reveal';
+      var fn = $('final');
+      if (sc === 'final') { fn.hidden = true; void fn.offsetWidth; }
+      fn.hidden = sc !== 'final';
       var on = !!ROUNDS[sc];
       var el = $('round');
       if (on) {
@@ -447,6 +452,81 @@
         '<p class="lc__pill"><b lang="en">' + (nm ? esc(nm) : '?') + '</b></p></div>';
     }).join('');
   }
+  /* ---------- 最終揭曉: flip cards (any order) → 假領袖 stamp / 真正領袖 celebration; 揭曉支持者 pops the supporter out ----------
+     Only animates CHANGES seen while this TV is open (a reload just shows the current state). */
+  var finalKey = '', lastFinal = null, fnSeen = null, fnTimers = [];
+  var RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var CROWN = '<svg class="fc__crown" viewBox="0 0 64 44" aria-hidden="true"><path d="M4 40 L8 10 L22 24 L32 4 L42 24 L56 10 L60 40 Z" fill="#f6c94c" stroke="#b7862a" stroke-width="3" stroke-linejoin="round"/><circle cx="8" cy="10" r="4" fill="#f5ab9b"/><circle cx="32" cy="4" r="4" fill="#9fbedd"/><circle cx="56" cy="10" r="4" fill="#f5ab9b"/></svg>';
+  function fnCardHtml(c, i) {
+    var cid = c.characterId, nm = names[cid] || '';
+    return '<div class="fc" data-slot="' + (i + 1) + '" style="--i:' + i + '">' +
+      '<div class="fc__glow" aria-hidden="true"></div>' + CROWN +
+      '<div class="lc lc--' + SLOTS4[i] + '"><div class="lc__circle"><img alt="" style="--dx:' + (window.wwyfSpriteDx ? window.wwyfSpriteDx(cid) : 0) + '" src="' + img(cid, 'stale1') + '"></div>' +
+      '<p class="lc__pill"><b lang="en">' + (nm ? esc(nm) : '?') + '</b></p>' +
+      '<span class="fc__q" lang="en" aria-hidden="true">?</span><span class="fc__stamp"></span></div>' +
+      '<div class="fc__supp"></div><p class="fc__cap"></p><p class="fc__votes"></p></div>';
+  }
+  function fnConfetti(el, n) {
+    if (RM) return;
+    var cols = ['#f6c94c', '#f5ab9b', '#9fbedd', '#a9cf8f', '#fdfaf1'], h = '';
+    for (var k = 0; k < n; k++) {
+      var a = (k / n) * Math.PI * 2 + Math.random() * 0.4, d = 90 + Math.random() * 120;
+      h += '<i style="--x:' + Math.round(Math.cos(a) * d) + 'px;--y:' + Math.round(Math.sin(a) * d - 60) + 'px;--r:' + Math.round(Math.random() * 720 - 360) + 'deg;background:' + cols[k % cols.length] + ';animation-delay:' + (0.6 + Math.random() * 0.15).toFixed(2) + 's"></i>';
+    }
+    var box = document.createElement('div'); box.className = 'fc__confetti'; box.innerHTML = h;
+    el.appendChild(box); setTimeout(function () { box.remove(); }, 2200);
+  }
+  function fnApply(el, c, anim) {
+    var role = c.flipped ? c.role : '', sup = c.supporters || null;
+    if (!role && el._wait) { clearTimeout(el._wait); el._wait = 0; }
+    if (role && !el.classList.contains('is-' + role)) {
+      el.classList.add('is-flipped', 'is-' + role);
+      el.querySelector('.fc__stamp').textContent = role === 'true' ? '真正領袖' : '假領袖';
+      if (anim) { el.classList.add('anim'); if (role === 'true') { fnConfetti(el, 36); setTimeout(function () { fnConfetti(el, 24); }, 650); } }
+    }
+    if (!role) { el.classList.remove('is-flipped', 'is-true', 'is-fake', 'anim', 'has-supp', 'anim-supp'); el.querySelector('.fc__supp').innerHTML = ''; el.querySelector('.fc__cap').innerHTML = ''; }
+    var sk = sup ? sup.map(function (x) { return x.characterId; }).join(',') : '';
+    if (el.dataset.supp !== sk) {
+      el.dataset.supp = sk;
+      el.classList.toggle('has-supp', !!sup);
+      el.querySelector('.fc__supp').innerHTML = sup ? sup.slice(0, 3).map(function (x, k) {
+        return '<span class="fs" style="--k:' + k + '"><span class="fs__c"><img alt="" style="--dx:' + (window.wwyfSpriteDx ? window.wwyfSpriteDx(x.characterId) : 0) + '" src="' + img(x.characterId, 'stale1') + '"></span><b>' + esc(names[x.characterId] || '') + '</b></span>';
+      }).join('') : '';
+      el.querySelector('.fc__cap').innerHTML = sup ? '<span class="fc__say">原來一直暗中支持！</span><span class="fc__tag">' + (c.role === 'true' ? '真領袖支持者' : '假領袖支持者') + (sup.length > 1 ? ' ×' + sup.length : '') + '</span>' : '';
+      if (sup && anim) { el.classList.remove('anim-supp'); void el.offsetWidth; el.classList.add('anim-supp'); }
+    }
+    el.querySelector('.fc__votes').textContent = c.votes != null ? '最後投票 ' + c.votes + ' 票' : '';
+    el.classList.toggle('has-votes', c.votes != null);
+  }
+  function renderFinal(f) {
+    lastFinal = f;
+    if (!f) { if (finalKey) { finalKey = ''; fnSeen = null; fnTimers.forEach(clearTimeout); fnTimers = []; $('fnCards').innerHTML = ''; } return; }
+    var cards = (f.cards || []).map(function (c, i) { return c ? { c: c, i: i } : null; }).filter(Boolean);
+    var key = cards.map(function (x) { return x.i + ':' + x.c.characterId; }).join('|') + '#' + Object.keys(names).length;
+    var box = $('fnCards'), first = key !== finalKey;
+    if (first) {
+      finalKey = key; fnTimers.forEach(clearTimeout); fnTimers = [];
+      box.innerHTML = cards.map(function (x) { return fnCardHtml(x.c, x.i); }).join('');
+      box.dataset.n = String(cards.length);
+    }
+    var prev = first ? null : fnSeen, seen = {};
+    cards.forEach(function (x) {
+      var c = x.c, el = box.querySelector('.fc[data-slot="' + (x.i + 1) + '"]');
+      seen[x.i] = c;
+      // animate only a change seen live (not the state found when this TV loaded); 全部翻開 comes staggered by `at`
+      var anim = !!prev && !RM;
+      var late = c.flipped && c.at && f.t && c.at > f.t ? c.at - f.t : 0;
+      if (anim && late && !el.classList.contains('is-flipped')) {
+        if (!el._wait) { el._wait = setTimeout(function () { el._wait = 0; fnApply(el, c, true); }, late); fnTimers.push(el._wait); }
+        return;
+      }
+      fnApply(el, c, anim);
+    });
+    fnSeen = seen;
+    var nf = cards.filter(function (x) { return x.c.flipped; }).length;
+    $('fnSub').textContent = !nf ? '誰才是真正領袖？' : nf < cards.length ? '已翻開 ' + nf + ' / ' + cards.length + ' 張' : '全部揭曉！';
+  }
+
   /* ---------- 投票中 overlay (round screens): countdown + 已投票 X / N, then 已封票 ---------- */
   var voteKey = '', voteEnd = null, voteTick = 0;
   function renderVote(v) {
@@ -615,5 +695,5 @@
   poll();
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
 })();
