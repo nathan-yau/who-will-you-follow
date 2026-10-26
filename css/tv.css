@@ -145,3 +145,56 @@ body {
   .tv-empty, .tv-started__row img, .tv-count b.bump { animation: none !important; }
 }
 .fx__star svg, .fx__spark svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* ---------- round title screens (Round 1 三句話 / Round 2 誰是真領袖？ / Round 3 破解密碼) ----------
+   Same 1024 x 576 stage: artwork (cat + signpost, banner removed) + the banner cut-out scaled down a little so
+   the leader-cards row fits underneath. The letterbox uses each round's own extended artwork. */
+.tv-round { position: absolute; left: 0; top: 0; width: 1024px; height: 576px; z-index: 20; animation: tvfade 0.45s ease-out; }
+@keyframes tvfade { 0% { opacity: 0; } 100% { opacity: 1; } }
+.tv-round__ext {
+  position: absolute; left: -512px; top: -201px; width: 2048px; height: 978px; pointer-events: none;
+  background: center / 100% 100% no-repeat;
+}
+.tv-round[data-r="r1"] .tv-round__ext { background-image: url("../assets/img/round-r1-ext.webp?v=1"); }
+.tv-round[data-r="r2"] .tv-round__ext { background-image: url("../assets/img/round-r2-ext.webp?v=1"); }
+.tv-round[data-r="r3"] .tv-round__ext { background-image: url("../assets/img/round-r3-ext.webp?v=1"); }
+.tv-round__bg { position: absolute; left: 0; top: 0; width: 1024px; height: 576px; display: block; pointer-events: none; }
+/* banner cut-out = mockup box (187,121)-(1483,679) px → 794 x 342 stage units; shown at 86 % */
+.tv-round__banner {
+  position: absolute; left: 171px; top: 28px; width: 683px; height: auto; display: block; pointer-events: none;
+  animation: tvin 0.55s cubic-bezier(.3, 1.4, .5, 1);
+}
+.tv-round__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); margin: 0; }
+
+/* leader cards — always the same 4 slots on every round (A green, B pink, C yellow, D blue); never says who is real */
+.tv-cards { position: absolute; left: 0; right: 0; top: 408px; display: flex; justify-content: center; gap: 14px; }
+.lc {
+  --c: #e4edd8; --p: #e2ebd4;
+  width: 136px; height: 152px; flex: none; position: relative;
+  background: #fdfaf1; border: 2px solid #ede5d0; border-radius: 11px;
+  box-shadow: 0 3px 0 rgba(150, 125, 90, 0.10), 0 6px 14px rgba(90, 110, 70, 0.10);
+  animation: lcin 0.5s cubic-bezier(.3, 1.5, .5, 1) backwards;
+}
+.lc:nth-child(2) { animation-delay: 0.06s; } .lc:nth-child(3) { animation-delay: 0.12s; } .lc:nth-child(4) { animation-delay: 0.18s; }
+@keyframes lcin { 0% { transform: translateY(14px) scale(0.9); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.lc--b { --c: #fee7e1; --p: #fedcd4; }
+.lc--c { --c: #fde4c0; --p: #fce5b2; }
+.lc--d { --c: #e0e9f2; --p: #dfe9f3; }
+.lc__circle {
+  position: absolute; left: 17px; top: 8px; width: 98px; height: 98px; border-radius: 50%; overflow: hidden;
+  background: var(--c);
+}
+.lc__circle img { position: absolute; left: -9px; top: 9px; width: 116px; height: 108px; object-fit: contain; -webkit-user-drag: none; }
+.lc__q {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: "Fredoka", system-ui, sans-serif; font-size: 50px; font-weight: 600; color: rgba(75, 48, 29, 0.28);
+}
+.lc__pill {
+  position: absolute; margin: 0; left: 11px; right: 11px; bottom: 9px; height: 31px; border-radius: 16px; background: var(--p);
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  font-size: 17px; line-height: 1; font-weight: 700; letter-spacing: 1px; color: #4b301d; white-space: nowrap;
+}
+.lc__pill b { font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: 19px; letter-spacing: 0; }
+.lc.is-empty .lc__pill { opacity: 0.7; }
+.is-round .tv-field, .is-round .tv-empty, .is-round .tv-banner { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .tv-round, .tv-round__banner, .lc { animation: none !important; } }

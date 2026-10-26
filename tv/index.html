@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
-  <link rel="stylesheet" href="../css/tv.css?v=1" />
+  <link rel="stylesheet" href="../css/tv.css?v=2" />
 </head>
 <body>
   <main class="tv" id="tv">
@@ -45,6 +45,15 @@
         <p class="tv-started__sub">大家準備好了嗎？</p>
         <div class="tv-started__row" id="startedRow"></div>
       </section>
+
+      <!-- round title screens (Round 1–3), chosen by the host in admin → meta.tvScreen -->
+      <section class="tv-round" id="round" data-r="r1" hidden>
+        <div class="tv-round__ext" aria-hidden="true"></div>
+        <img class="tv-round__bg" id="roundBg" alt="" draggable="false" />
+        <img class="tv-round__banner" id="roundBanner" alt="" draggable="false" />
+        <h1 class="tv-round__sr" id="roundTitle"></h1>
+        <div class="tv-cards" id="cards"></div>
+      </section>
     </div>
   </main>
   <script>
@@ -59,7 +68,7 @@
       window.addEventListener('scroll', reset, { passive: true });
     })();
   </script>
-  <script src="../js/api.js?v=8"></script>
-  <script src="../js/tv.js?v=1"></script>
+  <script src="../js/api.js?v=9"></script>
+  <script src="../js/tv.js?v=2"></script>
 </body>
 </html>

@@ -310,7 +310,7 @@
   function stopLoop() { running = false; }
   requestAnimationFrame(frame);
 
-  /* ---------- network: GET /api/mini/state every 250 ms ---------- */
+  /* ---------- network: GET /api/mini/state every 250 ms (1 s once the game has started) ---------- */
   var phase = 'lobby', inflight = false, lastPoll = 0, failures = 0, joined = -1, gameId = null;
 
   function applyState(s) {
@@ -343,8 +343,55 @@
       countEl.classList.remove('bump'); void countEl.offsetWidth; countEl.classList.add('bump');
     }
     emptyEl.hidden = list.length > 0;
-    setPhase(s.phase === 'started' ? 'started' : 'lobby', list);
+    var started = s.phase === 'started';
+    // round title screen (r1–r3) only while started; an older backend without `screen` = placeholder
+    setScreen(started && ROUNDS[s.screen] ? s.screen : 'lobby', s.leaders);
+    setPhase(started ? 'started' : 'lobby', list);
   }
+
+  /* ---------- round title screens + leader cards ---------- */
+  var ROUNDS = {
+    r1: { title: 'Round 1 三句話' },
+    r2: { title: 'Round 2 誰是真領袖？' },
+    r3: { title: 'Round 3 破解密碼 — 最後的線索' }
+  };
+  var LETTERS = ['A', 'B', 'C', 'D'];
+  var screen = 'lobby', cardsKey = '';
+  function roundImg(r, part) { return '../assets/img/round-' + r + '-' + part + '.webp?v=1'; }
+  function setScreen(sc, leaders) {
+    if (sc !== screen) {
+      screen = sc;
+      var on = sc !== 'lobby';
+      document.body.classList.toggle('is-round', on);
+      var el = $('round');
+      if (on) {
+        el.dataset.r = sc;
+        $('roundBg').src = roundImg(sc, 'bg');
+        $('roundBanner').src = roundImg(sc, 'banner');
+        $('roundTitle').textContent = ROUNDS[sc].title;
+        // replay the entrance animation on every switch
+        el.hidden = true; void el.offsetWidth;
+      }
+      el.hidden = !on;
+    }
+    if (screen !== 'lobby') renderCards(leaders);
+  }
+  function renderCards(leaders) {
+    var L = [0, 1, 2, 3].map(function (i) { var c = leaders && leaders[i]; return c && c.characterId ? c.characterId : ''; });
+    var key = L.join('|');
+    if (key === cardsKey) return;
+    cardsKey = key;
+    $('cards').innerHTML = L.map(function (cid, i) {
+      var l = LETTERS[i];
+      return '<div class="lc lc--' + l.toLowerCase() + (cid ? '' : ' is-empty') + '" data-slot="' + l + '">' +
+        '<div class="lc__circle">' + (cid ? '<img alt="" src="' + img(cid, 'stale1') + '">' : '<span class="lc__q" lang="en">?</span>') + '</div>' +
+        '<p class="lc__pill">領袖 <b lang="en">' + l + '</b></p></div>';
+    }).join('');
+  }
+  // warm the cache so the first switch to a round is instant
+  setTimeout(function () {
+    Object.keys(ROUNDS).forEach(function (r) { ['bg', 'banner', 'ext'].forEach(function (p) { new Image().src = roundImg(r, p); }); });
+  }, 2500);
 
   function setPhase(p, list) {
     if (p === phase && !(p === 'started' && list && list.length !== startedCount)) return;
@@ -367,22 +414,28 @@
   }
   var startedCount = -1;
 
+  // Self-scheduling poll: the next request goes out exactly POLL_MS after the previous one started
+  // (or right after it finished if it took longer) — no 50 ms tick quantisation, one request in flight.
+  var pollTimer = 0;
+  function interval() { return phase === 'started' ? POLL_STARTED_MS : POLL_MS; }
+  function schedule() {
+    clearTimeout(pollTimer);
+    if (document.hidden) return;
+    pollTimer = setTimeout(poll, Math.max(0, lastPoll + interval() - now()));
+  }
   function poll() {
     if (inflight || document.hidden) return;
-    var t = now();
-    if (t - lastPoll < (phase === 'started' ? POLL_STARTED_MS : POLL_MS) - 5) return;
-    inflight = true; lastPoll = t; stats.polls = (stats.polls || 0) + 1;
+    inflight = true; lastPoll = now(); stats.polls = (stats.polls || 0) + 1;
     WWYF.miniState().then(function (s) {
       failures = 0; connEl.hidden = true;
       applyState(s);
     }).catch(function () {
       if (++failures >= 3) connEl.hidden = false;
-    }).then(function () { inflight = false; });
+    }).then(function () { inflight = false; schedule(); });
   }
-  setInterval(poll, 50);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) { lastT = 0; poll(); } });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { lastT = 0; if (!inflight) poll(); } else clearTimeout(pollTimer); });
   poll();
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
 })();

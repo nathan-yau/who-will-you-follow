@@ -175,3 +175,16 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .btn.is-armed { background: var(--coral-d); color: #fff; animation: armpulse .6s ease-in-out infinite alternate; }
 @keyframes armpulse { to { filter: brightness(1.12); } }
 .btn:disabled:not(.is-armed) { cursor: default; }
+
+/* TV 畫面 segmented control (TV／遊戲 section) */
+.seg { display: flex; align-items: center; gap: 8px; margin: 8px 4px 0; }
+.seg__label { flex: none; font-size: 12px; font-weight: 700; color: var(--ink2); }
+.seg__btns { flex: 1 1 auto; display: flex; padding: 2px; gap: 2px; background: #fff; border: 1.5px solid #c9d7bd; border-radius: 999px; min-width: 0; }
+.seg__btn {
+  flex: 1 1 0; min-width: 0; height: 28px; padding: 0 4px; border: 0; border-radius: 999px; background: transparent;
+  font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .3px; color: var(--green-d); white-space: nowrap; cursor: pointer;
+}
+.seg__btn[aria-pressed="true"] { background: var(--green); color: #fff; }
+.seg__btn:disabled { opacity: .6; cursor: progress; }
+.seg__btn.is-armed { background: var(--coral-d); color: #fff; animation: armpulse .6s ease-in-out infinite alternate; }
+@media (min-width: 700px) { .seg__btns { flex: 0 1 380px; } }

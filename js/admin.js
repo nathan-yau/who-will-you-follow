@@ -95,16 +95,55 @@
   /* ---------- TV／遊戲 section ---------- */
   function renderPhase() {
     var started = !!(state && state.meta && state.meta.phase === 'started');
-    $('phaseText').textContent = started ? '遊戲已開始' : '等候中 · 泡泡大戰進行中';
+    var sc = curScreen(), rnd = sc.charAt(0) === 'r' ? SCREEN_NAMES[sc] : '';
+    $('phaseText').textContent = started ? '遊戲已開始' + (rnd ? ' · ' + rnd : '') : '等候中 · 泡泡大戰進行中';
     $('phaseDot').classList.toggle('on', !started);
     $('phaseDot').classList.toggle('live', started);
     $('tvNote').textContent = started
-      ? '遊戲已開始：TV 顯示「遊戲開始」，手機按鈕已停用。'
+      ? '遊戲已開始：TV 顯示' + (rnd ? '「' + rnd + '」標題畫面（含四位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
       : '等候中：玩家可在手機按「避開啊／衝過去」玩 TV 上的泡泡大戰。';
     $('startGame').disabled = started;
     if (started) disarm();
     $('toLobby').disabled = !started;
+    renderSeg();
   }
+
+  /* TV 畫面 segmented control: 等候 / Round 1–3 (POST admin/screen; a round implies 開始遊戲) */
+  var SCREEN_NAMES = { lobby: '等候', r1: 'Round 1', r2: 'Round 2', r3: 'Round 3' };
+  var segPending = null, segArm = null, segArmT = 0;
+  function curScreen() {
+    var m = state && state.meta;
+    if (!m || m.phase !== 'started') return 'lobby';
+    return SCREEN_NAMES[m.tvScreen] && m.tvScreen !== 'lobby' ? m.tvScreen : 'start';   // 'start' = 遊戲開始 placeholder
+  }
+  function renderSeg() {
+    var cur = segPending || curScreen();
+    [].forEach.call(document.querySelectorAll('#tvSeg .seg__btn'), function (b) {
+      var sc = b.dataset.screen, armed = segArm === sc;
+      b.setAttribute('aria-pressed', String(sc === cur));
+      b.classList.toggle('is-armed', armed);
+      b.textContent = armed ? '再按確認' : SCREEN_NAMES[sc];
+      b.disabled = !!segPending;
+    });
+  }
+  function segDisarm() { clearTimeout(segArmT); segArmT = 0; segArm = null; renderSeg(); }
+  $('tvSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('.seg__btn'); if (!b || b.disabled) return;
+    var sc = b.dataset.screen, cur = curScreen();
+    if (sc === cur) { segDisarm(); return; }
+    if (sc === 'lobby') {
+      segDisarm();
+      if (!confirm('回到等候狀態？\n\nTV 會重新顯示泡泡大戰，手機按鈕會重新啟用。')) return;
+    } else if (cur === 'lobby' && segArm !== sc) {   // a round from the waiting room also starts the game: two taps
+      segArm = sc; clearTimeout(segArmT); segArmT = setTimeout(segDisarm, 3000); renderSeg();
+      return;
+    }
+    clearTimeout(segArmT); segArm = null; segPending = sc; renderSeg();
+    WWYF.admin('POST', 'screen', { screen: sc }).then(function (r) {
+      if (state && state.meta) { state.meta.phase = r.phase; state.meta.tvScreen = r.screen; }
+      toast(sc === 'lobby' ? '已回到等候' : 'TV 已切換到 ' + SCREEN_NAMES[sc]);
+    }).catch(fail).then(function () { segPending = null; renderPhase(); return refresh(); });
+  });
   var armT = 0;
   function disarm() {
     clearTimeout(armT); armT = 0;

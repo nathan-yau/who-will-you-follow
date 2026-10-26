@@ -1,6 +1,7 @@
 // Who Will You Follow? — game backend (Netlify Functions v2 + Netlify Blobs).
 // One game at a time. State lives in the "wwyf-game" blob store:
-//   meta                 { gameId, startedAt, revealed, phase: 'lobby'|'started', phaseAt }
+//   meta                 { gameId, startedAt, revealed, phase: 'lobby'|'started', phaseAt,
+//                          tvScreen: 'lobby'|'r1'|'r2'|'r3' }   (what the TV shows; set by POST admin/screen)
 //   config               { roles: { <special role>: max } }   (平民 has no limit)
 //   players/<playerId>   { id, tokenHash, characterId, nickname, joinedAt, role, leader, gameId }
 //   claims/<characterId> { playerId, at }      (created with onlyIfNew -> one player per character)
@@ -28,6 +29,9 @@ const SESSION_MS = 12 * 3600 * 1000;
 const CHAR_RE = /^character_\d{2}$/;
 const LOBBY = 'lobby', STARTED = 'started';
 const phaseOf = (m) => (m && m.phase === STARTED ? STARTED : LOBBY);
+const ROUND_SCREENS = ['r1', 'r2', 'r3'];
+// round title screens only make sense once the game has started (lobby -> always the bubble battle)
+const screenOf = (m) => (phaseOf(m) === STARTED && ROUND_SCREENS.includes(m.tvScreen) ? m.tvScreen : LOBBY);
 const MINI_MAX_PUSH = 4;   // per request; the phone sends at most every 250 ms and caps taps at 2/s
 
 const store = () => getStore({ name: 'wwyf-game', consistency: 'strong' });
@@ -44,7 +48,7 @@ function cors(req) {
     h['Access-Control-Allow-Origin'] = o;
     h['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
     h['Access-Control-Allow-Headers'] = 'Content-Type, X-Player-Id, X-Player-Token, X-Admin-Token';
-    h['Access-Control-Max-Age'] = '600';
+    h['Access-Control-Max-Age'] = '7200';   // cache preflights as long as browsers allow (Chrome caps at 2 h)
   }
   return h;
 }
@@ -336,7 +340,11 @@ async function setRevealed(req, s) {
    All physics runs on the TV page; phones only send batched inputs. */
 async function miniAct(req, s) {
   const b = await body(req);
-  const [p, meta] = await Promise.all([playerFrom(req, s, b), getMeta(s)]);
+  const pid = req.headers.get('x-player-id') || b.playerId;
+  const key = 'mini/' + (typeof pid === 'string' && pid.length <= 40 ? pid : '_');
+  // latency: auth, phase and the current counters are read in ONE parallel round, then one write
+  // (was: auth+meta, then read counters, then write = 3 sequential blob round trips)
+  const [p, meta, cur] = await Promise.all([playerFrom(req, s, b), getMeta(s), s.getWithMetadata(key, { type: 'json' })]);
   if (!p) fail(404, 'not_joined', '尚未加入或已被移出遊戲');
   const id = p.id;
   if (phaseOf(meta) === STARTED) fail(409, 'started', '遊戲已開始');
@@ -345,14 +353,17 @@ async function miniAct(req, s) {
   const seq = Math.floor(Number(b.seq) || 0);   // phone uses a time-based increasing seq (survives reloads)
   if (!push && !dodge) return { ok: true, phase: LOBBY };
   const t = now();
-  const r = await upsert(s, 'mini/' + id, (m) => {
+  const apply = (m) => {
     m = m || { push: 0, dodge: 0, seq: 0, pt: 0, dt: 0 };
     if (seq && seq <= m.seq) return m;          // duplicate / retried batch (rewrites the same value)
     m.push += push; m.dodge += dodge; if (seq) m.seq = seq;
     if (push) m.pt = t; if (dodge) m.dt = t;
     m.t = t;
     return m;
-  });
+  };
+  let r = apply(cur ? structuredClone(cur.data) : null);
+  const w = await s.setJSON('mini/' + id, r, cur ? { onlyIfMatch: cur.etag } : { onlyIfNew: true });
+  if (!w.modified) r = await upsert(s, 'mini/' + id, apply);   // rare: two writes from the same phone raced
   if (!r) fail(409, 'busy', '伺服器忙碌，請再試一次');
   return { ok: true, phase: LOBBY, push: r.push, dodge: r.dodge };
 }
@@ -369,13 +380,25 @@ async function cachedGet(s, blobs) {
   return Promise.all(blobs.map(async ({ key, etag }) => {
     const c = blobCache.get(key);
     if (c && etag && c.etag === etag) return c.data;
+    if (c && c.spec) { c.spec = false; return c.data; }   // fetched speculatively in this poll: same or newer
     const r = await s.getWithMetadata(key, { type: 'json' });
     if (r) blobCache.set(key, { etag: r.etag || etag, data: r.data });
     return r ? r.data : null;
   }));
 }
+// Players who tapped recently: their mini/<id> blob is fetched speculatively IN PARALLEL with the
+// list calls, so a tap usually reaches the TV in one blob round trip instead of two (list -> get).
+const ACTIVE_MS = 20000, ACTIVE_MAX = 12;
+function activeMiniKeys() {
+  const t = now(), out = [];
+  for (const [k, c] of blobCache) if (k.startsWith('mini/') && c.data && t - (c.data.t || 0) < ACTIVE_MS) out.push([k, c.data.t]);
+  return out.sort((a, b) => b[1] - a[1]).slice(0, ACTIVE_MAX).map((x) => x[0]);
+}
 async function miniState(s) {
-  const [pl, ml] = await Promise.all([listWithEtags(s, 'players/'), listWithEtags(s, 'm')]);
+  const spec = activeMiniKeys();
+  const [pl, ml, ...sp] = await Promise.all([listWithEtags(s, 'players/'), listWithEtags(s, 'm'),
+    ...spec.map((k) => s.getWithMetadata(k, { type: 'json' }).catch(() => null))]);
+  spec.forEach((k, i) => { if (sp[i]) blobCache.set(k, { etag: sp[i].etag, data: sp[i].data, spec: true }); });
   const live = new Set([...pl, ...ml].map((b) => b.key));
   for (const k of blobCache.keys()) if (!live.has(k)) blobCache.delete(k);
   const metaBlob = ml.filter((b) => b.key === 'meta');
@@ -387,13 +410,46 @@ async function miniState(s) {
     const m = mini.get(p.id) || {};
     return { id: p.id, characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, push: m.push || 0, dodge: m.dodge || 0, pt: m.pt || 0, dt: m.dt || 0 };
   }).sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
-  return { phase: phaseOf(meta), gameId: meta.gameId, joined: list.length, players: list, t: now() };
+  const screen = screenOf(meta);
+  const out = { phase: phaseOf(meta), screen, gameId: meta.gameId, joined: list.length, players: list, t: now() };
+  // round screens: the 4 leader cards (letter + character only — never the true/fake role)
+  if (screen !== LOBBY) out.leaders = leaderCards(players.filter(Boolean).map(normalize));
+  return out;
 }
-async function setPhase(s, phase) {
-  const m = await update(s, 'meta', (m) => { m.phase = phase; m.phaseAt = now(); return m; });
-  if (!m) { await getMeta(s); return setPhase(s, phase); }
+/** leader cards for the TV, in A–D order. The letter is the one the host assigned (setRole/randomAssign),
+    so the same leader keeps the same slot/colour on every round screen. Leaders without a letter fill
+    free slots in join order; empty slots are null (the TV shows a '?' card). */
+function leaderCards(players) {
+  const slots = [null, null, null, null];
+  const leaders = players.filter((p) => LEADER_ROLES.includes(p.role)).sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
+  const rest = [];
+  for (const p of leaders) {
+    const i = LEADER_LABELS.indexOf(p.leader);
+    if (i >= 0 && !slots[i]) slots[i] = { letter: p.leader, characterId: p.characterId }; else rest.push(p);
+  }
+  for (const p of rest) { const i = slots.indexOf(null); if (i < 0) break; slots[i] = { letter: LEADER_LABELS[i], characterId: p.characterId }; }
+  return slots;
+}
+/* Phase + TV screen. 開始遊戲 (admin/start) -> started, TV shows the "Let's play!" screen;
+   回到等候 (admin/lobby) -> lobby + bubble battle (mini counters cleared);
+   admin/screen r1|r2|r3 -> started (implies 開始遊戲, the mini game stops) + that round's title screen;
+   admin/screen lobby -> same as 回到等候. */
+async function setPhase(s, phase, screen) {
+  const m = await update(s, 'meta', (m) => {
+    if (m.phase !== phase) m.phaseAt = now();
+    m.phase = phase;
+    m.tvScreen = phase === LOBBY ? LOBBY : (screen || LOBBY);
+    return m;
+  });
+  if (!m) { await getMeta(s); return setPhase(s, phase, screen); }
   if (phase === LOBBY) await Promise.all((await listKeys(s, 'mini/')).map((k) => s.delete(k)));
-  return { ok: true, phase: m.phase };
+  return { ok: true, phase: m.phase, screen: screenOf(m) };
+}
+async function setScreen(req, s) {
+  const b = await body(req);
+  if (b.screen === LOBBY) return setPhase(s, LOBBY);
+  if (!ROUND_SCREENS.includes(b.screen)) fail(400, 'bad_screen', '未知的畫面');
+  return setPhase(s, STARTED, b.screen);
 }
 
 /* Brute-force protection for the (short) admin PIN:
@@ -467,6 +523,7 @@ const ROUTES = {
   'POST admin/reveal': setRevealed,
   'POST admin/start': (req, s) => setPhase(s, STARTED),
   'POST admin/lobby': (req, s) => setPhase(s, LOBBY),
+  'POST admin/screen': setScreen,
 };
 
 export default async (req, context) => {

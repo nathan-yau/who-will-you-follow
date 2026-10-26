@@ -23,7 +23,9 @@
   function clearPlayer() { try { localStorage.removeItem(PKEY); } catch (e) {} }
 
   function request(method, path, data, headers) {
-    var h = { 'Content-Type': 'application/json' };
+    // GETs carry no body -> no Content-Type, so a cross-origin GET (github.io -> netlify) stays a
+    // "simple" request without a CORS preflight round trip
+    var h = method === 'GET' ? {} : { 'Content-Type': 'application/json' };
     for (var k in headers || {}) h[k] = headers[k];
     return fetch(BASE + path, {
       method: method, headers: h, cache: 'no-store',
