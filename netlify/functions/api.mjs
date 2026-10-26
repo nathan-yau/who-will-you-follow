@@ -1,10 +1,12 @@
 // Who Will You Follow? — game backend (Netlify Functions v2 + Netlify Blobs).
 // One game at a time. State lives in the "wwyf-game" blob store:
-//   meta                 { gameId, startedAt, revealed }
+//   meta                 { gameId, startedAt, revealed, phase: 'lobby'|'started', phaseAt }
 //   config               { roles: { <special role>: max } }   (平民 has no limit)
 //   players/<playerId>   { id, tokenHash, characterId, nickname, joinedAt, role, leader, gameId }
 //   claims/<characterId> { playerId, at }      (created with onlyIfNew -> one player per character)
 //   seen/<playerId>      { t }                 (heartbeats; separate key so they never clobber roles)
+//   mini/<playerId>      { push, dodge, seq, pt, dt, t }  waiting-room mini game: cumulative action counters
+//                        (one key per player -> phone writes never contend; the TV diffs the counters)
 //   archive/<ts>-<gameId> previous games (player list + roles)
 import { getStore } from '@netlify/blobs';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
@@ -24,6 +26,9 @@ const ALLOWED_ORIGINS = ['https://nathan-yau.github.io'];
 const ONLINE_MS = 15000;
 const SESSION_MS = 12 * 3600 * 1000;
 const CHAR_RE = /^character_\d{2}$/;
+const LOBBY = 'lobby', STARTED = 'started';
+const phaseOf = (m) => (m && m.phase === STARTED ? STARTED : LOBBY);
+const MINI_MAX_PUSH = 4;   // per request; the phone sends at most every 250 ms and caps taps at 2/s
 
 const store = () => getStore({ name: 'wwyf-game', consistency: 'strong' });
 
@@ -79,7 +84,7 @@ async function update(s, key, fn) {
 async function getMeta(s) {
   let m = await s.get('meta', { type: 'json' });
   if (!m) {
-    m = { gameId: rid(6), startedAt: now(), revealed: false };
+    m = { gameId: rid(6), startedAt: now(), revealed: false, phase: LOBBY };
     const r = await s.setJSON('meta', m, { onlyIfNew: true });
     if (!r.modified) m = await s.get('meta', { type: 'json' });
   }
@@ -166,7 +171,7 @@ function verifyAdmin(req) {
 /* ---------------- routes ---------------- */
 async function lobby(s) {
   const [taken, meta, players] = await Promise.all([takenCharacters(s), getMeta(s), listKeys(s, 'players/')]);
-  return { gameId: meta.gameId, taken, joined: players.length };
+  return { gameId: meta.gameId, taken, joined: players.length, phase: phaseOf(meta) };
 }
 
 async function join(req, s) {
@@ -205,7 +210,7 @@ async function me(req, s, heartbeatOnly) {
   if (heartbeatOnly) return { ok: true };
   const [meta, info] = await Promise.all([getMeta(s), lobby(s)]);
   // everyone holds 平民 from the start, so "assigned" only becomes meaningful once the host reveals roles
-  const out = { player: publicPlayer(p), assigned: false, revealed: !!meta.revealed, joined: info.joined, gameId: meta.gameId };
+  const out = { player: publicPlayer(p), assigned: false, revealed: !!meta.revealed, joined: info.joined, gameId: meta.gameId, phase: phaseOf(meta) };
   if (meta.revealed && p.role) { out.role = p.role; if (p.leader) out.leader = p.leader; }
   return out;
 }
@@ -287,6 +292,7 @@ async function kick(req, s) {
   if (!p) fail(404, 'no_player', '找不到此玩家');
   await s.delete('players/' + p.id);
   await s.delete('seen/' + p.id);
+  await s.delete('mini/' + p.id);
   await release(s, p.characterId, p.id);
   return { ok: true };
 }
@@ -301,9 +307,9 @@ async function reset(s) {
       players: players.sort((a, b) => a.joinedAt - b.joinedAt).map((p) => ({ characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, role: p.role, leader: p.leader || null })),
     });
   }
-  const keys = [...await listKeys(s, 'players/'), ...await listKeys(s, 'claims/'), ...await listKeys(s, 'seen/')];
+  const keys = [...await listKeys(s, 'players/'), ...await listKeys(s, 'claims/'), ...await listKeys(s, 'seen/'), ...await listKeys(s, 'mini/')];
   await Promise.all(keys.map((k) => s.delete(k)));
-  const next = { gameId: rid(6), startedAt: t, revealed: false };
+  const next = { gameId: rid(6), startedAt: t, revealed: false, phase: LOBBY, phaseAt: t };
   await s.setJSON('meta', next);
   return { ok: true, archived: players.length, gameId: next.gameId };
 }
@@ -324,6 +330,70 @@ async function setRevealed(req, s) {
   const b = await body(req);
   const m = await update(s, 'meta', (m) => { m.revealed = !!b.revealed; return m; });
   return { ok: true, revealed: m.revealed };
+}
+
+/* ---------------- waiting-room mini game ----------------
+   All physics runs on the TV page; phones only send batched inputs. */
+async function miniAct(req, s) {
+  const b = await body(req);
+  const [p, meta] = await Promise.all([playerFrom(req, s, b), getMeta(s)]);
+  if (!p) fail(404, 'not_joined', '尚未加入或已被移出遊戲');
+  const id = p.id;
+  if (phaseOf(meta) === STARTED) fail(409, 'started', '遊戲已開始');
+  const push = Math.max(0, Math.min(MINI_MAX_PUSH, Math.floor(Number(b.push) || 0)));
+  const dodge = b.dodge ? 1 : 0;
+  const seq = Math.floor(Number(b.seq) || 0);   // phone uses a time-based increasing seq (survives reloads)
+  if (!push && !dodge) return { ok: true, phase: LOBBY };
+  const t = now();
+  const r = await upsert(s, 'mini/' + id, (m) => {
+    m = m || { push: 0, dodge: 0, seq: 0, pt: 0, dt: 0 };
+    if (seq && seq <= m.seq) return m;          // duplicate / retried batch (rewrites the same value)
+    m.push += push; m.dodge += dodge; if (seq) m.seq = seq;
+    if (push) m.pt = t; if (dodge) m.dt = t;
+    m.t = t;
+    return m;
+  });
+  if (!r) fail(409, 'busy', '伺服器忙碌，請再試一次');
+  return { ok: true, phase: LOBBY, push: r.push, dodge: r.dodge };
+}
+
+/* TV poll (4x/s): list players/ and m* (meta + mini/*) once each, then fetch only the blobs whose
+   etag changed since this warm function instance last saw them. */
+const blobCache = new Map();   // key -> { etag, data }
+async function listWithEtags(s, prefix) {
+  const out = [];
+  for await (const page of s.list({ prefix, paginate: true })) out.push(...page.blobs);
+  return out;
+}
+async function cachedGet(s, blobs) {
+  return Promise.all(blobs.map(async ({ key, etag }) => {
+    const c = blobCache.get(key);
+    if (c && etag && c.etag === etag) return c.data;
+    const r = await s.getWithMetadata(key, { type: 'json' });
+    if (r) blobCache.set(key, { etag: r.etag || etag, data: r.data });
+    return r ? r.data : null;
+  }));
+}
+async function miniState(s) {
+  const [pl, ml] = await Promise.all([listWithEtags(s, 'players/'), listWithEtags(s, 'm')]);
+  const live = new Set([...pl, ...ml].map((b) => b.key));
+  for (const k of blobCache.keys()) if (!live.has(k)) blobCache.delete(k);
+  const metaBlob = ml.filter((b) => b.key === 'meta');
+  const miniBlobs = ml.filter((b) => b.key.startsWith('mini/'));
+  const [players, minis, metas] = await Promise.all([cachedGet(s, pl), cachedGet(s, miniBlobs), cachedGet(s, metaBlob)]);
+  const meta = metas[0] || (await getMeta(s));
+  const mini = new Map(miniBlobs.map((b, i) => [b.key.slice(5), minis[i]]));
+  const list = players.filter(Boolean).map((p) => {
+    const m = mini.get(p.id) || {};
+    return { id: p.id, characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, push: m.push || 0, dodge: m.dodge || 0, pt: m.pt || 0, dt: m.dt || 0 };
+  }).sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
+  return { phase: phaseOf(meta), gameId: meta.gameId, joined: list.length, players: list, t: now() };
+}
+async function setPhase(s, phase) {
+  const m = await update(s, 'meta', (m) => { m.phase = phase; m.phaseAt = now(); return m; });
+  if (!m) { await getMeta(s); return setPhase(s, phase); }
+  if (phase === LOBBY) await Promise.all((await listKeys(s, 'mini/')).map((k) => s.delete(k)));
+  return { ok: true, phase: m.phase };
 }
 
 /* Brute-force protection for the (short) admin PIN:
@@ -379,6 +449,8 @@ const ROUTES = {
   'POST join': join,
   'GET me': (req, s) => me(req, s, false),
   'POST heartbeat': (req, s) => me(req, s, true),
+  'POST mini/act': miniAct,
+  'GET mini/state': (req, s) => miniState(s),
   'POST admin/login': adminLogin,
   'GET admin/state': (req, s) => adminState(s),
   'GET admin/archive': async (req, s) => {
@@ -393,6 +465,8 @@ const ROUTES = {
   'POST admin/reset': (req, s) => reset(s),
   'POST admin/config': setConfig,
   'POST admin/reveal': setRevealed,
+  'POST admin/start': (req, s) => setPhase(s, STARTED),
+  'POST admin/lobby': (req, s) => setPhase(s, LOBBY),
 };
 
 export default async (req, context) => {

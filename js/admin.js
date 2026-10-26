@@ -89,7 +89,41 @@
     $('sumSup').textContent = sum(S, s.assigned); $('sumSupMax').textContent = sum(S, s.roles);
 
     renderGrid();
+    renderPhase();
   }
+
+  /* ---------- TV／遊戲 section ---------- */
+  function renderPhase() {
+    var started = !!(state && state.meta && state.meta.phase === 'started');
+    $('phaseText').textContent = started ? '遊戲已開始' : '等候中 · 泡泡大戰進行中';
+    $('phaseDot').classList.toggle('on', !started);
+    $('phaseDot').classList.toggle('live', started);
+    $('tvNote').textContent = started
+      ? '遊戲已開始：TV 顯示「遊戲開始」，手機按鈕已停用。'
+      : '等候中：玩家可在手機按「避開啊／衝過去」玩 TV 上的泡泡大戰。';
+    $('startGame').disabled = started;
+    if (started) disarm();
+    $('toLobby').disabled = !started;
+  }
+  var armT = 0;
+  function disarm() {
+    clearTimeout(armT); armT = 0;
+    var b = $('startGame'); b.classList.remove('is-armed'); b.textContent = '開始遊戲';
+  }
+  $('startGame').addEventListener('click', function () {
+    var b = this;
+    if (!b.classList.contains('is-armed')) {            // first tap arms, second tap (within 3 s) confirms
+      b.classList.add('is-armed'); b.textContent = '再按一次確認';
+      clearTimeout(armT); armT = setTimeout(disarm, 3000);
+      return;
+    }
+    disarm();
+    act(b, function () { return WWYF.admin('POST', 'start').then(function () { toast('遊戲已開始！'); }); }).then(renderPhase);
+  });
+  $('toLobby').addEventListener('click', function () {
+    if (!confirm('回到等候狀態？\n\nTV 會重新顯示泡泡大戰，手機按鈕會重新啟用。')) return;
+    act(this, function () { return WWYF.admin('POST', 'lobby').then(function () { toast('已回到等候'); }); }).then(renderPhase);
+  });
 
   function renderGrid() {
     var s = state;
@@ -251,7 +285,7 @@
   });
   $('reset').addEventListener('click', function () {
     if (!confirm('開始新一場？\n\n會清空所有玩家與身分，大家需要重新選角色加入。')) return;
-    act(this, function () { return WWYF.admin('POST', 'reset').then(function (r) { lastSig = ''; toast('新的一場已開始'); }); });
+    act(this, function () { return WWYF.admin('POST', 'reset').then(function (r) { lastSig = ''; toast('新的一場已開始'); }); }).then(renderPhase);
   });
 
   /* ---------- collapsible sections: any .acc[data-acc] gets toggle + remembered state ---------- */

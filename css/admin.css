@@ -167,3 +167,11 @@ main { max-width: 1240px; margin: 0 auto; padding: 0 max(8px, env(safe-area-inse
   .acc__foot { justify-content: flex-start; }
   .acc__foot .btn { flex: 0 0 auto; padding: 0 18px; }
 }
+
+/* ---------- TV／遊戲 section ---------- */
+.dot.live { background: var(--coral); }
+.tvnote { margin: 8px 4px 0; font-size: 12px; line-height: 1.5; color: var(--ink2); }
+a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; white-space: nowrap; }
+.btn.is-armed { background: var(--coral-d); color: #fff; animation: armpulse .6s ease-in-out infinite alternate; }
+@keyframes armpulse { to { filter: brightness(1.12); } }
+.btn:disabled:not(.is-armed) { cursor: default; }

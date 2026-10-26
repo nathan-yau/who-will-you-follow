@@ -1,7 +1,7 @@
 /* Lobby: shows the joined player's character and the live player count. */
 (function () {
   'use strict';
-  var V = 6;
+  var V = 6;  // asset version
   var $ = function (id) { return document.getElementById(id); };
   var me = window.WWYF && WWYF.getPlayer();
   if (!me) { window.location.replace('../characters/'); return; }
@@ -54,6 +54,7 @@
       show(r.player.characterId);
       if (r.player.characterId !== me.characterId) { me.characterId = r.player.characterId; WWYF.setPlayer(me); }
       setCount(r.joined);
+      setStarted(r.phase === 'started');
     }).catch(function (e) {
       if (e.status === 404 || e.status === 401) {
         WWYF.clearPlayer();
@@ -63,10 +64,57 @@
     });
   }
 
-  // ---- TV mini game (spec to come) ----
-  // TODO: send the action to the backend / TV mini game once it is specified.
+  // ---- TV "bubble battle" mini game: this phone only sends inputs; all physics runs on the TV ----
+  // 衝過去 (push): at most 2 taps per rolling second count (extra taps are ignored).
+  // 避開啊 (dodge): 0.9 s cooldown (the TV enforces the same limits).
+  // Inputs are batched and sent at most every 250 ms, and only when there is something new.
+  var PUSH_PER_SEC = 2, DODGE_CD = 900, SEND_MS = 250;
+  var pushTimes = [], lastDodge = -1e9, pendPush = 0, pendDodge = 0, inFlight = false, lastSend = 0, sendT = 0, seq = 0;
+  var started = false;
+
+  function setStarted(v) {
+    v = !!v;
+    if (v === started) return;
+    started = v;
+    document.body.classList.toggle('is-started', v);
+    ['dodge', 'dash'].forEach(function (id) { $(id).disabled = v; });
+    $('wait').innerHTML = v ? '遊戲已開始！' : '等待其他玩家加入<span class="lb-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>';
+    $('hint').textContent = v ? '請看 TV，留意主持人的指示！' : '當所有人準備好後，遊戲就會開始！';
+    if (v) { pendPush = 0; pendDodge = 0; }
+  }
+  function scheduleSend() {
+    if (sendT || inFlight || started || (!pendPush && !pendDodge)) return;
+    sendT = setTimeout(flush, Math.max(0, lastSend + SEND_MS - Date.now()));
+  }
+  function flush() {
+    sendT = 0;
+    if (inFlight || started || (!pendPush && !pendDodge)) return;
+    var push = pendPush, dodge = pendDodge;
+    pendPush = 0; pendDodge = 0;
+    seq = Math.max(Date.now(), seq + 1);          // increasing across reloads; lets the server drop duplicates
+    inFlight = true; lastSend = Date.now();
+    WWYF.miniAct(push, dodge, seq).catch(function (e) {
+      if (e.status === 409 && e.code === 'started') setStarted(true);
+      else if (e.status === 404 || e.status === 401) { WWYF.clearPlayer(); window.location.replace('../characters/?removed=1'); }
+      // other errors: drop this batch (it is only lobby fun)
+    }).then(function () { inFlight = false; scheduleSend(); });
+  }
   function sendMiniGameAction(action) {
-    if (window.console && console.debug) console.debug('[mini-game] action:', action);
+    if (started) return false;
+    var t = Date.now();
+    if (action === 'dash' || action === 'push') {
+      pushTimes = pushTimes.filter(function (x) { return t - x < 1000; });
+      if (pushTimes.length >= PUSH_PER_SEC) return false;
+      pushTimes.push(t); pendPush++;
+    } else if (action === 'dodge') {
+      if (t - lastDodge < DODGE_CD) return false;
+      lastDodge = t; pendDodge = 1;
+      var b = $('dodge');
+      b.classList.remove('is-cooling'); void b.offsetWidth; b.classList.add('is-cooling');
+      setTimeout(function () { b.classList.remove('is-cooling'); }, DODGE_CD);
+    } else return false;
+    scheduleSend();
+    return true;
   }
   window.sendMiniGameAction = sendMiniGameAction;
 
@@ -74,10 +122,10 @@
     var btn = $(id);
     var t = null;
     btn.addEventListener('click', function () {
+      if (started) return;
       btn.classList.remove('is-pressed'); void btn.offsetWidth; btn.classList.add('is-pressed');
       clearTimeout(t); t = setTimeout(function () { btn.classList.remove('is-pressed'); }, 380);
-      if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
-      sendMiniGameAction(btn.getAttribute('data-action'));
+      if (sendMiniGameAction(btn.getAttribute('data-action')) && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
     });
   });
 

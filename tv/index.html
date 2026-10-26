@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#e0f1e4" />
+  <meta name="robots" content="noindex" />
+  <title>TV · Who Will You Follow? 你會跟隨誰？</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
+  <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
+  <link rel="stylesheet" href="../css/tv.css?v=1" />
+</head>
+<body>
+  <main class="tv" id="tv">
+    <!-- 1024 x 576 design stage, scaled to fit (letterbox filled by the extended artwork) -->
+    <div class="tv-stage" id="stage">
+      <div class="tv-ext" aria-hidden="true"></div>
+      <img class="tv-bg" src="../assets/img/tv-meadow.webp?v=1" alt="" draggable="false" />
+
+      <div class="tv-field" id="field" aria-hidden="true">
+        <div class="tv-shadows" id="shadows"></div>
+        <div class="tv-bubbles" id="bubbles"></div>
+        <div class="tv-fx" id="fx"></div>
+      </div>
+      <p class="tv-empty" id="empty">用手機選好角色，就會在這裡出現喔！</p>
+
+      <section class="tv-banner" aria-live="polite">
+        <div class="tv-banner__l">
+          <p class="tv-title" id="title" lang="en">Waiting for everyone...</p>
+          <p class="tv-sub" id="sub">等齊所有玩家，一齊開始遊戲！</p>
+        </div>
+        <i class="tv-divider" aria-hidden="true"></i>
+        <div class="tv-banner__r">
+          <p class="tv-joined"><svg class="tv-paw" viewBox="0 0 32 32" aria-hidden="true"><g fill="#86ad79"><ellipse cx="16" cy="21.5" rx="7.6" ry="6.4"/><ellipse cx="7" cy="13.5" rx="3.1" ry="3.9" transform="rotate(-18 7 13.5)"/><ellipse cx="12.4" cy="7.8" rx="3.1" ry="4" transform="rotate(-6 12.4 7.8)"/><ellipse cx="19.6" cy="7.8" rx="3.1" ry="4" transform="rotate(6 19.6 7.8)"/><ellipse cx="25" cy="13.5" rx="3.1" ry="3.9" transform="rotate(18 25 13.5)"/></g></svg>已加入</p>
+          <p class="tv-count"><b id="count" lang="en">0</b></p>
+        </div>
+        <i class="tv-conn" id="conn" title="連線中斷，重試中…" hidden></i>
+      </section>
+
+      <!-- placeholder once the host starts the game (the real game flow comes later) -->
+      <section class="tv-started" id="started" hidden>
+        <p class="tv-started__big">遊戲開始！</p>
+        <p class="tv-started__sub">大家準備好了嗎？</p>
+        <div class="tv-started__row" id="startedRow"></div>
+      </section>
+    </div>
+  </main>
+  <script>
+    // The TV page never scrolls: block touch panning / rubber-band and pinch zoom (iOS Safari).
+    (function () {
+      var stop = function (e) { e.preventDefault(); };
+      document.addEventListener('touchmove', stop, { passive: false });
+      document.addEventListener('gesturestart', stop, { passive: false });
+      document.addEventListener('gesturechange', stop, { passive: false });
+      document.addEventListener('wheel', function (e) { e.preventDefault(); }, { passive: false });
+      var reset = function () { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); };
+      window.addEventListener('scroll', reset, { passive: true });
+    })();
+  </script>
+  <script src="../js/api.js?v=8"></script>
+  <script src="../js/tv.js?v=1"></script>
+</body>
+</html>

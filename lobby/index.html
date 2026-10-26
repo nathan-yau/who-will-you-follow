@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/style.css?v=6" />
   <link rel="stylesheet" href="../css/characters.css?v=8" />
-  <link rel="stylesheet" href="../css/lobby.css?v=8" />
+  <link rel="stylesheet" href="../css/lobby.css?v=9" />
 </head>
 <body>
   <main class="cs-app">
@@ -59,7 +59,7 @@
           <img class="lb-g lb-g--d" src="../assets/characters/character_03/stale1.webp?v=6" alt="" draggable="false" />
         </div>
         <p class="lb-wait abs" id="wait">等待其他玩家加入<span class="lb-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>
-        <p class="lb-hint abs">當所有人準備好後，遊戲就會開始！</p>
+        <p class="lb-hint abs" id="hint">當所有人準備好後，遊戲就會開始！</p>
       </section>
 
       <p class="lb-label abs">目前人數</p>
@@ -114,7 +114,7 @@
       window.addEventListener('scroll', reset, { passive: true });
     })();
   </script>
-  <script src="../js/api.js?v=7"></script>
-  <script src="../js/lobby.js?v=9"></script>
+  <script src="../js/api.js?v=8"></script>
+  <script src="../js/lobby.js?v=11"></script>
 </body>
 </html>

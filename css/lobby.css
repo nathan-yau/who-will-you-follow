@@ -144,3 +144,14 @@
 @media (prefers-reduced-motion: reduce) {
   .lb-chick, .lb-dots i, .lb-row i.new::before, .lb-count b.bump, .lb-act .lb-act__icon { animation: none !important; }
 }
+
+/* mini game: dodge cooldown sweep (0.9 s) + disabled once the host starts the game */
+.lb-act { overflow: hidden; }
+.lb-act--dodge::after {
+  content: ""; position: absolute; left: 0; bottom: 0; height: 100%; width: 100%;
+  background: rgba(157, 147, 132, 0.22); transform-origin: 0 50%; transform: scaleX(0); pointer-events: none;
+}
+.lb-act--dodge.is-cooling::after { animation: lbcool 0.9s linear forwards; }
+@keyframes lbcool { 0% { transform: scaleX(1); } 100% { transform: scaleX(0); } }
+.lb-act:disabled { opacity: 0.38; filter: grayscale(0.8); cursor: default; transform: none; animation: none; }
+.is-started .lb-act { pointer-events: none; }

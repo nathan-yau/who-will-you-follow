@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=13" />
+  <link rel="stylesheet" href="../css/admin.css?v=14" />
 </head>
 <body>
   <header class="top">
@@ -63,12 +63,30 @@
           </div>
         </div>
       </section>
+
+      <section class="acc" data-acc="tv" id="accTv">
+        <div class="acc__head">
+          <button class="acc__toggle" type="button" aria-expanded="true" aria-controls="accTvBody">
+            <span class="acc__title">TV／遊戲</span>
+            <span class="acc__sum"><i class="dot" id="phaseDot"></i> <span id="phaseText">等候中</span></span>
+            <svg class="acc__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="acc__body" id="accTvBody">
+          <p class="tvnote" id="tvNote">等候中：玩家可在手機按「避開啊／衝過去」玩 TV 上的泡泡大戰。</p>
+          <div class="acc__foot">
+            <a class="btn btn--ghost" id="openTv" href="../tv/" target="_blank" rel="noopener">開啟 TV 畫面</a>
+            <button class="btn btn--ghost" id="toLobby" type="button">回到等候</button>
+            <button class="btn btn--primary" id="startGame" type="button">開始遊戲</button>
+          </div>
+        </div>
+      </section>
     </div>
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="../js/api.js?v=7"></script>
-  <script src="../js/admin.js?v=13"></script>
+  <script src="../js/api.js?v=8"></script>
+  <script src="../js/admin.js?v=14"></script>
 </body>
 </html>

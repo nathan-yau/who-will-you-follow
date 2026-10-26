@@ -41,6 +41,7 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | Character select | `/characters/` |
 | Waiting room | `/lobby/` |
 | Host dashboard | `/admin/` |
+| TV (waiting-room bubble battle) | `/tv/` |
 
 * `netlify/functions/api.mjs` – one Functions v2 handler mounted at `/api/*`, state in Netlify Blobs (store `wwyf-game`, strong consistency). One game at a time; characters are claimed with `onlyIfNew` so a character can never be taken twice.
 * Environment variables (set in Netlify, never in this repo): `ADMIN_PASSWORD` (host PIN), `SESSION_SECRET` (HMAC key for 12 h admin sessions).
@@ -52,7 +53,7 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 |---|---|---|---|
 | GET | `/api/lobby` | anyone | `{gameId, taken[], joined, capacity}` – no roles |
 | POST | `/api/join` | player | `{characterId, nickname?}` → `{player, token}`; send `X-Player-Id`/`X-Player-Token` to reconnect or switch character; `409 taken` |
-| GET | `/api/me` | player | own status (`assigned` flag; role only after reveal) |
+| GET | `/api/me` | player | own status (`assigned` flag; role only after reveal; `phase` lobby/started) |
 | POST | `/api/heartbeat` | player | keep-alive |
 | POST | `/api/admin/login` | host | `{password}` → `{token}` (send as `X-Admin-Token`) |
 | GET | `/api/admin/state` | host | players, online, roles, counts, archive list |
@@ -64,6 +65,10 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | GET | `/api/admin/archive?key=` | host | archived game |
 | POST | `/api/admin/config` | host | `{roles:{…}}` role counts |
 | POST | `/api/admin/reveal` | host | `{revealed}` (no UI yet) |
+| POST | `/api/mini/act` | player | `{push, dodge, seq}` batched TV mini-game input (≤ every 250 ms); stored in `mini/<playerId>`; `409 started` once the game has started |
+| GET | `/api/mini/state` | anyone | TV poll (every 250 ms): `{phase, gameId, joined, players:[{id, characterId, nickname, joinedAt, push, dodge}]}` |
+| POST | `/api/admin/start` | host | phase → `started` (stops the mini-game) |
+| POST | `/api/admin/lobby` | host | phase → `lobby` (clears mini-game counters) |
 
 Default roles (17): 真正領袖 1 · 假領袖 3 · 真領袖支持者 1 · 假領袖支持者 2 · 平民 10.
 
