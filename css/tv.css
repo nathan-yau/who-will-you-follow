@@ -204,5 +204,28 @@ body {
 .is-round .tv-field, .is-round .tv-empty, .is-round .tv-banner { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { .tv-round, .tv-round__banner, .lc { animation: none !important; } }
 
-/* easter egg placeholder (bottom-right, below the signpost) — empty for now, see tv/index.html TODO */
-.lambs { position: absolute; right: 10px; bottom: 6px; width: 230px; height: 96px; pointer-events: none; z-index: 1; }
+/* lambs easter egg (bottom-right, below the signpost) — rendered by renderLambs(n) in tv.js */
+.lambs { position: absolute; right: 10px; bottom: 6px; width: 230px; height: 140px; pointer-events: none; z-index: 1; }
+.lambs[hidden] { display: none; }
+/* sprite faces left; it strolls left, turns round, strolls back (≈14 s loop) */
+.lamb {
+  position: absolute; right: calc(20px + var(--i) * 30px); bottom: calc(52px - var(--i) * 4px); width: 84px; height: 79px;
+  animation: lambdrift 14s linear infinite; animation-delay: calc(var(--i) * -2.3s);
+}
+.lamb__bob { position: absolute; inset: 0; animation: lambbob 0.5s ease-in-out infinite alternate; transform-origin: 50% 100%; }
+.lamb__bob::after {
+  content: ""; position: absolute; left: 14%; right: 14%; bottom: -3px; height: 7px; border-radius: 50%;
+  background: rgba(60, 80, 40, 0.18); z-index: -1;
+}
+.lamb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; -webkit-user-drag: none; }
+.lamb__f2 { animation: lambstep 0.5s steps(1, end) infinite; }
+@keyframes lambstep { 0% { opacity: 0; } 50% { opacity: 1; } }
+@keyframes lambbob { from { transform: translateY(0) rotate(-1.5deg); } to { transform: translateY(-3px) rotate(1.5deg); } }
+@keyframes lambdrift {
+  0% { transform: translateX(0) scaleX(1); }
+  47% { transform: translateX(-112px) scaleX(1); }
+  50% { transform: translateX(-112px) scaleX(-1); }
+  97% { transform: translateX(0) scaleX(-1); }
+  100% { transform: translateX(0) scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) { .lamb, .lamb__bob, .lamb__f2 { animation: none !important; } }

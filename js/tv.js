@@ -373,6 +373,8 @@
         el.hidden = true; void el.offsetWidth;
       }
       el.hidden = !on;
+      // easter egg: Round 1 = exactly 1 lamb. TODO: r2/r3 = number of players who voted for the true leader
+      renderLambs(sc === 'r1' ? 1 : 0);
     }
     if (screen !== 'lobby') renderCards(leaders);
   }
@@ -388,9 +390,26 @@
         '<p class="lc__pill">領袖 <b lang="en">' + l + '</b></p></div>';
     }).join('');
   }
+  /* ---------- lambs easter egg (bottom-right, below the signpost) ---------- */
+  var LAMB = ['../assets/tv/lamb-walk1.webp?v=1', '../assets/tv/lamb-walk2.webp?v=1'];
+  var lambCount = -1;
+  function renderLambs(n) {
+    n = Math.max(0, Math.min(12, n | 0));
+    if (n === lambCount) return;
+    lambCount = n;
+    var box = $('lambs');
+    box.hidden = n === 0;
+    box.innerHTML = Array.from({ length: n }, function (_, i) {
+      // stagger each lamb so a flock doesn't march in lockstep
+      return '<div class="lamb" style="--i:' + i + ';--n:' + n + '"><div class="lamb__bob">' +
+        '<img class="lamb__f1" alt="" draggable="false" src="' + LAMB[0] + '">' +
+        '<img class="lamb__f2" alt="" draggable="false" src="' + LAMB[1] + '"></div></div>';
+    }).join('');
+  }
   // warm the cache so the first switch to a round is instant
   setTimeout(function () {
     Object.keys(ROUNDS).forEach(function (r) { ['bg', 'banner', 'ext'].forEach(function (p) { new Image().src = roundImg(r, p); }); });
+    LAMB.forEach(function (u) { new Image().src = u; });
   }, 2500);
 
   function setPhase(p, list) {
@@ -437,5 +456,5 @@
   poll();
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
 })();

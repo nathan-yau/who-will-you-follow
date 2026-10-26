@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
-  <link rel="stylesheet" href="../css/tv.css?v=5" />
+  <link rel="stylesheet" href="../css/tv.css?v=6" />
 </head>
 <body>
   <main class="tv" id="tv">
@@ -53,10 +53,10 @@
         <img class="tv-round__banner" id="roundBanner" alt="" draggable="false" />
         <h1 class="tv-round__sr" id="roundTitle"></h1>
         <div class="tv-cards" id="cards"></div>
-        <!-- TODO(easter egg): lambs in the bottom-right corner, below the signpost (no art yet).
-             Round 1 shows exactly 1 lamb (Nathan already knows who the real leader is);
-             Rounds 2–3 show N lambs = number of players who voted for the true leader.
-             Wire up when the round logic / voting is implemented. -->
+        <!-- Easter egg: lambs in the bottom-right corner, below the signpost (renderLambs(n) in tv.js).
+             Round 1 shows exactly 1 lamb (Nathan already knows who the real leader is).
+             TODO: Rounds 2–3 show N lambs = number of players who voted for the true leader
+             (hidden until the round logic / voting is implemented). -->
         <div id="lambs" class="lambs" hidden aria-hidden="true"></div>
       </section>
     </div>
@@ -74,6 +74,6 @@
     })();
   </script>
   <script src="../js/api.js?v=9"></script>
-  <script src="../js/tv.js?v=2"></script>
+  <script src="../js/tv.js?v=3"></script>
 </body>
 </html>
