@@ -2,7 +2,7 @@
   "characters": [
     { "id": "character_01", "name": "Nathan",  "tagline": "Good Food, Good Days" },
     { "id": "character_02", "name": "Amy",     "tagline": "Carrots Make Me Happy" },
-    { "id": "character_03", "name": "Chlesea", "tagline": "Fluffy and Friendly" },
+    { "id": "character_03", "name": "Chelsea", "tagline": "Fluffy and Friendly" },
     { "id": "character_04", "name": "Tommy",   "tagline": "Cool Head, Warm Heart" },
     { "id": "character_05", "name": "PC",      "tagline": "Small Roar, Big Hugs" },
     { "id": "character_06", "name": "Thomas",  "tagline": "Sweet Moments Only" },
