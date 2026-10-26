@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=22" />
+  <link rel="stylesheet" href="../css/admin.css?v=23" />
 </head>
 <body>
   <header class="top">
@@ -193,6 +193,15 @@
             <button class="btn btn--ghost" id="fnAll" type="button">全部翻開</button>
             <button class="btn btn--danger" id="fnReset" type="button">重設揭曉</button>
           </div>
+          <!-- 結局 (after the reveal): TV + phones show win / lose; nothing is sent before 顯示結局 -->
+          <div class="fn-end" id="fnEnd">
+            <p class="fn-end__h">結局</p>
+            <p class="fn-end__res" id="fnEndRes"></p>
+            <div class="fn-row">
+              <button class="btn btn--primary" id="fnEnding" type="button">顯示結局</button>
+              <button class="btn btn--ghost" id="fnBack" type="button" hidden>返回揭曉</button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -218,6 +227,9 @@
             <div class="ct__row">
               <label class="ct__lbl ct__lbl--in" for="ctPct">每題門檻</label><input class="ct__num" id="ctPct" type="number" min="1" max="100" inputmode="numeric" /><span class="ct__unit">% 答對</span>
               <label class="ct__lbl ct__lbl--in" for="ctNeed">成功</label><input class="ct__num" id="ctNeed" type="number" min="1" max="5" inputmode="numeric" /><span class="ct__unit">題解鎖</span>
+            </div>
+            <div class="ct__row">
+              <label class="ct__lbl ct__lbl--in" for="ctEnd">結局：勝利門檻</label><input class="ct__num" id="ctEnd" type="number" min="1" max="100" inputmode="numeric" /><span class="ct__unit">% 投票者跟隨真正領袖</span>
             </div>
             <label class="ct__lbl" for="ctClue">最後的線索<small>（解鎖後顯示在 TV 及手機）</small></label>
             <textarea class="ct__ta" id="ctClue" maxlength="300" rows="2"></textarea>
@@ -250,6 +262,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/admin.js?v=23"></script>
+  <script src="../js/admin.js?v=24"></script>
 </body>
 </html>

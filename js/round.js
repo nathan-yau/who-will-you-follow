@@ -26,6 +26,10 @@
       followers: { label: '跟隨你的人數', pending: '投票結束後公佈', unit: '人' }, again: '再看一次身份', tipTitle: '小提示' },
     final: { tag: '最終揭曉', title: '請看 TV！', desc: '主持人正在逐一翻開領袖卡，\n看看誰才是真正領袖！', hidden: '未翻開', fake: '假領袖', true: '真正領袖',
       noSupp: '' },
+    ending: { tag: '結局', winTitle: '勝利！', winLine: '大家成功跟隨了真正的領袖！', loseTitle: '差一點點…', loseLine: '假領袖勝出…', meterLabel: '跟隨真正領袖',
+      target: '目標 {t}%', count: '{x} / {n} 人（約 {p}%）', votes: '{n} 票', trueTag: '真正領袖', fakeTag: '假領袖', mineTrue: '你跟隨了真正的領袖 🎉', mineFake: '你跟隨了 {name}',
+      mineNone: '你沒有在最後投票中投票', leaderTrueWin: '你成功帶領大家找到你！', leaderTrueLose: '大家未能認出你是真正的領袖…', leaderFakeWin: '你成功迷惑了大家！',
+      leaderFakeLose: '你的偽裝被識破了！', leaderVotes: '最後投票有 {n} 人跟隨你', thanks: '多謝參與幸福小組！', waiting: '結局計算中…' },
     rounds: {
       r1: { tag: 'Round 1 / 3', title: '三句話', desc: '{n}位領袖會各自分享三句關於自己的說話。\n你可以聽完發言後提問，\n然後選擇你最相信的一位領袖。', tip: '仔細聆聽每位領袖的說話，\n你可以在發言後向他們提問！' },
       r2: { tag: 'Round 2 / 3', title: '誰是真領袖？', desc: '{n}位領袖會再次發言。', tip: '' },
@@ -44,6 +48,7 @@
   function R(k) { var t = txt(); return (t.round && t.round[k]) || DEF.round[k]; }
   function copy(screen) { var t = txt(), d = DEF.rounds[screen] || DEF.rounds.r1, c = (t.rounds && t.rounds[screen]) || {}, o = {}; for (var k in d) o[k] = d[k]; for (k in c) if (c[k]) o[k] = c[k]; return o; }
   function FT(k) { var t = txt(); return (t.final && t.final[k] != null ? t.final[k] : DEF.final[k]); }
+  function EN(k) { var t = txt(); return (t.ending && t.ending[k] != null && t.ending[k] !== '' ? t.ending[k] : DEF.ending[k]); }
   function Q(k) { var t = txt(); return (t.quiz && t.quiz[k]) || DEF.quiz[k]; }
   function fill(s, o) { return String(s || '').replace(/\{(\w+)\}/g, function (m, k) { return o[k] != null ? o[k] : m; }); }
   function mmss(ms) { var s = Math.max(0, Math.ceil(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
@@ -76,6 +81,7 @@
     if (!r || !r.round) return;
     var rd = r.round;
     if (rd.screen === 'final') { renderFinal(rd); return; }
+    if (rd.screen === 'ending') { renderEnding(rd); return; }
     var c = copy(rd.screen), leader = !!rd.leaderText || rd.followers != null;
     var n = renderRow(rd.leaders);
     set('tag', c.tag); set('rdTitle', c.title); set('tipTitle', R('tipTitle')); set('againText', R('again'));
@@ -140,6 +146,48 @@
         '<p class="rd-fin__n" lang="en">' + esc(names[id] || '') + '</p><span class="rd-fin__st">' + esc(c.flipped ? FT(c.role) : FT('hidden')) + '</span>' +
         (c.votes != null ? '<span class="rd-fin__v">' + (c.votes | 0) + ' 票</span>' : '') + sup + '</div>';
     }).join('');
+  }
+
+  // 結局: the public result (win / lose, X / N, %, each leader's count) + this phone's own line
+  var endKey = '';
+  function renderEnding(rd) {
+    var e = rd.ending, m = rd.mine || {};
+    app.setAttribute('data-r', 'ending');
+    app.setAttribute('data-state', 'player');
+    app.setAttribute('data-vote', 'none');
+    app.setAttribute('data-end', e ? (e.win ? 'win' : 'lose') : 'wait');
+    set('tag', EN('tag'));
+    set('rdTitle', e ? (e.win ? EN('winTitle') : EN('loseTitle')) : EN('tag'));
+    var line = e ? (e.win ? EN('winLine') : EN('loseLine')) : EN('waiting');
+    if ($('desc').textContent !== line) $('desc').textContent = line;
+    var key = JSON.stringify([e, m, Object.keys(names).length, !!T]);
+    if (key === endKey) return;
+    endKey = key;
+    if (!e) { $('endLs').innerHTML = ''; return; }
+    set('endLabel', EN('meterLabel'));
+    set('endCount', fill(EN('count'), { x: e.x, n: e.n, p: e.pct }));
+    set('endTgText', fill(EN('target'), { t: e.threshold }));
+    $('endTg').style.left = Math.max(0, Math.min(100, e.threshold)) + '%';
+    var fl = $('endFill');
+    requestAnimationFrame(function () { fl.style.width = Math.max(0, Math.min(100, e.pct)) + '%'; });
+    // personal line: leaders -> their own side's result; voters -> who they followed (only this phone's own choice)
+    var me1 = '', cid = '';
+    if (m.leader) { me1 = EN(m.leader === 'true' ? (m.won ? 'leaderTrueWin' : 'leaderTrueLose') : (m.won ? 'leaderFakeWin' : 'leaderFakeLose')) + '\n' + fill(EN('leaderVotes'), { n: m.votes | 0 }); cid = (last && last.player && last.player.characterId) || ''; }
+    else if (m.voted) { me1 = m.true ? EN('mineTrue') : fill(EN('mineFake'), { name: names[m.voted] || '' }); cid = m.voted; }
+    else me1 = EN('mineNone');
+    $('endMe').className = 'rd-end__me' + (m.leader ? ' is-leader' : '') + (m.leader ? (m.won ? ' is-good' : ' is-bad') : m.voted ? (m.true ? ' is-good' : ' is-bad') : '');
+    $('endMeC').innerHTML = cid ? '<img alt="" src="' + img(cid, 'stale1') + '" style="--dx:' + (window.wwyfSpriteDx ? wwyfSpriteDx(cid) : 0) + '">' : '';
+    $('endMeC').hidden = !cid;
+    set('endMeText', me1);
+    var L = (e.leaders || []).filter(Boolean);
+    $('endLs').className = 'rd-end__ls n' + L.length;
+    $('endLs').innerHTML = L.map(function (l) {
+      var id = l.characterId, dx = window.wwyfSpriteDx ? wwyfSpriteDx(id) : 0;
+      return '<div class="rd-end__l is-' + (l.role === 'true' ? 'true' : 'fake') + '"><span class="rd-end__lc"><img alt="" src="' + img(id, 'stale1') + '" style="--dx:' + dx + '"></span>' +
+        '<p class="rd-end__ln" lang="en">' + esc(names[id] || '') + '</p><span class="rd-end__lr">' + esc(l.role === 'true' ? EN('trueTag') : EN('fakeTag')) + '</span>' +
+        '<span class="rd-end__lv">' + esc(fill(EN('votes'), { n: l.votes | 0 })) + '</span></div>';
+    }).join('');
+    set('endThx', EN('thanks'));
   }
 
   function renderQuiz(qz, leader) {
@@ -250,11 +298,11 @@
     window.location.href = '../vote/';
   });
 
-  fetch('../data/texts.json?v=6', { cache: 'no-cache' }).then(function (r) { return r.json(); })
-    .then(function (d) { if (d && (d.rounds || d.round)) { T = { rounds: d.rounds || {}, round: {}, quiz: d.quiz || {}, final: d.final || {} }; for (var k in DEF.round) T.round[k] = (d.round && d.round[k]) || DEF.round[k]; } render(); })
+  fetch('../data/texts.json?v=7', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+    .then(function (d) { if (d && (d.rounds || d.round)) { T = { rounds: d.rounds || {}, round: {}, quiz: d.quiz || {}, final: d.final || {}, ending: d.ending || {} }; for (var k in DEF.round) T.round[k] = (d.round && d.round[k]) || DEF.round[k]; } render(); })
     .catch(function () {});
   fetch('../data/characters.json?v=' + V, { cache: 'no-cache' }).then(function (r) { return r.json(); })
-    .then(function (d) { ((d && d.characters) || []).forEach(function (c) { names[c.id] = c.name; }); rowKey = ''; finKey = ''; render(); })
+    .then(function (d) { ((d && d.characters) || []).forEach(function (c) { names[c.id] = c.name; }); rowKey = ''; finKey = ''; endKey = ''; render(); })
     .catch(function () {});
   if (window.WWYF_KNOCK) WWYF_KNOCK.init($('knockSlot'));
 

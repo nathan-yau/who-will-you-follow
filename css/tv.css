@@ -417,3 +417,82 @@ body {
   .fc.anim.is-true .fc__glow, .fc.anim.is-true .fc__crown, .fc.anim-supp .fs { animation: none !important; }
   .fc__confetti { display: none; }
 }
+
+/* ---------- 結局 (screen 'ending'): meter -> 勝利！/ 差一點點… on the lobby meadow (pastel, existing sprites / lambs) ---------- */
+.tv-ending { overflow: hidden; }
+.is-ending .tv-started { visibility: hidden; }
+.en-meter { position: absolute; left: 192px; top: 124px; width: 640px; height: 108px; box-sizing: border-box; padding: 10px 26px 0; border-radius: 22px;
+  background: rgba(253, 250, 241, 0.94); box-shadow: 0 4px 14px rgba(90, 110, 70, 0.16); animation: tvin 0.55s cubic-bezier(.3, 1.4, .5, 1) 0.15s backwards; }
+.en-meter__label { position: absolute; left: 26px; top: 10px; margin: 0; font-size: 18px; line-height: 26px; font-weight: 700; letter-spacing: 2px; color: #4b301d; }
+.en-meter__count { position: absolute; right: 26px; top: 10px; margin: 0; font-size: 18px; line-height: 26px; font-weight: 700; letter-spacing: 1px; color: #6a5a45; opacity: 0; transition: opacity 0.4s ease; }
+.is-done .en-meter__count { opacity: 1; }
+.en-bar { position: absolute; left: 26px; right: 26px; top: 44px; height: 30px; border-radius: 15px; background: #ece5cf; box-shadow: inset 0 2px 4px rgba(90, 70, 40, 0.14); }
+.en-bar__fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 15px; background: linear-gradient(90deg, #a9cf8f, #f6c94c); }
+.is-lose.is-done .en-bar__fill { background: linear-gradient(90deg, #f5c9bd, #f0a28e); }
+.en-bar__pct { position: absolute; top: 0; left: 4%; transform: translateX(-50%); height: 30px; padding: 0 8px; font-family: "Fredoka", system-ui, sans-serif;
+  font-size: 18px; line-height: 30px; font-weight: 700; color: #4b301d; white-space: nowrap; text-shadow: 0 1px 0 rgba(253, 250, 241, 0.9); }
+.en-bar__target { position: absolute; top: -6px; bottom: -6px; width: 0; border-left: 3px dashed #5f8f57; }
+.en-bar__target em { position: absolute; left: 0; top: calc(100% + 1px); transform: translateX(-50%); padding: 0 8px; border-radius: 8px; background: #5f8f57; color: #fff;
+  font-style: normal; font-size: 13px; line-height: 18px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
+.en-meter.is-met .en-bar__target { border-left-color: #b7862a; }
+.en-meter.is-met .en-bar__target em { background: #d9a531; }
+/* the result (after the meter) */
+.en-result { position: absolute; left: 212px; top: 234px; width: 600px; text-align: center; opacity: 0; pointer-events: none; }
+.en-result h2 { margin: 0; font-size: 52px; line-height: 62px; font-weight: 900; letter-spacing: 8px; text-indent: 8px; color: #b7862a; text-shadow: 0 3px 0 #fdfaf1, 0 0 18px rgba(246, 201, 76, 0.6); }
+.is-lose .en-result h2 { font-size: 44px; color: #8a6a7a; text-shadow: 0 3px 0 #fdfaf1; letter-spacing: 6px; }
+.en-result p { display: inline-block; margin: 2px 0 0; padding: 3px 18px; border-radius: 14px; background: rgba(253, 250, 241, 0.9); font-size: 22px; line-height: 30px; font-weight: 700; letter-spacing: 2px; color: #4b301d; }
+.is-done .en-result { opacity: 1; animation: enpop 0.6s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes enpop { 0% { transform: scale(0.4); opacity: 0; } 100% { transform: none; opacity: 1; } }
+/* the scene */
+.en-scene { position: absolute; left: 0; right: 0; top: 330px; height: 186px; opacity: 0; }
+.is-done .en-scene { opacity: 1; transition: opacity 0.5s ease 0.2s; }
+.en-spr { position: absolute; bottom: 0; width: 180px; height: 172px; }
+.en-spr__in { position: absolute; inset: 0; transform-origin: 50% 100%; }
+.en-spr img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transform: translateX(calc(var(--dx, 0) * 100%)); -webkit-user-drag: none; }
+.en-spr .en-f2 { animation: lambstep 0.9s steps(1, end) infinite; }
+.en-spr--hero { left: 422px; z-index: 2; }
+.is-done .en-spr--hero .en-spr__in { animation: enjoy 0.9s cubic-bezier(.3, 1.6, .5, 1) 0.2s backwards, enhop 1.4s ease-in-out 1.2s infinite; }
+@keyframes enjoy { 0% { transform: translateY(60px) scale(0.3); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes enhop { 0%, 100% { transform: none; } 40% { transform: translateY(-12px) scale(1.03, 0.98); } }
+.en-crown { position: absolute; left: 58px; top: calc(var(--t) * 172px - 34px); width: 64px; height: 44px; z-index: 3; transform: rotate(-8deg); filter: drop-shadow(0 3px 4px rgba(120, 80, 20, 0.3)); }
+.is-done .en-crown { animation: encrown 0.7s cubic-bezier(.3, 1.6, .5, 1) 0.8s backwards; }
+@keyframes encrown { 0% { transform: translateY(-120px) rotate(-30deg); opacity: 0; } 100% { transform: rotate(-8deg); opacity: 1; } }
+.en-rays { position: absolute; left: 362px; top: -40px; width: 300px; height: 300px; border-radius: 50%; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 233, 150, 0.8) 0 12deg, rgba(255, 233, 150, 0) 12deg 30deg);
+  -webkit-mask: radial-gradient(circle, #000 30%, transparent 68%); mask: radial-gradient(circle, #000 30%, transparent 68%); animation: fnspin 16s linear infinite; }
+/* lose: the 假領袖 look smug (bouncy, chin up); the true leader is sad (hit sprite, greyed, sweat drop) */
+.en-spr--smug { left: calc(437px + var(--o) * 165px); width: 150px; height: 150px; bottom: 14px; }
+.is-done .en-spr--smug .en-spr__in { animation: ensmug 1.1s ease-in-out infinite; animation-delay: calc(var(--k) * -0.35s); }
+@keyframes ensmug { 0%, 100% { transform: rotate(-4deg); } 50% { transform: translateY(-10px) rotate(5deg); } }
+.en-spr--sad { left: 448px; width: 128px; height: 120px; z-index: 2; }
+.en-spr--sad img { filter: grayscale(0.45) brightness(0.97); }
+.is-done .en-spr--sad .en-spr__in { animation: ensad 2.6s ease-in-out infinite; }
+@keyframes ensad { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(-7deg) translateY(3px); } }
+.en-drop { position: absolute; right: 18px; top: calc(var(--t) * 120px); width: 16px; height: 22px; animation: endrop 2s ease-in infinite; }
+@keyframes endrop { 0% { transform: translateY(-4px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(18px); opacity: 0; } }
+/* lambs stroll along the bottom (win) */
+.en-lambs { position: absolute; left: 0; right: 0; bottom: 44px; height: 110px; pointer-events: none; z-index: 1; opacity: 0; }
+.is-done .en-lambs { opacity: 1; transition: opacity 0.6s ease 0.6s; }
+/* each leader's final follower count (names of leaders only) */
+.en-chips { position: absolute; left: 0; right: 0; top: 520px; display: flex; justify-content: center; gap: 14px; z-index: 3; }
+.en-chip { position: relative; height: 46px; box-sizing: border-box; padding: 0 14px 0 52px; display: flex; align-items: center; gap: 8px; border-radius: 23px;
+  background: rgba(253, 250, 241, 0.95); box-shadow: 0 3px 10px rgba(90, 110, 70, 0.16); opacity: 0; }
+.is-done .en-chip { opacity: 1; animation: fnup 0.45s ease-out backwards; animation-delay: calc(0.5s + var(--k) * 0.1s); }
+.en-chip__c { position: absolute; left: 4px; top: 3px; width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: #f3eedd; }
+.en-chip__c img { position: absolute; left: calc(-4px + var(--dx, 0) * 48px); top: 1px; width: 48px; height: 44px; object-fit: contain; }
+.en-chip.is-fake .en-chip__c img { filter: grayscale(0.4); }
+.en-chip__n { font-family: "Fredoka", system-ui, sans-serif; font-size: 17px; font-weight: 600; color: #3b2a1b; white-space: nowrap; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+.en-chip__r { padding: 0 8px; border-radius: 10px; background: #f5c9bd; color: #7d3a2b; font-size: 12.5px; line-height: 20px; font-weight: 700; white-space: nowrap; }
+.en-chip.is-true { box-shadow: 0 0 0 3px #f0cf6e, 0 3px 12px rgba(246, 201, 76, 0.45); }
+.en-chip.is-true .en-chip__r { background: #f6c94c; color: #5a3d06; }
+.en-chip__v { font-size: 16px; font-weight: 700; color: #4b301d; white-space: nowrap; }
+/* confetti (win): falls across the whole stage */
+.en-conf { position: absolute; inset: 0; pointer-events: none; z-index: 8; }
+.en-conf i { position: absolute; top: -20px; width: 10px; height: 14px; border-radius: 2px; animation: enfall 3s linear backwards; }
+@keyframes enfall { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 85% { opacity: 1; } 100% { transform: translate(var(--sx), 620px) rotate(var(--r)); opacity: 0; } }
+.is-wait .en-meter, .is-wait .en-result, .is-wait .en-chips { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .tv-ending, .en-meter, .is-done .en-result, .is-done .en-spr__in, .is-done .en-crown, .en-rays, .en-drop, .is-done .en-chip, .en-spr .en-f2 { animation: none !important; }
+  .en-scene, .en-lambs, .en-meter__count { transition: none !important; }
+  .en-conf { display: none; }
+}

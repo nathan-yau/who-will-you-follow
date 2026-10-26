@@ -102,7 +102,7 @@
     $('phaseDot').classList.toggle('on', !started);
     $('phaseDot').classList.toggle('live', started);
     $('tvNote').textContent = started
-      ? '遊戲已開始：TV 顯示' + (sc === 'reveal' ? '「身份揭曉」畫面' : sc === 'final' ? '「最終揭曉」畫面' : rnd ? '「' + rnd + '」標題畫面（含四位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
+      ? '遊戲已開始：TV 顯示' + (sc === 'reveal' ? '「身份揭曉」畫面' : sc === 'final' ? '「最終揭曉」畫面' : sc === 'ending' ? '「結局」畫面' : rnd ? '「' + rnd + '」標題畫面（含四位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
       : '等候中：玩家可在手機按「避開啊／衝過去」玩 TV 上的泡泡大戰。';
     $('startGame').disabled = started;
     if (started) disarm();
@@ -151,7 +151,7 @@
   });
 
   /* TV 畫面 segmented control: 等候 / Round 1–3 (POST admin/screen; a round implies 開始遊戲) */
-  var SCREEN_NAMES = { lobby: '等候', r1: 'Round 1', r2: 'Round 2', r3: 'Round 3', reveal: '身份揭曉', final: '最終揭曉' };
+  var SCREEN_NAMES = { lobby: '等候', r1: 'Round 1', r2: 'Round 2', r3: 'Round 3', reveal: '身份揭曉', final: '最終揭曉', ending: '結局' };
   var segPending = null, segArm = null, segArmT = 0;
   function curScreen() {
     var m = state && state.meta;
@@ -758,12 +758,25 @@
     $('fnReset').classList.toggle('is-armed', fnArm === 'reset');
     $('fnSum').textContent = on ? '已翻開 ' + nf + ' / ' + L.length : nf ? '已翻開 ' + nf + ' / ' + L.length + '（TV 不在最終揭曉）' : '未開始';
     $('fnDot').className = 'dot' + (on ? ' v-live' : '');
-    $('fnNote').textContent = !started ? '請先完成身份揭曉。' : on ? 'TV 正顯示所有領袖卡（身份以「?」隱藏）。任何次序翻卡；翻開後可「揭曉支持者」。' : '最後投票後按「進入最終揭曉」，再逐張翻卡（任何次序都可以）。';
+    // 結局: 顯示結局 once the final vote is closed (two taps while the 真正領袖 card is still face-down); 返回揭曉 goes back
+    var en = f.ending || {}, endOn = curScreen() === 'ending', res = en.result;
+    $('fnEnding').disabled = fnBusy || !started || !en.ready || endOn;
+    $('fnEnding').textContent = endOn ? 'TV 顯示結局中' : fnArm === 'ending' ? '真正領袖未翻開，再按一次' : '顯示結局';
+    $('fnEnding').classList.toggle('is-armed', fnArm === 'ending');
+    $('fnBack').hidden = !endOn; $('fnBack').disabled = fnBusy;
+    $('fnEnd').classList.toggle('is-on', endOn);
+    var rh = !en.ready ? '最後投票（Round 3）結束後才可顯示結局。'
+      : res ? (endOn ? 'TV 及手機正顯示：' : '預覽（只限主持人）：') + '<b>' + res.x + ' / ' + res.n + '</b> 人（約 ' + res.pct + '%）跟隨真正領袖 → <b class="' + (res.win ? 'is-win">勝利' : 'is-lose">假領袖勝出') + '</b>（門檻 ' + res.threshold + '%）' +
+        (!en.trueFlipped && !endOn ? '<br>真正領袖的卡未翻開：顯示結局需按兩次。' : '') : '';
+    if ($('fnEndRes').innerHTML !== rh) $('fnEndRes').innerHTML = rh;
+    if (endOn && res) $('fnSum').textContent = '結局：' + (res.win ? '勝利' : '假領袖勝出');
+    if (endOn) $('fnDot').className = 'dot v-live';
+    $('fnNote').textContent = !started ? '請先完成身份揭曉。' : endOn ? 'TV 正顯示結局（勝利／假領袖勝出）。按「返回揭曉」可回到領袖卡。' : on ? 'TV 正顯示所有領袖卡（身份以「?」隱藏）。任何次序翻卡；翻開後可「揭曉支持者」。' : '最後投票後按「進入最終揭曉」，再逐張翻卡（任何次序都可以）。';
   }
   function fnDo(body, msg) {
     fnBusy = true; renderFinal();
     return WWYF.admin('POST', 'final', body).then(function (r) {
-      if (state) { state.final = r.final; if (state.meta && body.action === 'enter') { state.meta.tvScreen = r.screen; } }
+      if (state) { state.final = r.final; if (state.meta && (body.action === 'enter' || body.action === 'ending')) { state.meta.tvScreen = r.screen; } }
       if (msg) toast(msg);
     }).catch(fail).then(function () { fnBusy = false; renderPhase(); return refresh(); });
   }
@@ -773,6 +786,13 @@
     clearTimeout(fnArmT); fnArm = null; return true;
   }
   $('fnEnter').addEventListener('click', function () { if (!this.disabled) fnDo({ action: 'enter' }, 'TV 已切換到最終揭曉'); });
+  $('fnEnding').addEventListener('click', function () {
+    if (this.disabled) return;
+    var en = (state.final && state.final.ending) || {};
+    if (!en.trueFlipped && !fnTwoTap('ending')) return;
+    fnDo({ action: 'ending' }, 'TV 已顯示結局');
+  });
+  $('fnBack').addEventListener('click', function () { if (!this.disabled) fnDo({ action: 'enter' }, '已返回最終揭曉'); });
   $('fnVotes').addEventListener('click', function () { if (!this.disabled) fnDo({ action: 'votes', on: !(state.final && state.final.votes) }); });
   $('fnAll').addEventListener('click', function () { if (!this.disabled && fnTwoTap('all')) fnDo({ action: 'all' }, '全部翻開！'); });
   $('fnReset').addEventListener('click', function () { if (!this.disabled && fnTwoTap('reset')) fnDo({ action: 'reset' }, '最終揭曉已重設'); });
@@ -805,6 +825,7 @@
     content = c;
     $('ctMyst').value = c.r2.mystery.all || ''; $('ctMystT').value = c.r2.mystery.true || ''; $('ctMystF').value = c.r2.mystery.fake || '';
     $('ctPct').value = c.r3.threshold; $('ctNeed').value = c.r3.need; $('ctClue').value = c.r3.clue || '';
+    $('ctEnd').value = (c.end && c.end.threshold) || 70;
     c.r3.questions.forEach(function (q, i) {
       var qe = document.querySelector('.ct-q[data-q="' + i + '"]'); if (!qe) return;
       qe.querySelector('[data-f=q]').value = q.q;
@@ -812,7 +833,7 @@
       var r = qe.querySelector('input[type=radio][value="' + q.answer + '"]'); if (r) r.checked = true;
     });
     ctMarkAns(); ctSetDirty(false); $('ctErr').textContent = '';
-    $('ctSum').textContent = 'Round 3：門檻 ' + c.r3.threshold + '% · 成功 ' + c.r3.need + ' 題';
+    $('ctSum').textContent = 'Round 3：門檻 ' + c.r3.threshold + '% · 成功 ' + c.r3.need + ' 題 · 結局 ' + ((c.end && c.end.threshold) || 70) + '%';
   }
   function ctSetDirty(d) { ctDirty = d; $('ctForm').classList.toggle('is-dirty', d); $('ctSave').textContent = d ? '儲存內容 *' : '儲存內容'; }
   function ctRead() {
@@ -820,7 +841,7 @@
       var r = qe.querySelector('input[type=radio]:checked');
       return { q: qe.querySelector('[data-f=q]').value.trim(), options: [0, 1, 2, 3].map(function (j) { return qe.querySelector('[data-o="' + j + '"]').value.trim(); }), answer: r ? +r.value : -1 };
     });
-    return { r2: { mystery: { all: $('ctMyst').value.trim(), true: $('ctMystT').value.trim(), fake: $('ctMystF').value.trim() } }, r3: { threshold: +$('ctPct').value, need: +$('ctNeed').value, clue: $('ctClue').value.trim(), questions: qs } };
+    return { r2: { mystery: { all: $('ctMyst').value.trim(), true: $('ctMystT').value.trim(), fake: $('ctMystF').value.trim() } }, r3: { threshold: +$('ctPct').value, need: +$('ctNeed').value, clue: $('ctClue').value.trim(), questions: qs }, end: { threshold: +$('ctEnd').value } };
   }
   function loadContent() {
     return WWYF.admin('GET', 'content').then(function (r) { if (!ctDirty) ctFill(r.content); else content = r.content; renderQuiz(); }).catch(function (e) { if (e.status === 401) fail(e); });
@@ -834,6 +855,7 @@
     var b = $('ctSave'), body = ctRead(), bad = '';
     body.r3.questions.forEach(function (q, i) { if (!bad && (!q.q || q.options.some(function (o) { return !o; }))) bad = '第 ' + (i + 1) + ' 題的題目或選項未填'; if (!bad && q.answer < 0) bad = '第 ' + (i + 1) + ' 題未選正確答案'; });
     if (!bad && !body.r2.mystery.all) bad = '平民版神秘描述不可留空';
+    if (!bad && !(body.end.threshold >= 1 && body.end.threshold <= 100)) bad = '結局門檻需為 1–100%';
     if (bad) { $('ctErr').textContent = bad; return; }
     b.disabled = true;
     WWYF.admin('POST', 'content', body).then(function (r) { ctFill(r.content); toast('遊戲內容已儲存'); renderQuiz(); })

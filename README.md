@@ -80,11 +80,11 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | POST | `/api/admin/speak` | host | `{round, duration:30\|60\|90\|120\|0}` start the 發言 timer for a round (0 = 不限) |
 | POST | `/api/admin/speak-end` | host | `{round}` end the 發言 now (→ 提問時間); opening a vote also ends it |
 | POST | `/api/quiz/answer` | player | `{index, choice:0-3}` answer / change the open Round 3 question → `{index, mine}`; `403 no_answer` (leaders), `409 quiz_closed` |
-| GET / POST | `/api/admin/content` | host | game content (persists across games): `{r2:{mystery:{all, true, fake}}, r3:{threshold, need, clue, questions:[5 × {q, options[4], answer}]}}` → `{ok, content}` |
+| GET / POST | `/api/admin/content` | host | game content (persists across games): `{r2:{mystery:{all, true, fake}}, r3:{threshold, need, clue, questions:[5 × {q, options[4], answer}]}, end:{threshold}}` (`end.threshold` 1–100, default 70; `400 bad_end_threshold`) → `{ok, content}` |
 | POST | `/api/admin/quiz-open` | host | `{index:0-4, duration:0\|20\|30\|45\|60\|90}` open a question (snapshotted; reopening clears its result); needs started + revealed |
 | POST | `/api/admin/quiz-close` | host | close the open question now (the timer also closes it) → result |
 | POST | `/api/admin/quiz-reset` | host | clear all question results / answers |
-| POST | `/api/admin/final` | host | 最終揭曉: `{action:'enter'}` (TV → `final`; also `admin/screen {screen:'final'}`), `{action:'flip', playerId}`, `{action:'supporter', playerId}` (after flip; `409 no_supporter` / `not_flipped`), `{action:'all'}` (flip the rest, 700 ms stagger), `{action:'reset'}`, `{action:'votes', on}`; flip / supporter / all need the TV on `final` (`409 not_final`) → `{ok, screen, final}` |
+| POST | `/api/admin/final` | host | 最終揭曉: `{action:'enter'}` (TV → `final`; also `admin/screen {screen:'final'}`), `{action:'flip', playerId}`, `{action:'supporter', playerId}` (after flip; `409 no_supporter` / `not_flipped`), `{action:'all'}` (flip the rest, 700 ms stagger), `{action:'reset'}`, `{action:'votes', on}`, `{action:'ending'}` (TV → `ending`; also `admin/screen {screen:'ending'}`; `409 vote_not_closed` until the r3 vote exists and is closed; `enter` = 返回揭曉); flip / supporter / all need the TV on `final` (`409 not_final`) → `{ok, screen, final}` |
 | POST | `/api/admin/start` | host | phase → `started` (stops the mini-game) |
 | POST | `/api/admin/lobby` | host | phase → `lobby` (clears mini-game counters) |
 
@@ -135,6 +135,14 @@ Game flow: **等候 (bubble battle) → 身份揭曉 → Round 1 → Round 2 →
 * Admin 「最終揭曉」: 進入最終揭曉, 顯示最後投票結果 toggle (r3 vote closed only), one tile per leader (name, role, supporters — host only) with 翻卡 (any order) and 揭曉支持者 (disabled 沒有支持者 when none), 全部翻開 / 重設揭曉 (two taps each). State `meta.final {flipped, supp, votes}`, cleared by 新一場.
 * TV (`js/tv.js`, `css/tv.css`): face-down cards (sprite + name + 「?」 badge) → flip: fake = 「假領袖」 stamp; true = 「真正領袖」 stamp + crown + glow + confetti; supporters pop out beside the card (sprite + small name label only; no caption or role text). Animations play only for changes seen live (`at` / `suppAt` timestamps); `prefers-reduced-motion` → simple fades. `/api/mini/state` `final.cards[]` carries `role` / `supporters` only for flipped / revealed cards.
 * Phone `round/` (data-r `final`): 「請看 TV！」 + the list of leaders with 未翻開 / 假領袖 / 真正領袖 and the supporter names (no label or role text) once revealed (copy: `data/texts.json` → `final`).
+
+### 結局 (TV screen `ending`)
+
+* Win rule: the group wins when ≥ `content.end.threshold` % (default 70, admin 「遊戲內容」) of the final-vote (r3) voters chose the true leader. Voters = non-leaders with an r3 ballot for a leader; `win = n > 0 && x*100 >= threshold*n` (n = 0 → lose).
+* Admin 「最終揭曉」 → 結局 box: host-only preview (X / N, %, 勝利 / 假領袖勝出) once the r3 vote is closed; 「顯示結局」 (two taps while the true leader card is still face-down) and 「返回揭曉」 (back to `final`). `admin/state` → `final.ending {on, ready, trueFlipped, result}`. State `meta.tvScreen = 'ending'` + `meta.endingAt`; 新一場 clears it.
+* Data only after the trigger: `/api/mini/state` `ending:{win, x, n, pct, threshold, leaders:[{characterId, role:'true'|'fake', votes}], at}` (aggregate only, no player ids / nicknames) and `/api/me` `round:{screen:'ending', leaders, ending, mine}` — `mine` = `{voted, true}` for a voter, `{voted:null}` for a non-voter, `{leader:'true'|'fake', votes, won}` for a leader (a fake leader "wins" when the group loses).
+* TV (`js/tv.js` `renderEnding`, `css/tv.css` `.en-*`): meter fills to the % over ~2.4 s with a dashed target line, then win = 「勝利！」 + crowned true leader + rays + walking lambs + confetti; lose = 「差一點點…」 + bouncing fake leaders + the true leader's `hit2` sprite with a sweat drop. Chips: leader name + 真正領袖 / 假領袖 + 「N 票」. Replays only when seen live; reduced motion → final state at once, no confetti.
+* Phone `round/` (data-r `ending`): result title/line, mini meter + target, the personal line (「你跟隨了真正的領袖 🎉」 / 「你跟隨了 <name>」 / 沒有投票; leaders: their own side's result + 「最後投票有 N 人跟隨你」), the 4 leaders with counts and 「多謝參與幸福小組！」. Copy: `data/texts.json` → `ending`.
 
 Default roles (17): 真正領袖 1 · 假領袖 3 · 真領袖支持者 1 · 假領袖支持者 2 · 平民 10.
 

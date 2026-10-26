@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/style.css?v=6" />
   <link rel="stylesheet" href="../css/characters.css?v=8" />
-  <link rel="stylesheet" href="../css/round.css?v=5" />
+  <link rel="stylesheet" href="../css/round.css?v=6" />
   <link rel="stylesheet" href="../css/knock.css?v=1" />
 </head>
 <body>
@@ -72,6 +72,15 @@
       <!-- 最終揭曉 (TV screen 'final'): 「請看 TV」 + what the host has revealed so far (server sends only flipped roles) -->
       <div class="rd-fin abs" id="fin" data-r="final" aria-live="polite"></div>
 
+      <!-- 結局 (TV screen 'ending'): same result as the TV + this phone's own line (who YOU followed / your own leader result) -->
+      <div class="rd-end abs" id="end" data-r="ending" aria-live="polite">
+        <div class="rd-end__m"><p class="rd-end__ml"><span id="endLabel">跟隨真正領袖</span><b id="endCount" lang="en"></b></p>
+          <div class="rd-end__bar"><i id="endFill"></i><span class="rd-end__tg" id="endTg"><em id="endTgText"></em></span></div></div>
+        <div class="rd-end__me" id="endMe"><span class="rd-end__mc" id="endMeC"></span><p id="endMeText"></p></div>
+        <div class="rd-end__ls" id="endLs"></div>
+        <p class="rd-end__thx" id="endThx"></p>
+      </div>
+
       <!-- the leaders (same slot order as the TV cards), peeking out of paw-print pots -->
       <div class="rd-scene abs" aria-hidden="true">
         <svg class="rd-hills" viewBox="0 0 474 200" preserveAspectRatio="none"><path d="M60 200C70 80 150 14 240 14S410 80 420 200Z" fill="#e4eed8"/><g fill="#cfe1bb"><circle cx="40" cy="120" r="46"/><circle cx="96" cy="84" r="50"/><circle cx="150" cy="112" r="40"/><circle cx="330" cy="110" r="42"/><circle cx="382" cy="80" r="50"/><circle cx="440" cy="118" r="46"/></g><g fill="#bdd5a5"><circle cx="20" cy="160" r="40"/><circle cx="120" cy="150" r="36"/><circle cx="240" cy="166" r="44"/><circle cx="356" cy="152" r="38"/><circle cx="458" cy="160" r="40"/><rect x="0" y="150" width="474" height="50"/></g><g fill="#e9f2df"><circle cx="86" cy="70" r="3.5"/><circle cx="392" cy="66" r="3"/><circle cx="150" cy="100" r="2.5"/></g></svg>
@@ -121,8 +130,8 @@
     })();
   </script>
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/knock.js?v=6"></script>
+  <script src="../js/knock.js?v=7"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
-  <script src="../js/round.js?v=5"></script>
+  <script src="../js/round.js?v=6"></script>
 </body>
 </html>

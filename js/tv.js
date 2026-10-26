@@ -345,8 +345,9 @@
     emptyEl.hidden = list.length > 0;
     var started = s.phase === 'started';
     // round title screen (r1–r3) only while started; an older backend without `screen` = placeholder
-    setScreen(started && (ROUNDS[s.screen] || s.screen === 'reveal' || s.screen === 'final') ? s.screen : 'lobby', s.leaders, s);
+    setScreen(started && (ROUNDS[s.screen] || s.screen === 'reveal' || s.screen === 'final' || s.screen === 'ending') ? s.screen : 'lobby', s.leaders, s);
     renderFinal(screen === 'final' ? s.final : null);
+    renderEnding(screen === 'ending' ? s.ending || null : undefined);
     if (screen === 'reveal') renderRevealCount(s.reveal);
     // an open vote shows on any round screen; a just-sealed one only on its own round's screen
     renderVote(ROUNDS[screen] && s.vote && (!s.vote.sealed || s.vote.round === screen) ? s.vote : null);
@@ -387,7 +388,11 @@
     if (sc !== screen) {
       screen = sc;
       document.body.classList.toggle('is-round', sc !== 'lobby');
-      document.body.classList.toggle('is-final', sc === 'final');
+      document.body.classList.toggle('is-final', sc === 'final' || sc === 'ending');
+      document.body.classList.toggle('is-ending', sc === 'ending');
+      var en = $('ending');
+      if (sc === 'ending') { en.hidden = true; void en.offsetWidth; }
+      en.hidden = sc !== 'ending';
       // 身份揭曉 has its own layer (no leader cards / lambs)
       var rv = $('reveal');
       if (sc === 'reveal') { rv.hidden = true; void rv.offsetWidth; }
@@ -524,6 +529,96 @@
     fnSeen = seen;
     var nf = cards.filter(function (x) { return x.c.flipped; }).length;
     $('fnSub').textContent = !nf ? '誰才是真正領袖？' : nf < cards.length ? '已翻開 ' + nf + ' / ' + cards.length + ' 張' : '全部揭曉！';
+  }
+
+  /* ---------- 結局 (screen 'ending'): the meter fills to X / N (% who followed the 真正領袖) with the target line,
+     then 勝利！(confetti, the true leader crowned in the middle, lambs walking) or 差一點點…(smug 假領袖 + a sad true leader).
+     Data = aggregate only: {win, x, n, pct, threshold, leaders:[{characterId, role, votes}]} (never who voted for whom).
+     Copy: data/texts.json "ending" (defaults below). Reduced motion: the final state at once. */
+  var EDEF = { tvTitle: '結局', tvSub: '最後投票：有幾多人跟隨了真正的領袖？', meterLabel: '跟隨真正領袖', target: '目標 {t}%', count: '{x} / {n} 人（約 {p}%）',
+    winTitle: '勝利！', winLine: '大家成功跟隨了真正的領袖！', loseTitle: '差一點點…', loseLine: '假領袖勝出…', votes: '{n} 票', trueTag: '真正領袖', fakeTag: '假領袖', waiting: '結局計算中…' };
+  var ET = null;
+  fetch('../data/texts.json?v=7', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+    .then(function (d) { if (d && d.ending) { ET = d.ending; endKey = ''; if (screen === 'ending') renderEnding(lastEnding); } }).catch(function () {});
+  function E(k) { return ET && ET[k] != null && ET[k] !== '' ? ET[k] : EDEF[k]; }
+  function fillT(t, o) { return String(t).replace(/\{(\w+)\}/g, function (m, k) { return o[k] != null ? o[k] : m; }); }
+  var endKey = '', lastEnding = null, enTimers = [], enRaf = 0, enStage = '';
+  function enClear() { enTimers.forEach(clearTimeout); enTimers = []; cancelAnimationFrame(enRaf); enRaf = 0; }
+  function enSprite(cid, cls, frames) {
+    var box = window.wwyfSpriteBox ? wwyfSpriteBox(cid) : [0.1, 0.15, 0.9, 0.96], dx = window.wwyfSpriteDx ? wwyfSpriteDx(cid) : 0;
+    return '<div class="en-spr ' + cls + '" data-cid="' + esc(cid) + '" style="--dx:' + dx + ';--t:' + box[1].toFixed(3) + '"><div class="en-spr__in">' +
+      frames.map(function (f, k) { return '<img class="en-f' + (k + 1) + '" alt="" draggable="false" src="' + img(cid, f) + '">'; }).join('') + '</div></div>';
+  }
+  function enConfetti(waves) {
+    if (RM) return;
+    var cols = ['#f6c94c', '#f5ab9b', '#9fbedd', '#a9cf8f', '#fdfaf1', '#e9b8e0'], box = $('enConf');
+    for (var w = 0; w < waves; w++) (function (w) {
+      enTimers.push(setTimeout(function () {
+        var h = '';
+        for (var k = 0; k < 70; k++) h += '<i style="left:' + (Math.random() * 100).toFixed(1) + '%;--r:' + Math.round(Math.random() * 900 - 450) + 'deg;--sx:' + Math.round(Math.random() * 120 - 60) + 'px;background:' + cols[k % cols.length] +
+          ';animation-duration:' + (2.4 + Math.random() * 1.6).toFixed(2) + 's;animation-delay:' + (Math.random() * 0.8).toFixed(2) + 's"></i>';
+        var g = document.createElement('div'); g.className = 'en-conf__w'; g.innerHTML = h; box.appendChild(g);
+        enTimers.push(setTimeout(function () { g.remove(); }, 5200));
+      }, w * 1800));
+    })(w);
+  }
+  function renderEnding(e) {
+    if (e === undefined) { if (endKey || lastEnding) { endKey = ''; lastEnding = null; enStage = ''; enClear(); $('enConf').innerHTML = ''; } return; }
+    lastEnding = e;
+    var sec = $('ending');
+    $('enTitle').textContent = E('tvTitle');
+    if (!e) { if (endKey !== 'none') { endKey = 'none'; enClear(); enStage = 'wait'; sec.className = 'tv-round tv-ending is-wait'; $('enSub').textContent = E('waiting');
+      ['enScene', 'enChips', 'enLambs', 'enConf'].forEach(function (id) { $(id).innerHTML = ''; }); } return; }
+    var key = [e.win, e.x, e.n, e.pct, e.threshold, e.at, (e.leaders || []).map(function (l) { return l.characterId + l.role + l.votes; }).join(','), Object.keys(names).length, ET ? 1 : 0].join('|');
+    if (key === endKey) return;
+    var replay = !endKey || endKey === 'none' || enStage !== 'done';
+    endKey = key; enClear();
+    $('enSub').textContent = E('tvSub');
+    $('enLabel').textContent = E('meterLabel');
+    $('enTargetText').textContent = fillT(E('target'), { t: e.threshold });
+    $('enTarget').style.left = Math.max(0, Math.min(100, e.threshold)) + '%';
+    $('enCount').textContent = fillT(E('count'), { x: e.x, n: e.n, p: e.pct });
+    $('enResTitle').textContent = e.win ? E('winTitle') : E('loseTitle');
+    $('enResLine').textContent = e.win ? E('winLine') : E('loseLine');
+    var L = e.leaders || [], tl = L.filter(function (l) { return l.role === 'true'; })[0], fk = L.filter(function (l) { return l.role !== 'true'; });
+    // the scene (existing sprites: stale = idle / smug bounce, hit = sad)
+    var sc = '';
+    if (e.win && tl) sc = '<i class="en-rays"></i>' + enSprite(tl.characterId, 'en-spr--hero', ['stale1', 'stale2']) ;
+    else if (!e.win) {
+      sc = fk.map(function (l, k) { return enSprite(l.characterId, 'en-spr--smug', ['stale1', 'stale2']).replace('style="', 'style="--k:' + k + ';--o:' + (k % 2 ? 1 : -1) * (Math.floor(k / 2) + 1) + ';'); }).join('') +
+        (tl ? enSprite(tl.characterId, 'en-spr--sad', ['hit2']) : '');
+    }
+    $('enScene').innerHTML = sc;
+    var hero = $('enScene').querySelector('.en-spr--hero');
+    if (hero) hero.insertAdjacentHTML('beforeend', CROWN.replace('fc__crown', 'en-crown'));
+    var sad = $('enScene').querySelector('.en-spr--sad');
+    if (sad) sad.insertAdjacentHTML('beforeend', '<svg class="en-drop" viewBox="0 0 20 28"><path d="M10 2C6 10 3 14 3 18a7 7 0 0 0 14 0c0-4-3-8-7-16Z" fill="#9fc7ea" stroke="#5f8fbf" stroke-width="2"/></svg>');
+    $('enLambs').innerHTML = e.win ? [40, 150, 260, 700, 810, 900].map(function (x, i) {
+      return '<div class="lamb" style="--i:' + i + ';--x:' + x + 'px;--b:' + (i % 3 === 1 ? 10 : 2) + 'px;--s:' + (i % 3 === 1 ? 0.8 : 0.9) + '"><div class="lamb__bob"><img class="lamb__f1" alt="" draggable="false" src="' + LAMB[0] + '"><img class="lamb__f2" alt="" draggable="false" src="' + LAMB[1] + '"></div></div>';
+    }).join('') : '';
+    $('enChips').innerHTML = L.map(function (l, k) {
+      var dx = window.wwyfSpriteDx ? wwyfSpriteDx(l.characterId) : 0;
+      return '<div class="en-chip is-' + (l.role === 'true' ? 'true' : 'fake') + '" style="--k:' + k + '"><span class="en-chip__c"><img alt="" src="' + img(l.characterId, 'stale1') + '" style="--dx:' + dx + '"></span>' +
+        '<b class="en-chip__n" lang="en">' + esc(names[l.characterId] || '') + '</b><span class="en-chip__r">' + esc(l.role === 'true' ? E('trueTag') : E('fakeTag')) + '</span>' +
+        '<span class="en-chip__v">' + esc(fillT(E('votes'), { n: l.votes | 0 })) + '</span></div>';
+    }).join('');
+    sec.className = 'tv-round tv-ending ' + (e.win ? 'is-win' : 'is-lose');
+    var pct = Math.max(0, Math.min(100, e.pct | 0));
+    function setFill(p) { $('enFill').style.width = p + '%'; $('enPct').textContent = Math.round(p) + '%'; $('enPct').style.left = Math.max(4, Math.min(96, p)) + '%'; }
+    function done() { enStage = 'done'; sec.classList.add('is-done'); $('enMeter').classList.toggle('is-met', !!e.win); if (e.win) enConfetti(3); }
+    if (RM || !replay) { setFill(pct); done(); return; }
+    // live: meter fills (count up) over ~2.4 s, then the result
+    enStage = 'meter'; setFill(0);
+    var D = 2400, t0 = 0;
+    enTimers.push(setTimeout(function () {
+      var stepE = (function (ts) {
+        if (!t0) t0 = ts;
+        var k = Math.min(1, (ts - t0) / D), ease = 1 - Math.pow(1 - k, 3);
+        setFill(pct * ease);
+        if (k < 1) enRaf = requestAnimationFrame(stepE); else { enRaf = 0; enTimers.push(setTimeout(done, 450)); }
+      });
+      enRaf = requestAnimationFrame(stepE);
+    }, 700));
   }
 
   /* ---------- 投票中 overlay (round screens): countdown + 已投票 X / N, then 已封票 ---------- */
@@ -694,5 +789,5 @@
   poll();
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get ending() { return lastEnding; }, get endingStage() { return enStage; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
 })();

@@ -43,7 +43,8 @@ const phaseOf = (m) => (m && m.phase === STARTED ? STARTED : LOBBY);
 const ROUND_SCREENS = ['r1', 'r2', 'r3'];
 const REVEAL = 'reveal';   // 身份揭曉 stage
 const FINAL = 'final';     // 最終揭曉 (host flips the leader cards in any order)
-const SCREENS = [...ROUND_SCREENS, REVEAL, FINAL];
+const ENDING = 'ending';   // 結局 (after 最終揭曉: did the group follow the true leader in the final vote?)
+const SCREENS = [...ROUND_SCREENS, REVEAL, FINAL, ENDING];
 // round / reveal screens only make sense once the game has started (lobby -> always the bubble battle)
 const screenOf = (m) => (phaseOf(m) === STARTED && SCREENS.includes(m.tvScreen) ? m.tvScreen : LOBBY);
 const MINI_MAX_PUSH = 4;   // per request; the phone sends at most every 250 ms and caps taps at 2/s
@@ -257,6 +258,13 @@ async function me(req, s, heartbeatOnly) {
     // phones on 最終揭曉: 「請看 TV」 + what has been revealed so far (same public data as the TV)
     const ps = (await cachedGet(s, await listWithEtags(s, 'players/'))).filter(Boolean).map(normalize);
     out.round = { screen: FINAL, leaders: leaderCards(ps), final: await finalView(s, meta, ps) };
+  }
+  if (meta.revealed && out.screen === ENDING) {
+    // 結局: the public result (same as the TV) + this phone's OWN line (who it followed / its own leader result)
+    const ps = (await cachedGet(s, await listWithEtags(s, 'players/'))).filter(Boolean).map(normalize);
+    const tally = await endingTally(s, meta, ps);
+    const ending = endingView(meta, await getContent(s), ps, tally);
+    out.round = { screen: ENDING, leaders: leaderCards(ps), ending, mine: ending ? endingMine(normalize(p), ps, tally, ending) : null };
   }
   if (meta.revealed) {
     const kv = knockView(meta, normalize(p));
@@ -912,6 +920,8 @@ async function miniState(s) {
   }
   // 最終揭曉: the leader cards + ONLY what the host has already flipped / revealed (no roles of unflipped cards)
   if (screen === FINAL) out.final = await finalView(s, meta, players.filter(Boolean).map(normalize));
+  // 結局: aggregate result only (X / N, %, win, per-leader counts by character) — never who voted for whom
+  if (screen === ENDING) { const ps = players.filter(Boolean).map(normalize); out.ending = endingView(meta, await getContent(s), ps, await endingTally(s, meta, ps)); }
   // an open vote: countdown + aggregate count only (never who voted, never for whom)
   // just sealed (everyone voted): keep showing 已封票 + the full count for a while
   const v = currentVote(meta);
@@ -986,6 +996,7 @@ async function setScreen(req, s) {
   if (b.screen === LOBBY) return setPhase(s, LOBBY);
   if (b.screen === REVEAL) return revealStage(s, true);
   if (b.screen === FINAL) return finalAction(s, { action: 'enter' });
+  if (b.screen === ENDING) return finalAction(s, { action: 'ending' });
   if (!ROUND_SCREENS.includes(b.screen)) fail(400, 'bad_screen', '未知的畫面');
   return setPhase(s, STARTED, b.screen);
 }
@@ -1043,7 +1054,9 @@ async function adminLogin(req, s, context) {
    blob `content` (kept across games, NOT cleared by 新一場):
      { r2: { mystery: { all, true, fake } },                         Round 2 神秘描述 per role group: all = 平民版 (平民 + both
                                                                      supporter roles), true = 真領袖版, fake = 假領袖版 ('' = 平民版).
-       r3: { threshold (%), need (successes to unlock), clue, questions: [{ q, options: [4], answer: 0-3 }] x 5 } } */
+       r3: { threshold (%), need (successes to unlock), clue, questions: [{ q, options: [4], answer: 0-3 }] x 5 },
+       end: { threshold (%) } }                                       結局: the group wins if >= threshold % of the final-vote
+                                                                     voters chose the 真正領袖 */
 const QUIZ_N = 5;
 const QUIZ_DURATIONS = [0, 20, 30, 45, 60, 90];
 const DEFAULT_CONTENT = {
@@ -1059,6 +1072,7 @@ const DEFAULT_CONTENT = {
     { q: '（範例）香港的國際電話區號是？', options: ['+852', '+853', '+86', '+886'], answer: 0 },
     { q: '（範例）彩虹通常有幾多種顏色？', options: ['5', '6', '7', '8'], answer: 2 },
   ] },
+  end: { threshold: 70 },
 };
 const str = (v, max, d = '') => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').trim().slice(0, max) : d);
 function cleanContent(b, base) {
@@ -1092,13 +1106,18 @@ function cleanContent(b, base) {
       });
     }
   }
+  if (b.end && b.end.threshold != null) {
+    const n = Math.round(Number(b.end.threshold));
+    if (!(n >= 1 && n <= 100)) fail(400, 'bad_end_threshold', '結局門檻需為 1–100%');
+    out.end.threshold = n;
+  }
   return out;
 }
 let contentCache = null;   // { t, data } — 3 s in the warm instance (phones poll /me every 2–3 s)
 async function getContent(s, fresh) {
   if (!fresh && contentCache && now() - contentCache.t < 3000) return contentCache.data;
   const c = (await s.get('content', { type: 'json' })) || {};
-  const data = { r2: { mystery: { ...DEFAULT_CONTENT.r2.mystery, ...((c.r2 && c.r2.mystery) || {}) } }, r3: { ...DEFAULT_CONTENT.r3, ...(c.r3 || {}) } };
+  const data = { r2: { mystery: { ...DEFAULT_CONTENT.r2.mystery, ...((c.r2 && c.r2.mystery) || {}) } }, r3: { ...DEFAULT_CONTENT.r3, ...(c.r3 || {}) }, end: { ...DEFAULT_CONTENT.end, ...(c.end || {}) } };
   contentCache = { t: now(), data };
   return data;
 }
@@ -1330,13 +1349,58 @@ async function finalView(s, meta, players) {
 async function adminFinal(s, meta, players) {
   const f = meta.final || {}, fl = f.flipped || {}, sp = f.supp || {};
   const v = meta.votes && meta.votes.r3;
+  const tl = leaderSlots(players).filter((p) => p && p.role === TRUE_LEADER);
+  const ready = !!v && !voteOpen(v);
   return {
-    on: screenOf(meta) === FINAL, votes: !!f.votes, voteReady: !!v && !voteOpen(v),
+    on: screenOf(meta) === FINAL, votes: !!f.votes, voteReady: ready,
+    // 結局 (host preview of the result; the TV / phones only get it once the host shows the ending)
+    ending: { on: screenOf(meta) === ENDING, ready, trueFlipped: tl.length > 0 && tl.every((p) => !!fl[p.id]),
+      result: ready ? endingView(meta, await getContent(s), players, await endingTally(s, meta, players)) : null },
     leaders: leaderSlots(players).map((p) => p && {
       id: p.id, characterId: p.characterId, nickname: p.nickname || '', role: p.role, flipped: !!fl[p.id], suppRevealed: !!sp[p.id],
       supporters: supportersOf(p, players).map((q) => ({ id: q.id, characterId: q.characterId, nickname: q.nickname || '', role: q.role })),
     }),
   };
+}
+/* ---------------- 結局 (TV screen 'ending', after 最終揭曉) ----------------
+   Win rule: the group wins if >= content.end.threshold % (default 70) of the voters in the FINAL vote (r3, closed;
+   non-leaders who voted) chose the 真正領袖. Public view = X / N, %, win, per-leader counts (character only). */
+const endingCache = new Map();
+async function endingTally(s, meta, players) {
+  const v = meta.votes && meta.votes.r3;
+  if (!v || voteOpen(v)) return null;
+  const key = `${meta.gameId}:${v.id}:${v.closedAt || v.deadline}:` + sha(players.map((p) => p.id + '=' + p.role).sort().join(','));
+  if (endingCache.has(key)) return endingCache.get(key);
+  const byId = new Map(players.map((p) => [p.id, p])), per = {}, mine = {};
+  let x = 0, n = 0;
+  for (const b of await ballotsOf(s, 'r3')) {
+    const vt = byId.get(b.voter), tg = byId.get(b.target);
+    if (!canVote(vt) || !tg || !LEADER_ROLES.includes(tg.role)) continue;
+    n++; per[tg.id] = (per[tg.id] || 0) + 1; mine[vt.id] = tg.id;
+    if (tg.role === TRUE_LEADER) x++;
+  }
+  const out = { x, n, per, mine };
+  if (endingCache.size > 20) endingCache.clear();
+  endingCache.set(key, out);
+  return out;
+}
+function endingView(meta, content, players, tally) {
+  if (!tally) return null;
+  const thr = (content.end && content.end.threshold) || 70, { x, n } = tally;
+  return {
+    win: n > 0 && x * 100 >= thr * n, x, n, pct: n ? Math.round((x * 100) / n) : 0, threshold: thr,
+    leaders: leaderSlots(players).filter(Boolean).map((p) => ({ characterId: p.characterId, role: p.role === TRUE_LEADER ? 'true' : 'fake', votes: tally.per[p.id] || 0 })),
+    at: meta.endingAt || 0,
+  };
+}
+/** this phone only: leaders -> their own side's result + own count; voters -> who THEY followed; else none */
+function endingMine(p, players, tally, view) {
+  if (LEADER_ROLES.includes(p.role)) {
+    const isTrue = p.role === TRUE_LEADER;
+    return { leader: isTrue ? 'true' : 'fake', votes: tally.per[p.id] || 0, won: isTrue ? view.win : !view.win };
+  }
+  const t = tally.mine[p.id], tg = t && players.find((q) => q.id === t);
+  return tg ? { voted: tg.characterId, true: tg.role === TRUE_LEADER } : { voted: null };
 }
 async function finalAction(s, b) {
   const a = b && b.action;
@@ -1347,7 +1411,8 @@ async function finalAction(s, b) {
   const lp = a === 'flip' || a === 'supporter' ? leaders.find((p) => p.id === b.playerId) : null;
   if ((a === 'flip' || a === 'supporter') && !lp) fail(400, 'bad_leader', '找不到這位領袖');
   if (a === 'supporter' && !supportersOf(lp, players).length) fail(409, 'no_supporter', '這位領袖沒有支持者');
-  if (!['enter', 'flip', 'supporter', 'all', 'reset', 'votes'].includes(a)) fail(400, 'bad_action', '未知的操作');
+  if (!['enter', 'flip', 'supporter', 'all', 'reset', 'votes', 'ending'].includes(a)) fail(400, 'bad_action', '未知的操作');
+  if (a === 'ending') { const v = meta.votes && meta.votes.r3; if (!v || voteOpen(v)) fail(409, 'vote_not_closed', '最後投票尚未結束'); }
   // flips only while the TV shows the final screen, so every reveal is seen (and animated) live
   if (['flip', 'supporter', 'all'].includes(a) && screenOf(meta) !== FINAL) fail(409, 'not_final', '請先進入最終揭曉');
   const t = now();
@@ -1355,6 +1420,7 @@ async function finalAction(s, b) {
     m.final = m.final || { flipped: {}, supp: {}, votes: false };
     const f = m.final; f.flipped = f.flipped || {}; f.supp = f.supp || {};
     if (a === 'enter') { m.phase = STARTED; m.tvScreen = FINAL; }
+    else if (a === 'ending') { if (m.tvScreen === ENDING) return undefined; m.phase = STARTED; m.tvScreen = ENDING; m.endingAt = t; }
     else if (a === 'flip') { if (f.flipped[lp.id]) return undefined; f.flipped[lp.id] = t; }
     else if (a === 'supporter') { if (!f.flipped[lp.id]) fail(409, 'not_flipped', '請先翻開這張卡'); if (f.supp[lp.id]) return undefined; f.supp[lp.id] = t; }
     else if (a === 'all') { let k = 0; for (const p of leaders) if (!f.flipped[p.id]) f.flipped[p.id] = t + 700 * k++; }   // staggered so the TV plays them one by one

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
-  <link rel="stylesheet" href="../css/tv.css?v=16" />
+  <link rel="stylesheet" href="../css/tv.css?v=17" />
 </head>
 <body>
   <main class="tv" id="tv">
@@ -120,6 +120,21 @@
         <div class="fn-cards" id="fnCards"></div>
         <div class="fn-fx" id="fnFx" aria-hidden="true"></div>
       </section>
+      <!-- 結局 (screen 'ending'): meter -> 勝利！ / 差一點點… ; aggregate counts only (no voter names) -->
+      <section class="tv-round tv-ending" id="ending" hidden>
+        <div class="fn-title"><h1 id="enTitle">結局</h1><p id="enSub">最後投票：有幾多人跟隨了真正的領袖？</p></div>
+        <div class="en-meter" id="enMeter">
+          <p class="en-meter__label" id="enLabel">跟隨真正領袖</p>
+          <p class="en-meter__count" id="enCount" lang="en"></p>
+          <div class="en-bar"><i class="en-bar__fill" id="enFill"></i><b class="en-bar__pct" id="enPct" lang="en">0%</b>
+            <span class="en-bar__target" id="enTarget"><em id="enTargetText">目標 70%</em></span></div>
+        </div>
+        <div class="en-result" id="enResult"><h2 id="enResTitle"></h2><p id="enResLine"></p></div>
+        <div class="en-scene" id="enScene" aria-hidden="true"></div>
+        <div class="en-lambs" id="enLambs" aria-hidden="true"></div>
+        <div class="en-chips" id="enChips"></div>
+        <div class="en-conf" id="enConf" aria-hidden="true"></div>
+      </section>
     </div>
   </main>
   <script>
@@ -136,6 +151,6 @@
   </script>
   <script src="../js/api.js?v=10"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
-  <script src="../js/tv.js?v=13"></script>
+  <script src="../js/tv.js?v=14"></script>
 </body>
 </html>

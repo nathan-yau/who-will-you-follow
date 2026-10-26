@@ -325,6 +325,14 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .fn-row { display: flex; gap: 6px; margin-top: 8px; }
 .fn-row .btn { flex: 1 1 0; min-height: 36px; height: 36px; padding: 0 6px; font-size: 13px; }
 .fn-votes[aria-pressed="true"] { background: #e6f2df; border-color: #a9cf8f; color: #3f6e39; }
+.fn-end { margin-top: 10px; padding: 8px; border-radius: 12px; background: #fbf8ee; border: 1.5px solid var(--line); }
+.fn-end__h { margin: 0; font-size: 13px; font-weight: 700; color: var(--ink); }
+.fn-end__res { margin: 3px 0 0; font-size: 12px; line-height: 1.55; color: var(--ink2); }
+.fn-end__res b { color: var(--ink); }
+.fn-end__res .is-win { color: #3f6e39; }
+.fn-end__res .is-lose { color: #b65b4a; }
+#fnEnding.is-armed { background: #c0634c; color: #fff; border-color: #c0634c; }
+.fn-end.is-on { background: #eef6e8; border-color: #a9cf8f; }
 .fn-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
 .fn-t { padding: 7px 8px; border-radius: 12px; background: #fff; border: 1.5px solid var(--line); min-width: 0; }
 .fn-t.is-flipped.is-fake { background: #fdf1ed; border-color: #f0cfc4; }
