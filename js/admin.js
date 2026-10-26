@@ -107,7 +107,44 @@
     if (started) disarm();
     $('toLobby').disabled = !started;
     renderSeg();
+    renderGoR1();
   }
+
+  /* 開始 Round 1 (flow: 等候 → 身份揭曉 → Round 1): shown once the reveal stage has started, until a round is on the TV.
+     Everyone revealed (done == total > 0) -> prominent, one tap. Otherwise locked with 「X / N 已揭曉」; a tap arms
+     「仍然開始」 and a second tap within 3 s overrides (someone's phone died). Uses admin/screen r1, which also ends
+     the reveal stage (players can still re-view their own card). */
+  var r1Arm = false, r1ArmT = 0;
+  function r1Disarm() { clearTimeout(r1ArmT); r1ArmT = 0; r1Arm = false; renderGoR1(); }
+  function renderGoR1() {
+    if (!state || !state.meta) return;
+    var m = state.meta, cur = curScreen(), b = $('goR1');
+    var show = !!m.revealed && m.phase === 'started' && !/^r[123]$/.test(cur) && segPending !== 'r1';
+    $('r1go').hidden = !show;
+    if (!show) { if (r1Arm) { clearTimeout(r1ArmT); r1Arm = false; } return; }
+    var done = state.players.filter(function (p) { return p.seen; }).length, total = state.players.length;
+    var ready = total > 0 && done === total;
+    if (ready && r1Arm) { clearTimeout(r1ArmT); r1Arm = false; }
+    $('r1Done').textContent = done; $('r1Total').textContent = total;
+    $('r1go').classList.toggle('is-ready', ready);
+    b.classList.toggle('is-locked', !ready);
+    b.classList.toggle('is-armed', !ready && r1Arm);
+    b.removeAttribute('aria-disabled');   // locked is still tappable (arms the override), so not disabled for AT
+    b.disabled = total === 0;
+    b.textContent = ready ? '開始 Round 1' : r1Arm ? '仍然開始' : done + ' / ' + total + ' 已揭曉';
+    b.title = ready ? '所有玩家都已揭曉身份：TV 切換到 Round 1，首次公開領袖' : '還有玩家未揭曉：按一下再按「仍然開始」可強制開始';
+  }
+  $('goR1').addEventListener('click', function () {
+    if (!state || this.disabled) return;
+    var b = this, ready = !b.classList.contains('is-locked');
+    if (!ready && !r1Arm) { r1Arm = true; clearTimeout(r1ArmT); r1ArmT = setTimeout(r1Disarm, 3000); renderGoR1(); return; }
+    clearTimeout(r1ArmT); r1Arm = false;
+    segPending = 'r1'; renderSeg(); renderGoR1();
+    WWYF.admin('POST', 'screen', { screen: 'r1' }).then(function (r) {
+      if (state && state.meta) { state.meta.phase = r.phase; state.meta.tvScreen = r.screen; }
+      toast('Round 1 開始！TV 正在公開領袖');
+    }).catch(fail).then(function () { segPending = null; renderPhase(); renderReveal(); return refresh(); });
+  });
 
   /* TV 畫面 segmented control: 等候 / Round 1–3 (POST admin/screen; a round implies 開始遊戲) */
   var SCREEN_NAMES = { lobby: '等候', r1: 'Round 1', r2: 'Round 2', r3: 'Round 3', reveal: '身份揭曉' };

@@ -400,17 +400,45 @@
       // easter egg: Round 1 = exactly 1 lamb. TODO: r2/r3 = number of players who voted for the true leader
       renderLambs(sc === 'r1' ? 1 : 0);
     }
-    if (ROUNDS[screen]) renderCards(leaders);
+    if (ROUNDS[screen]) {
+      // Round 1 = the first time the leaders are shown publicly: play the entrance once per game
+      // (remembered in localStorage so a TV reload mid-round doesn't replay it)
+      if (screen === 'r1' && s && s.gameId && introSeen() !== s.gameId) startIntro(s.gameId);
+      else if (screen !== 'r1' && intro === 'playing') endIntro();   // left r1 mid-entrance: show the plain cards
+      renderCards(leaders);
+    }
   }
+  var INTRO_KEY = 'wwyf-r1-intro', intro = 'idle', introT = 0, INTRO_MS = 4200;
+  function introSeen() { try { return localStorage.getItem(INTRO_KEY); } catch (e) { return null; } }
+  function startIntro(gid) {
+    try { localStorage.setItem(INTRO_KEY, gid); } catch (e) {}
+    intro = 'playing'; cardsKey = '\u0000';   // force a re-render with the intro markup
+    var box = $('cards'); box.classList.add('is-intro');
+    clearTimeout(introT);
+    introT = setTimeout(endIntro, INTRO_MS);
+  }
+  function endIntro() {
+    clearTimeout(introT); intro = 'done';
+    var box = $('cards');
+    // settle in place: drop the face-down backs + sparkles without re-rendering (a re-render would replay the plain pop-in)
+    Array.prototype.forEach.call(box.querySelectorAll('.lc__back, .lc__fx'), function (e) { e.remove(); });
+    Array.prototype.forEach.call(box.querySelectorAll('.lc'), function (e) { e.style.animation = 'none'; });
+    box.classList.remove('is-intro');
+  }
+  var FX = '<i class="lc__fx" aria-hidden="true">' + [1, 2, 3, 4, 5].map(function (n) {
+    return '<svg class="lc__st lc__st--' + n + '" viewBox="0 0 20 20"><path d="M10 0l2.4 7.6L20 10l-7.6 2.4L10 20l-2.4-7.6L0 10l7.6-2.4z"/></svg>';
+  }).join('') + '</i>';
   function renderCards(leaders) {
     var L = [0, 1, 2, 3].map(function (i) { var c = leaders && leaders[i]; return c && c.characterId ? c.characterId : ''; });
     lastLeaders = leaders;
     var key = L.join('|'), nk = Object.keys(names).length;
     if (key === cardsKey && nk === cardsNames) return;
     cardsKey = key; cardsNames = nk;
+    var playing = intro === 'playing';
     $('cards').innerHTML = L.map(function (cid, i) {
       var l = SLOTS4[i], nm = cid ? (names[cid] || '') : '';
-      return '<div class="lc lc--' + l + (cid ? '' : ' is-empty') + '" data-slot="' + (i + 1) + '">' +
+      return '<div class="lc lc--' + l + (cid ? '' : ' is-empty') + '" data-slot="' + (i + 1) + '" style="--i:' + i + '">' +
+        (playing ? '<div class="lc__back" aria-hidden="true"><span lang="en">?</span></div>' + (cid ? FX : '') : '') +
         '<div class="lc__circle">' + (cid ? '<img alt="" src="' + img(cid, 'stale1') + '">' : '<span class="lc__q" lang="en">?</span>') + '</div>' +
         '<p class="lc__pill"><b lang="en">' + (nm ? esc(nm) : '?') + '</b></p></div>';
     }).join('');
@@ -482,5 +510,5 @@
   poll();
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
 })();

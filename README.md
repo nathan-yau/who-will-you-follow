@@ -75,9 +75,13 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 
 ### 身份揭曉 (identity reveal)
 
+Game flow: **等候 (bubble battle) → 身份揭曉 → Round 1 → Round 2 → Round 3**.
+
 * Host: admin section 「身份揭曉」 → 開始揭曉 (tap twice to confirm) / 結束揭曉; shows 已揭曉 X / N and who has looked (host only, authenticated).
 * Phone `identity/` (`css/identity.css`, `js/identity.js`): silhouette + 「揭曉我的身份」 → flip → role pill + description → 「知道了」 → 「再看一次身份」 (re-viewable for the rest of the game). The lobby jumps here once `revealed`.
 * TV screen `reveal`: pill 「秘密身份」, banner 「身份揭曉」/「請看你的手機，揭曉你的秘密身份！」, a calm animated phone illustration and the aggregate 「已揭曉 X / N」 with a progress bar — NO per-player icons, names or checks. `/api/mini/state` (public) adds only `reveal:{revealed, total}` on that screen; no per-player seen flags.
+* Starting Round 1: admin 「TV／遊戲」 shows a compact 「開始 Round 1」 next to 已揭曉 X / N during the reveal stage. Once every joined player has revealed (X == N, N > 0) it glows and one tap starts Round 1; before that it is locked and reads 「X / N 已揭曉」 — tap once to arm 「仍然開始」 (3 s) and tap again to start anyway (e.g. a dead phone). Starting = `admin/screen {screen:'r1'}`: the reveal stage ends, phones can still re-view their card. The round segmented control is still used for later rounds; going back to 等候 / restarting the reveal still needs a confirm.
+* TV Round 1 is the first public reveal of the leaders: `leaders` is only in `/api/mini/state` on round screens (never in lobby / reveal, never in `/api/lobby`). The first time a game reaches r1 the cards drop in face-down, then flip one by one with a sparkle burst (~4 s), then idle; it plays once per gameId (remembered in the TV's localStorage, so reloads or r2→r1 don't replay; a new game does).
 * Phone identity page heading: 「你的身份」 (Chinese; only the game logo stays English).
 * Leader letters (A–D) are internal only and never shown to anyone: phones, TV round cards and the admin pairing badge use the character name from `data/characters.json`; admin shows the slot as a colour dot.
 * Texts: `data/roles.json` — `desc` per role; 假領袖 `helperLine` (appended only for a fake leader who has a fake supporter); 假領袖支持者 `supportsLabel` (「你支持：{name}」, shown with that leader's icon); `leaderLabel` (「{name}」 = the leader's own character name). Entries with `placeholder:true` are draft copy.

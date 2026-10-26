@@ -141,15 +141,6 @@ body {
 .tv-started__row img { width: 40px; height: 37px; object-fit: contain; animation: tvhop 1.6s ease-in-out infinite; }
 @keyframes tvhop { 0%, 70%, 100% { transform: none; } 80% { transform: translateY(-6px); } }
 
-.rv-count { position: absolute; left: 392px; top: 450px; width: 240px; padding: 9px 18px 12px; box-sizing: border-box; border-radius: 18px;
-  background: rgba(253, 250, 241, 0.92); box-shadow: 0 4px 14px rgba(90, 110, 70, 0.16); text-align: center; animation: tvin 0.6s cubic-bezier(.3, 1.4, .5, 1) 0.25s backwards; }
-.rv-count__txt { margin: 0; font-size: 21px; line-height: 28px; font-weight: 700; letter-spacing: 2px; color: #4b301d; }
-.rv-count__txt b { font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: 25px; letter-spacing: 0; color: #5f8a52; }
-.rv-count__txt b.bump { display: inline-block; animation: rvbump 0.5s ease-out; }
-.rv-count__bar { margin-top: 7px; height: 10px; border-radius: 5px; background: #e4e8d6; overflow: hidden; }
-.rv-count__bar i { display: block; height: 100%; width: 0; border-radius: 5px; background: linear-gradient(90deg, #a9cf8f, #7fae6e); transition: width 0.6s ease; }
-@keyframes rvbump { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
-@media (prefers-reduced-motion: reduce) { .rv-count, .rv-count__txt b.bump, .rv-count__bar i { animation: none !important; transition: none !important; } }
 @media (prefers-reduced-motion: reduce) {
   .tv-empty, .tv-started__row img, .tv-count b.bump { animation: none !important; }
 }
@@ -191,6 +182,25 @@ body {
 }
 .lc:nth-child(2) { animation-delay: 0.06s; } .lc:nth-child(3) { animation-delay: 0.12s; } .lc:nth-child(4) { animation-delay: 0.18s; }
 @keyframes lcin { 0% { transform: translateY(14px) scale(0.9); opacity: 0; } 100% { transform: none; opacity: 1; } }
+/* Round 1 entrance (first public reveal of the leaders, once per game): face-down cards drop in, then flip one by one
+   with a sparkle burst, then idle. --i = slot index. */
+.tv-cards.is-intro { perspective: 900px; }
+.tv-cards.is-intro .lc { animation: lcdrop 0.45s cubic-bezier(.3, 1.4, .5, 1) backwards, lcflip 0.7s ease-in-out none;
+  animation-delay: calc(var(--i) * 0.08s), calc(0.9s + var(--i) * 0.6s); }
+@keyframes lcdrop { 0% { transform: translateY(-40px) scale(0.85); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes lcflip { 0% { transform: rotateY(0) scale(1); } 50% { transform: rotateY(90deg) scale(1.08); } 75% { transform: rotateY(0) scale(1.1); } 100% { transform: none; } }
+.lc__back { position: absolute; inset: -2px; z-index: 3; border-radius: 11px; border: 2px solid #e0d5b8;
+  background: repeating-linear-gradient(45deg, var(--c) 0 10px, var(--p) 10px 20px);
+  display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none;
+  animation: lcback 0.7s linear backwards; animation-delay: calc(0.9s + var(--i) * 0.6s); }
+.lc__back span { font-family: "Fredoka", system-ui, sans-serif; font-size: 56px; font-weight: 600; color: rgba(75, 48, 29, 0.35); }
+@keyframes lcback { 0%, 49.9% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.lc__fx { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.lc__st { position: absolute; left: 50%; top: 45%; width: 22px; height: 22px; margin: -11px; fill: #f2c14e; opacity: 0;
+  animation: lcstar 0.9s ease-out backwards; animation-delay: calc(1.25s + var(--i) * 0.6s); }
+.lc__st--2 { fill: #f5ab9b; width: 16px; height: 16px; } .lc__st--4 { fill: #9fbedd; width: 16px; height: 16px; } .lc__st--5 { width: 14px; height: 14px; }
+.lc__st--1 { --dx: -78px; --dy: -70px; } .lc__st--2 { --dx: 80px; --dy: -60px; } .lc__st--3 { --dx: 88px; --dy: 30px; } .lc__st--4 { --dx: -86px; --dy: 40px; } .lc__st--5 { --dx: 0px; --dy: -96px; }
+@keyframes lcstar { 0% { transform: translate(0, 0) scale(0.2) rotate(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(1.2) rotate(40deg); opacity: 0; } }
 .lc--b { --c: #fee7e1; --p: #fedcd4; }
 .lc--c { --c: #fde4c0; --p: #fce5b2; }
 .lc--d { --c: #e0e9f2; --p: #dfe9f3; }
@@ -211,16 +221,7 @@ body {
 .lc__pill b { font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: 19px; letter-spacing: 0.3px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lc.is-empty .lc__pill { opacity: 0.7; }
 .is-round .tv-field, .is-round .tv-empty, .is-round .tv-banner { visibility: hidden; }
-.rv-count { position: absolute; left: 392px; top: 450px; width: 240px; padding: 9px 18px 12px; box-sizing: border-box; border-radius: 18px;
-  background: rgba(253, 250, 241, 0.92); box-shadow: 0 4px 14px rgba(90, 110, 70, 0.16); text-align: center; animation: tvin 0.6s cubic-bezier(.3, 1.4, .5, 1) 0.25s backwards; }
-.rv-count__txt { margin: 0; font-size: 21px; line-height: 28px; font-weight: 700; letter-spacing: 2px; color: #4b301d; }
-.rv-count__txt b { font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: 25px; letter-spacing: 0; color: #5f8a52; }
-.rv-count__txt b.bump { display: inline-block; animation: rvbump 0.5s ease-out; }
-.rv-count__bar { margin-top: 7px; height: 10px; border-radius: 5px; background: #e4e8d6; overflow: hidden; }
-.rv-count__bar i { display: block; height: 100%; width: 0; border-radius: 5px; background: linear-gradient(90deg, #a9cf8f, #7fae6e); transition: width 0.6s ease; }
-@keyframes rvbump { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
-@media (prefers-reduced-motion: reduce) { .rv-count, .rv-count__txt b.bump, .rv-count__bar i { animation: none !important; transition: none !important; } }
-@media (prefers-reduced-motion: reduce) { .tv-round, .tv-round__banner, .lc { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .tv-round, .tv-round__banner, .lc, .tv-cards.is-intro .lc, .lc__st { animation: none !important; } .lc__back { display: none; } }
 
 /* lambs easter egg (bottom-right, below the signpost) — rendered by renderLambs(n) in tv.js */
 .lambs { position: absolute; right: 10px; bottom: 6px; width: 230px; height: 140px; pointer-events: none; z-index: 1; }
@@ -246,15 +247,6 @@ body {
   97% { transform: translateX(0) scaleX(-1); }
   100% { transform: translateX(0) scaleX(1); }
 }
-.rv-count { position: absolute; left: 392px; top: 450px; width: 240px; padding: 9px 18px 12px; box-sizing: border-box; border-radius: 18px;
-  background: rgba(253, 250, 241, 0.92); box-shadow: 0 4px 14px rgba(90, 110, 70, 0.16); text-align: center; animation: tvin 0.6s cubic-bezier(.3, 1.4, .5, 1) 0.25s backwards; }
-.rv-count__txt { margin: 0; font-size: 21px; line-height: 28px; font-weight: 700; letter-spacing: 2px; color: #4b301d; }
-.rv-count__txt b { font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: 25px; letter-spacing: 0; color: #5f8a52; }
-.rv-count__txt b.bump { display: inline-block; animation: rvbump 0.5s ease-out; }
-.rv-count__bar { margin-top: 7px; height: 10px; border-radius: 5px; background: #e4e8d6; overflow: hidden; }
-.rv-count__bar i { display: block; height: 100%; width: 0; border-radius: 5px; background: linear-gradient(90deg, #a9cf8f, #7fae6e); transition: width 0.6s ease; }
-@keyframes rvbump { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
-@media (prefers-reduced-motion: reduce) { .rv-count, .rv-count__txt b.bump, .rv-count__bar i { animation: none !important; transition: none !important; } }
 @media (prefers-reduced-motion: reduce) { .lamb, .lamb__bob, .lamb__f2 { animation: none !important; } }
 
 /* ---------- 身份揭曉 stage: pastel banner + a calm floating phone (no per-player info on the TV) ---------- */
