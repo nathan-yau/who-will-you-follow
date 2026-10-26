@@ -464,7 +464,7 @@
       '<div class="lc lc--' + SLOTS4[i] + '"><div class="lc__circle"><img alt="" style="--dx:' + (window.wwyfSpriteDx ? window.wwyfSpriteDx(cid) : 0) + '" src="' + img(cid, 'stale1') + '"></div>' +
       '<p class="lc__pill"><b lang="en">' + (nm ? esc(nm) : '?') + '</b></p>' +
       '<span class="fc__q" lang="en" aria-hidden="true">?</span><span class="fc__stamp"></span></div>' +
-      '<div class="fc__supp"></div><p class="fc__cap"></p><p class="fc__votes"></p></div>';
+      '<div class="fc__supp"></div><p class="fc__votes"></p></div>';
   }
   function fnConfetti(el, n) {
     if (RM) return;
@@ -484,7 +484,7 @@
       el.querySelector('.fc__stamp').textContent = role === 'true' ? '真正領袖' : '假領袖';
       if (anim) { el.classList.add('anim'); if (role === 'true') { fnConfetti(el, 36); setTimeout(function () { fnConfetti(el, 24); }, 650); } }
     }
-    if (!role) { el.classList.remove('is-flipped', 'is-true', 'is-fake', 'anim', 'has-supp', 'anim-supp'); el.querySelector('.fc__supp').innerHTML = ''; el.querySelector('.fc__cap').innerHTML = ''; }
+    if (!role) { el.classList.remove('is-flipped', 'is-true', 'is-fake', 'anim', 'has-supp', 'anim-supp'); el.querySelector('.fc__supp').innerHTML = ''; }
     var sk = sup ? sup.map(function (x) { return x.characterId; }).join(',') : '';
     if (el.dataset.supp !== sk) {
       el.dataset.supp = sk;
@@ -492,7 +492,6 @@
       el.querySelector('.fc__supp').innerHTML = sup ? sup.slice(0, 3).map(function (x, k) {
         return '<span class="fs" style="--k:' + k + '"><span class="fs__c"><img alt="" style="--dx:' + (window.wwyfSpriteDx ? window.wwyfSpriteDx(x.characterId) : 0) + '" src="' + img(x.characterId, 'stale1') + '"></span><b>' + esc(names[x.characterId] || '') + '</b></span>';
       }).join('') : '';
-      el.querySelector('.fc__cap').innerHTML = sup ? '<span class="fc__say">原來一直暗中支持！</span><span class="fc__tag">' + (c.role === 'true' ? '真領袖支持者' : '假領袖支持者') + (sup.length > 1 ? ' ×' + sup.length : '') + '</span>' : '';
       if (sup && anim) { el.classList.remove('anim-supp'); void el.offsetWidth; el.classList.add('anim-supp'); }
     }
     el.querySelector('.fc__votes').textContent = c.votes != null ? '最後投票 ' + c.votes + ' 票' : '';

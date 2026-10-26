@@ -390,17 +390,9 @@ body {
 .fc.is-true .fs__c { box-shadow: 0 0 0 3px #f0c24f, 0 4px 10px rgba(120, 80, 20, 0.25); }
 .fs__c img { position: absolute; left: calc(-10px + var(--dx, 0) * 88px); top: 2px; width: 88px; height: 82px; object-fit: contain; }
 .fs b { display: inline-block; margin-top: 2px; padding: 0 7px; border-radius: 9px; background: #fdfaf1; font-family: "Fredoka", system-ui, sans-serif; font-size: 13px; line-height: 18px; font-weight: 600; color: #4b301d; white-space: nowrap; max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
-.fc__cap { position: absolute; left: 0; right: 0; top: 262px; margin: 0; text-align: center; z-index: 3; }
-.fc__cap:empty { display: none; }
-.fc__say { display: inline-block; padding: 5px 12px; border-radius: 14px; background: #fdfaf1; box-shadow: 0 3px 10px rgba(90, 110, 70, 0.18);
-  font-size: 17px; line-height: 23px; font-weight: 800; letter-spacing: 1px; color: #b65b4a; white-space: nowrap; }
-.fc.is-true .fc__say { color: #8a6414; }
-.fc__tag { display: block; width: max-content; margin: 6px auto 0; padding: 2px 12px; border-radius: 10px; background: #fedcd4; font-size: 15px; line-height: 21px; font-weight: 700; letter-spacing: 1px; color: #4b301d; }
-.fc.is-true .fc__tag { background: #fbe7a6; }
 .fc__votes { position: absolute; left: 0; right: 0; top: 344px; margin: 0 auto; width: max-content; padding: 4px 14px; border-radius: 14px;
   background: rgba(253, 250, 241, 0.92); box-shadow: 0 3px 10px rgba(90, 110, 70, 0.16); font-size: 16px; line-height: 22px; font-weight: 700; letter-spacing: 1px; color: #4b301d; }
 .fc__votes:empty { display: none; }
-.fc.has-supp .fc__votes { top: 352px; }
 /* live animations (class .anim / .anim-supp only for changes seen while the TV is open) */
 .fc.anim > .lc { animation: fnflip 0.7s ease-in-out; }
 @keyframes fnflip { 0% { transform: scale(1.15) rotateY(0); } 50% { transform: scale(1.25) rotateY(90deg); } 100% { transform: scale(1.15) rotateY(0); } }
@@ -419,10 +411,9 @@ body {
 @keyframes fnconf { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(var(--x), calc(var(--y) + 140px)) rotate(var(--r)); opacity: 0; } }
 .fc.anim-supp .fs { animation: fnpop 0.65s cubic-bezier(.3, 1.7, .5, 1) backwards; animation-delay: calc(var(--k) * 0.25s); }
 @keyframes fnpop { 0% { transform: translate(-70px, 10px) scale(0.1); opacity: 0; } 100% { transform: none; opacity: 1; } }
-.fc.anim-supp .fc__cap { animation: fnup 0.5s ease-out 0.45s backwards; }
 @keyframes fnup { 0% { transform: translateY(12px) scale(0.9); opacity: 0; } 100% { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .tv-final, .fn-title, .fc, .fc__q, .fc.anim > .lc, .fc.anim .fc__stamp, .fc.anim.is-fake > .lc, .fc.anim.is-true > .lc, .fc.is-true .fc__glow,
-  .fc.anim.is-true .fc__glow, .fc.anim.is-true .fc__crown, .fc.anim-supp .fs, .fc.anim-supp .fc__cap { animation: none !important; }
+  .fc.anim.is-true .fc__glow, .fc.anim.is-true .fc__crown, .fc.anim-supp .fs { animation: none !important; }
   .fc__confetti { display: none; }
 }

@@ -133,8 +133,8 @@ Game flow: **等候 (bubble battle) → 身份揭曉 → Round 1 → Round 2 →
 ### 最終揭曉 (TV screen `final`)
 
 * Admin 「最終揭曉」: 進入最終揭曉, 顯示最後投票結果 toggle (r3 vote closed only), one tile per leader (name, role, supporters — host only) with 翻卡 (any order) and 揭曉支持者 (disabled 沒有支持者 when none), 全部翻開 / 重設揭曉 (two taps each). State `meta.final {flipped, supp, votes}`, cleared by 新一場.
-* TV (`js/tv.js`, `css/tv.css`): face-down cards (sprite + name + 「?」 badge) → flip: fake = 「假領袖」 stamp; true = 「真正領袖」 stamp + crown + glow + confetti; supporters pop out from behind the card with 「原來一直暗中支持！」 + role tag. Animations play only for changes seen live (`at` / `suppAt` timestamps); `prefers-reduced-motion` → simple fades. `/api/mini/state` `final.cards[]` carries `role` / `supporters` only for flipped / revealed cards.
-* Phone `round/` (data-r `final`): 「請看 TV！」 + the list of leaders with 未翻開 / 假領袖 / 真正領袖 and 原來一直暗中支持：<names> once revealed (copy: `data/texts.json` → `final`).
+* TV (`js/tv.js`, `css/tv.css`): face-down cards (sprite + name + 「?」 badge) → flip: fake = 「假領袖」 stamp; true = 「真正領袖」 stamp + crown + glow + confetti; supporters pop out beside the card (sprite + small name label only; no caption or role text). Animations play only for changes seen live (`at` / `suppAt` timestamps); `prefers-reduced-motion` → simple fades. `/api/mini/state` `final.cards[]` carries `role` / `supporters` only for flipped / revealed cards.
+* Phone `round/` (data-r `final`): 「請看 TV！」 + the list of leaders with 未翻開 / 假領袖 / 真正領袖 and the supporter names (no label or role text) once revealed (copy: `data/texts.json` → `final`).
 
 Default roles (17): 真正領袖 1 · 假領袖 3 · 真領袖支持者 1 · 假領袖支持者 2 · 平民 10.
 

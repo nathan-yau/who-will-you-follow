@@ -25,7 +25,7 @@
       vote: { wait: '等待投票開始', go: '前往投票', closed: '本輪投票已結束' },
       followers: { label: '跟隨你的人數', pending: '投票結束後公佈', unit: '人' }, again: '再看一次身份', tipTitle: '小提示' },
     final: { tag: '最終揭曉', title: '請看 TV！', desc: '主持人正在逐一翻開領袖卡，\n看看誰才是真正領袖！', hidden: '未翻開', fake: '假領袖', true: '真正領袖',
-      supp: '原來一直暗中支持：', noSupp: '' },
+      noSupp: '' },
     rounds: {
       r1: { tag: 'Round 1 / 3', title: '三句話', desc: '{n}位領袖會各自分享三句關於自己的說話。\n你可以聽完發言後提問，\n然後選擇你最相信的一位領袖。', tip: '仔細聆聽每位領袖的說話，\n你可以在發言後向他們提問！' },
       r2: { tag: 'Round 2 / 3', title: '誰是真領袖？', desc: '{n}位領袖會再次發言。', tip: '' },
@@ -135,7 +135,7 @@
     el.className = 'rd-fin abs n' + cards.length;
     el.innerHTML = cards.map(function (c) {
       var id = c.characterId, dx = window.wwyfSpriteDx ? wwyfSpriteDx(id) : 0, st = c.flipped ? c.role : 'hidden';
-      var sup = c.supporters && c.supporters.length ? '<p class="rd-fin__sup">' + esc(FT('supp')) + c.supporters.map(function (x) { return '<b>' + esc(names[x.characterId] || '') + '</b>'; }).join('、') + '</p>' : '';
+      var sup = c.supporters && c.supporters.length ? '<p class="rd-fin__sup">' + c.supporters.map(function (x) { return '<b>' + esc(names[x.characterId] || '') + '</b>'; }).join('、') + '</p>' : '';
       return '<div class="rd-fin__row is-' + st + '"><span class="rd-fin__c"><img alt="" src="' + img(id, 'stale1') + '" style="--dx:' + dx + '"></span>' +
         '<p class="rd-fin__n" lang="en">' + esc(names[id] || '') + '</p><span class="rd-fin__st">' + esc(c.flipped ? FT(c.role) : FT('hidden')) + '</span>' +
         (c.votes != null ? '<span class="rd-fin__v">' + (c.votes | 0) + ' 票</span>' : '') + sup + '</div>';
@@ -250,7 +250,7 @@
     window.location.href = '../vote/';
   });
 
-  fetch('../data/texts.json?v=5', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+  fetch('../data/texts.json?v=6', { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) { if (d && (d.rounds || d.round)) { T = { rounds: d.rounds || {}, round: {}, quiz: d.quiz || {}, final: d.final || {} }; for (var k in DEF.round) T.round[k] = (d.round && d.round[k]) || DEF.round[k]; } render(); })
     .catch(function () {});
   fetch('../data/characters.json?v=' + V, { cache: 'no-cache' }).then(function (r) { return r.json(); })
