@@ -26,6 +26,7 @@ Asset URLs carry `?v=N` for cache-busting; bump it on each visual change.
 - `characters/index.html`, `css/characters.css`, `js/characters.js` (cache-bust `?v=6`).
 - Characters are rendered from `data/characters.json` (`{"characters":[{"id","name","tagline"}]}`);
   images come from the id: `assets/characters/<id>/stale1.webp` / `stale2.webp` (idle loop).
+- Sprite centring in circles (vote cards / pick circle, TV leader cards, identity): `js/sprite-fit.js` holds a per-character horizontal offset `--dx` (head-weighted visual centre from the stale1 alpha). Regenerate after adding or changing art: `python3 tools/sprite-fit.py` (needs Pillow + numpy), then bump its `?v=`.
   Add/remove entries freely — thumbnail pages = ceil(n / 5).
 - Selection is saved in `localStorage["wwyf.character"]`; 「加入遊戲」 goes to `../join/`.
 - Same background treatment as page 1 (page-1 artwork on top, bushes + meadow to the physical

@@ -23,6 +23,7 @@
   var deadline = null, endedAt = 0, endT = 0, gridKey = '', myChar = me.characterId;
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function dxOf(id) { return window.wwyfSpriteDx ? window.wwyfSpriteDx(id) : 0; }
   function img(id, f) { return '../assets/characters/' + encodeURIComponent(id) + '/' + f + '.webp?v=' + V; }
   function nameOf(id) { return names[id] || ''; }
   function slotOf(cid) { var L = (vote && vote.leaders) || []; for (var i = 0; i < L.length; i++) if (L[i] && L[i].characterId === cid) return SLOTS[i]; return 'a'; }
@@ -52,7 +53,7 @@
         n++;
         var nm = nameOf(l.characterId);
         return '<button type="button" class="vt-lc vt-lc--' + SLOTS[i] + '" role="radio" aria-checked="false" data-cid="' + esc(l.characterId) + '" data-slot="' + (i + 1) + '" aria-label="' + esc(nm || '領袖') + '">' +
-          '<span class="vt-lc__circle"><img alt="" draggable="false" src="' + img(l.characterId, 'stale1') + '"></span>' + TUFT('l') + TUFT('r') +
+          '<span class="vt-lc__circle"><img alt="" draggable="false" style="--dx:' + dxOf(l.characterId) + '" src="' + img(l.characterId, 'stale1') + '"></span>' + TUFT('l') + TUFT('r') +
           '<span class="vt-lc__pill"><span lang="en">' + esc(nm || '?') + '</span></span><span class="vt-lc__tick">' + TICK + '</span></button>';
       }).join('');
       g.className = 'vt-grid abs n' + n;
@@ -72,6 +73,7 @@
       if ($('pf1').getAttribute('data-cid') !== cid) {
         $('pf1').setAttribute('data-cid', cid);
         $('pf1').src = img(cid, 'stale1'); $('pf2').src = img(cid, 'stale2');
+        $('pickSpr').style.setProperty('--dx', dxOf(cid));
       }
       p.classList.remove('is-empty');
     } else p.classList.add('is-empty');

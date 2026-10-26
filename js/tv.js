@@ -441,7 +441,7 @@
       var l = SLOTS4[i], nm = cid ? (names[cid] || '') : '';
       return '<div class="lc lc--' + l + (cid ? '' : ' is-empty') + '" data-slot="' + (i + 1) + '" style="--i:' + i + '">' +
         (playing ? '<div class="lc__back" aria-hidden="true"><span lang="en">?</span></div>' + (cid ? FX : '') : '') +
-        '<div class="lc__circle">' + (cid ? '<img alt="" src="' + img(cid, 'stale1') + '">' : '<span class="lc__q" lang="en">?</span>') + '</div>' +
+        '<div class="lc__circle">' + (cid ? '<img alt="" style="--dx:' + (window.wwyfSpriteDx ? window.wwyfSpriteDx(cid) : 0) + '" src="' + img(cid, 'stale1') + '">' : '<span class="lc__q" lang="en">?</span>') + '</div>' +
         '<p class="lc__pill"><b lang="en">' + (nm ? esc(nm) : '?') + '</b></p></div>';
     }).join('');
   }

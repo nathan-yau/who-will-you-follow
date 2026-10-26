@@ -43,6 +43,7 @@
     $('f1').src = img(id, 'stale1');
     $('f2').src = img(id, 'stale2');
     $('box').style.setProperty('--sil', 'url("' + img(id, 'stale1') + '")');
+    $('box').style.setProperty('--dx', window.wwyfSpriteDx ? window.wwyfSpriteDx(id) : 0);
   }
 
   function fillRole() {
