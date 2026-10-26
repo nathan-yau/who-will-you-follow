@@ -18,6 +18,8 @@
   var page = 0;         // thumbnail page shown
   var taken = {};       // characterId -> true (taken by someone else)
   var joining = false;
+  var NATHAN = 'character_01';   // host: shown first, never joinable (easter egg)
+  function isNathan(i) { return !!(list[i] && list[i].id === NATHAN); }
 
   function img(id, frame) { return '../assets/characters/' + encodeURIComponent(id) + '/' + frame + '.webp?v=' + V; }
   function pages() { return Math.max(1, Math.ceil(list.length / PER_PAGE)); }
@@ -63,9 +65,9 @@
     var html = '';
     for (var k = 0; k < PER_PAGE && start + k < list.length; k++) {
       var i = start + k, c = list[i], t = isTaken(i);
-      html += '<button class="thumb' + (t ? ' taken' : '') + '" type="button" style="--i:' + k + '" data-i="' + i + '" aria-pressed="' + (i === sel) + '"' +
+      html += '<button class="thumb' + (t ? ' taken' : '') + (c.id === NATHAN ? ' host' : '') + '" type="button" style="--i:' + k + '" data-i="' + i + '" aria-pressed="' + (i === sel) + '"' +
         (t ? ' aria-disabled="true"' : '') + ' aria-label="' + esc(c.name) + (t ? '（已被選）' : '') + '"><img src="' + img(c.id, 'stale1') +
-        '" alt="" draggable="false" />' + (t ? '<span class="thumb__lock" aria-hidden="true">已被選</span>' : '') + '</button>';
+        '" alt="" draggable="false" />' + (c.id === NATHAN ? '<span class="thumb__star" aria-hidden="true">★</span>' : '') + (t ? '<span class="thumb__lock" aria-hidden="true">已被選</span>' : '') + '</button>';
     }
     els.row.innerHTML = html;
     if (dir) {
@@ -89,8 +91,23 @@
   /** next free index from i in direction dir (i itself included); -1 if all taken */
   function freeFrom(i, dir) {
     var n = list.length;
-    for (var k = 0; k < n; k++) { var j = (((i + dir * k) % n) + n) % n; if (!isTaken(j)) return j; }
+    for (var k = 0; k < n; k++) { var j = (((i + dir * k) % n) + n) % n; if (!isTaken(j) && !isNathan(j)) return j; }
     return -1;
+  }
+
+  var eggEl = null, eggTimer = 0;
+  function egg() {
+    if (!eggEl) {
+      eggEl = document.createElement('div');
+      eggEl.className = 'egg abs'; eggEl.id = 'egg';
+      eggEl.setAttribute('role', 'dialog'); eggEl.setAttribute('aria-modal', 'true');
+      eggEl.innerHTML = '<div class="egg__card"><button class="egg__x" type="button" aria-label="關閉">×</button>' +
+        '<img class="egg__img" src="' + img(NATHAN, 'stale1') + '" alt="Nathan" draggable="false" />' +
+        '<p class="egg__text">咩樹，你想點</p></div>';
+      eggEl.addEventListener('click', function () { eggEl.classList.remove('show'); });
+      document.querySelector('.cs-stage').appendChild(eggEl);
+    }
+    eggEl.classList.remove('show'); void eggEl.offsetWidth; eggEl.classList.add('show');
   }
 
   function select(i, opts) {
@@ -105,7 +122,7 @@
     var changed = i !== sel;
     if (!dir) dir = i > sel ? 1 : -1;
     sel = i;
-    store(list[sel].id);
+    if (isNathan(sel)) { if (!(opts && opts.dir)) egg(); } else store(list[sel].id);
     var p = Math.floor(sel / PER_PAGE);
     if (p !== page) { page = p; renderThumbs(dir); } else { markSelected(); }
     if (changed || (opts && opts.force)) renderHero(true);
@@ -161,6 +178,7 @@
 
   function doJoin() {
     if (joining || !list[sel]) return;
+    if (isNathan(sel) || list[sel].id === NATHAN) { egg(); return; }
     if (isTaken(sel)) { toast('這個角色已被選走了，請選擇其他角色'); return; }
     var c = list[sel];
     store(c.id);
@@ -204,6 +222,7 @@
       else if (e.key === 'ArrowLeft') select(sel - 1, { dir: -1 });
     });
     els.join.addEventListener('click', doJoin);
+    els.heroHit.addEventListener('click', function () { if (!els.heroHit.dataset.swiped && isNathan(sel)) egg(); });
     setInterval(function () { if (!document.hidden && !joining) refreshLobby(); }, POLL_MS);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) refreshLobby(); });
   }
@@ -214,9 +233,14 @@
     .then(function (data) {
       list = (data && data.characters || []).filter(function (c) { return c && c.id; });
       if (!list.length) return;
+      list.sort(function (a, b) {
+        if (a.id === NATHAN) return -1; if (b.id === NATHAN) return 1;
+        return String(a.name || '').toLowerCase().localeCompare(String(b.name || '').toLowerCase());
+      });
       var me = window.WWYF && WWYF.getPlayer();
-      var saved = (me && me.characterId) || load(), i = 0;
-      for (var k = 0; k < list.length; k++) if (list[k].id === saved) { i = k; break; }
+      var saved = (me && me.characterId) || load(), i = -1;
+      for (var k = 0; k < list.length; k++) if (list[k].id === saved && saved !== NATHAN) { i = k; break; }
+      if (i < 0) { i = freeFrom(0, 1); if (i < 0) i = 0; }
       sel = i; page = Math.floor(sel / PER_PAGE);
       renderThumbs(0);
       renderHero(false);
