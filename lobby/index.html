@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/style.css?v=6" />
   <link rel="stylesheet" href="../css/characters.css?v=8" />
-  <link rel="stylesheet" href="../css/lobby.css?v=7" />
+  <link rel="stylesheet" href="../css/lobby.css?v=8" />
 </head>
 <body>
   <main class="cs-app">
@@ -35,35 +35,71 @@
         </header>
       </div>
 
-      <div class="card abs" aria-hidden="true"></div>
+      <div class="card lb-card abs" aria-hidden="true"></div>
 
-      <h2 class="cs-head abs">
-        <svg viewBox="0 0 32 32" aria-hidden="true"><g fill="#ec8c7b"><ellipse cx="16" cy="21.5" rx="7.6" ry="6.4"/><ellipse cx="7" cy="13.5" rx="3.1" ry="3.9" transform="rotate(-18 7 13.5)"/><ellipse cx="12.4" cy="7.8" rx="3.1" ry="4" transform="rotate(-6 12.4 7.8)"/><ellipse cx="19.6" cy="7.8" rx="3.1" ry="4" transform="rotate(6 19.6 7.8)"/><ellipse cx="25" cy="13.5" rx="3.1" ry="3.9" transform="rotate(18 25 13.5)"/></g></svg>
-        <span>你已加入遊戲！</span>
-      </h2>
-      <p class="cs-sub abs" id="sub">請稍候，主持人準備好就會開始</p>
+      <h2 class="lb-hello abs">歡迎你，</h2>
+      <p class="lb-name abs" id="name">
+        <svg class="lb-leaf" viewBox="0 0 30 22" aria-hidden="true"><path fill="#8ab27a" d="M29 16.5C23 21 14.5 20.6 10.5 14.6 16.6 10.8 24.4 11.4 29 16.5Z"/><path fill="#8ab27a" d="M17.5 11.6C11 12.6 5 8.6 4 1.6 11 1.6 16.5 5.6 17.5 11.6Z"/><path d="M28 16.3C20 14.6 13 12.5 6.5 3.4" stroke="#fdfaf1" stroke-width="1.3" stroke-linecap="round" fill="none"/></svg>
+        <span><span id="nameText" lang="en"></span>！</span>
+        <svg class="lb-leaf lb-leaf--r" viewBox="0 0 30 22" aria-hidden="true"><path fill="#8ab27a" d="M29 16.5C23 21 14.5 20.6 10.5 14.6 16.6 10.8 24.4 11.4 29 16.5Z"/><path fill="#8ab27a" d="M17.5 11.6C11 12.6 5 8.6 4 1.6 11 1.6 16.5 5.6 17.5 11.6Z"/><path d="M28 16.3C20 14.6 13 12.5 6.5 3.4" stroke="#fdfaf1" stroke-width="1.3" stroke-linecap="round" fill="none"/></svg>
+      </p>
 
-      <div class="hero abs" aria-hidden="true"></div>
-      <svg class="tuft tuft--l abs" viewBox="0 0 24 18" aria-hidden="true"><g fill="#8db07c"><ellipse cx="5.5" cy="12" rx="2.6" ry="5.4" transform="rotate(-28 5.5 12)"/><ellipse cx="12" cy="9.5" rx="2.8" ry="7.5"/><ellipse cx="18.5" cy="12" rx="2.6" ry="5.4" transform="rotate(28 18.5 12)"/></g></svg>
-      <svg class="tuft tuft--r abs" viewBox="0 0 24 18" aria-hidden="true"><g fill="#8db07c"><ellipse cx="5.5" cy="12" rx="2.6" ry="5.4" transform="rotate(-28 5.5 12)"/><ellipse cx="12" cy="9.5" rx="2.8" ry="7.5"/><ellipse cx="18.5" cy="12" rx="2.6" ry="5.4" transform="rotate(28 18.5 12)"/></g></svg>
-      <div class="sprite abs" id="sprite">
+      <div class="hero lb-hero abs" aria-hidden="true"></div>
+      <svg class="tuft lb-tuft--l abs" viewBox="0 0 24 18" aria-hidden="true"><g fill="#8db07c"><ellipse cx="5.5" cy="12" rx="2.6" ry="5.4" transform="rotate(-28 5.5 12)"/><ellipse cx="12" cy="9.5" rx="2.8" ry="7.5"/><ellipse cx="18.5" cy="12" rx="2.6" ry="5.4" transform="rotate(28 18.5 12)"/></g></svg>
+      <svg class="tuft lb-tuft--r abs" viewBox="0 0 24 18" aria-hidden="true"><g fill="#8db07c"><ellipse cx="5.5" cy="12" rx="2.6" ry="5.4" transform="rotate(-28 5.5 12)"/><ellipse cx="12" cy="9.5" rx="2.8" ry="7.5"/><ellipse cx="18.5" cy="12" rx="2.6" ry="5.4" transform="rotate(28 18.5 12)"/></g></svg>
+      <div class="sprite lb-sprite abs" id="sprite">
         <img class="f1" id="f1" alt="" draggable="false" />
         <img class="f2" id="f2" alt="" draggable="false" />
       </div>
 
-      <p class="name abs" id="name"><span id="nameText" lang="en"></span><svg viewBox="0 0 20 20" aria-hidden="true"><path fill="#8ab27a" d="M2.5 17.5C2 10 6.5 3.5 17.5 2.5 18 10.5 12 16.5 2.5 17.5Z"/><path d="M4 16 13 7" stroke="#fdfaf1" stroke-width="1.3" stroke-linecap="round" fill="none"/></svg></p>
-      <p class="tagline abs" id="tagline" lang="en"></p>
-
-      <section class="ready lb-status abs" aria-live="polite">
-        <svg class="ready__spark lb-spark abs" viewBox="0 0 44 44" aria-hidden="true"><path fill="#f1c552" d="M17 4c1.2 8.3 4.3 11.6 12.5 12.8C21.3 18 18.2 21.3 17 29.6 15.8 21.3 12.7 18 4.5 16.8 12.7 15.6 15.8 12.3 17 4Z"/><path fill="#f3cf6a" d="M32 24c.6 4.3 2.2 6 6.4 6.6-4.2.6-5.8 2.3-6.4 6.6-.6-4.3-2.2-6-6.4-6.6 4.2-.6 5.8-2.3 6.4-6.6Z"/></svg>
-        <p class="lb-wait abs" id="wait">等待主持人開始遊戲<span class="lb-dots" aria-hidden="true"><i>．</i><i>．</i><i>．</i></span></p>
-        <p class="lb-count abs">已加入：<b id="joined">–</b> 人</p>
-        <p class="lb-conn abs" id="conn"><i class="lb-dot"></i><span id="connText">連線中…</span></p>
+      <section class="ready lb-info abs" aria-live="polite">
+        <div class="lb-group abs" aria-hidden="true">
+          <img class="lb-g lb-g--b" src="../assets/characters/character_02/stale1.webp?v=6" alt="" draggable="false" />
+          <img class="lb-g lb-g--c" src="../assets/characters/character_01/stale1.webp?v=6" alt="" draggable="false" />
+          <img class="lb-g lb-g--d" src="../assets/characters/character_03/stale1.webp?v=6" alt="" draggable="false" />
+        </div>
+        <p class="lb-wait abs" id="wait">等待其他玩家加入<span class="lb-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>
+        <p class="lb-hint abs">當所有人準備好後，遊戲就會開始！</p>
       </section>
 
-      <a class="btn lb-change abs" id="change" href="../characters/">
-        <span class="btn__label">更換角色</span>
-      </a>
+      <p class="lb-label abs">目前人數</p>
+      <p class="lb-count abs" id="count" aria-live="polite"><b id="joined">–</b></p>
+      <div class="lb-row abs" id="playerDots" aria-hidden="true"></div>
+
+      <svg class="lb-sign abs" viewBox="0 -12 100 116" aria-hidden="true">
+        <g fill="#8db07c"><ellipse cx="22" cy="95" rx="3" ry="7" transform="rotate(-30 22 95)"/><ellipse cx="28" cy="93" rx="3" ry="8.5"/><ellipse cx="34" cy="95" rx="3" ry="7" transform="rotate(30 34 95)"/><ellipse cx="66" cy="95" rx="3" ry="7" transform="rotate(-30 66 95)"/><ellipse cx="72" cy="93" rx="3" ry="8.5"/><ellipse cx="78" cy="95" rx="3" ry="7" transform="rotate(30 78 95)"/></g>
+        <path d="M14 100h72" stroke="#9cbf8a" stroke-width="2.2" stroke-linecap="round"/>
+        <rect x="45" y="56" width="10" height="44" rx="2.5" fill="#b8875a" stroke="#5e3f26" stroke-width="2.4"/>
+        <g transform="rotate(-3 50 46)">
+          <rect x="5" y="31" width="90" height="33" rx="6" fill="#d9a66d" stroke="#5e3f26" stroke-width="2.6"/>
+          <path d="M11 37h16M72 58h16" stroke="#c18e58" stroke-width="1.6" stroke-linecap="round"/>
+          <text x="50" y="53" text-anchor="middle" font-family="'Chiron GoRound TC', 'Noto Sans TC', 'PingFang TC', sans-serif" font-weight="700" font-size="14.5" letter-spacing="0.5" fill="#4f321c">快已準了！</text>
+        </g>
+        <!-- chick sitting on the board -->
+        <g class="lb-chick"><g transform="translate(40 33) scale(1.5) translate(-43 -33)">
+          <path d="M33 33c-1.5-9 3.5-17 12.5-17 7.5 0 12 5.5 12 12 0 2.4-.5 4-1.4 5.4Z" fill="#f4c35a" stroke="#5e3f26" stroke-width="2.2" stroke-linejoin="round"/>
+          <path d="M48 26c3.5-.4 6 1.4 6.4 4.4-3.4.7-5.6-.6-6.4-4.4Z" fill="#e9a93f"/>
+          <path d="M45 10.5c.6-3 2.6-4.5 4.4-4M47 11.5c2-2.2 4.6-2.6 6.2-1.6" stroke="#5e3f26" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          <circle cx="40.5" cy="22.5" r="1.9" fill="#3b2a1b"/>
+          <path d="M33.8 24.3l-5 1.8 4.8 1.8Z" fill="#ef9a4a" stroke="#5e3f26" stroke-width="1.4" stroke-linejoin="round"/>
+          <ellipse cx="43" cy="27" rx="2.3" ry="1.4" fill="#f4a08a" opacity="0.8"/>
+        </g></g>
+        <path d="M80 15l5-6M86 22l7-2.5" stroke="#3b2a1b" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+
+      <button type="button" class="btn lb-act lb-act--dodge abs" id="dodge" data-action="dodge">
+        <svg class="lb-act__icon" viewBox="0 0 40 40" aria-hidden="true">
+          <path d="M20 4.5c4.6 3 9.2 4.2 14 4.4.4 12.8-4.4 22.4-14 26.8C10.4 31.3 5.6 21.7 6 8.9c4.8-.2 9.4-1.4 14-4.4Z" fill="#cfe2bd" stroke="#5e3f26" stroke-width="2.4" stroke-linejoin="round"/>
+          <path d="M20 4.5c4.6 3 9.2 4.2 14 4.4.4 12.8-4.4 22.4-14 26.8Z" fill="#a9c995"/>
+          <path d="M20 4.5c4.6 3 9.2 4.2 14 4.4.4 12.8-4.4 22.4-14 26.8C10.4 31.3 5.6 21.7 6 8.9c4.8-.2 9.4-1.4 14-4.4Z" fill="none" stroke="#5e3f26" stroke-width="2.4" stroke-linejoin="round"/>
+          <path d="M20 26.5s-6.5-3.9-6.5-8.3c0-2.2 1.6-3.7 3.5-3.7 1.4 0 2.4.8 3 1.8.6-1 1.6-1.8 3-1.8 1.9 0 3.5 1.5 3.5 3.7 0 4.4-6.5 8.3-6.5 8.3Z" fill="#f1a493" stroke="#5e3f26" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+        <span class="btn__label">避開啊</span>
+      </button>
+      <button type="button" class="btn lb-act lb-act--dash abs" id="dash" data-action="dash">
+        <svg class="lb-act__icon lb-act__paw" viewBox="0 0 32 32" aria-hidden="true"><g fill="#fff"><ellipse cx="16" cy="21.5" rx="7.6" ry="6.4"/><ellipse cx="7" cy="13.5" rx="3.1" ry="3.9" transform="rotate(-18 7 13.5)"/><ellipse cx="12.4" cy="7.8" rx="3.1" ry="4" transform="rotate(-6 12.4 7.8)"/><ellipse cx="19.6" cy="7.8" rx="3.1" ry="4" transform="rotate(6 19.6 7.8)"/><ellipse cx="25" cy="13.5" rx="3.1" ry="3.9" transform="rotate(18 25 13.5)"/></g></svg>
+        <span class="btn__label">衝過去</span>
+      </button>
     </div>
   </main>
   <script>
@@ -79,6 +115,6 @@
     })();
   </script>
   <script src="../js/api.js?v=7"></script>
-  <script src="../js/lobby.js?v=8"></script>
+  <script src="../js/lobby.js?v=9"></script>
 </body>
 </html>
