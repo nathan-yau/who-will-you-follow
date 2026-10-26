@@ -159,15 +159,20 @@ body {
 .tv-round[data-r="r2"] .tv-round__ext { background-image: url("../assets/img/round-r2-ext.webp?v=1"); }
 .tv-round[data-r="r3"] .tv-round__ext { background-image: url("../assets/img/round-r3-ext.webp?v=1"); }
 .tv-round__bg { position: absolute; left: 0; top: 0; width: 1024px; height: 576px; display: block; pointer-events: none; }
-/* banner cut-out = mockup box (187,121)-(1483,679) px → 794 x 342 stage units; shown at 86 % */
+/* banner cut-out = mockup box (187,121)-(1483,679) px → 794 x 342 stage units; shown at 78 % */
 .tv-round__banner {
-  position: absolute; left: 171px; top: 28px; width: 683px; height: auto; display: block; pointer-events: none;
+  position: absolute; left: 202px; top: 14px; width: 620px; height: auto; display: block; pointer-events: none;
   animation: tvin 0.55s cubic-bezier(.3, 1.4, .5, 1);
 }
 .tv-round__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); margin: 0; }
 
 /* leader cards — always the same 4 slots on every round (A green, B pink, C yellow, D blue); never says who is real */
-.tv-cards { position: absolute; left: 0; right: 0; top: 408px; display: flex; justify-content: center; gap: 14px; }
+/* row sits right under the banner (shifted a touch right to clear the R1 megaphone) and is scaled to 88 %,
+   leaving the bottom-right corner (below the signpost) free for the lambs easter egg */
+.tv-cards {
+  position: absolute; left: 56px; right: 0; top: 292px; display: flex; justify-content: center; gap: 14px;
+  transform: scale(0.88); transform-origin: 50% 0;
+}
 .lc {
   --c: #e4edd8; --p: #e2ebd4;
   width: 136px; height: 152px; flex: none; position: relative;
@@ -198,3 +203,6 @@ body {
 .lc.is-empty .lc__pill { opacity: 0.7; }
 .is-round .tv-field, .is-round .tv-empty, .is-round .tv-banner { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { .tv-round, .tv-round__banner, .lc { animation: none !important; } }
+
+/* easter egg placeholder (bottom-right, below the signpost) — empty for now, see tv/index.html TODO */
+.lambs { position: absolute; right: 10px; bottom: 6px; width: 230px; height: 96px; pointer-events: none; z-index: 1; }
