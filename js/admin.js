@@ -62,6 +62,7 @@
   }
   function start() {
     setLocked(true);
+    if (typeof loadContent === 'function') setTimeout(loadContent, 0);
     $('login').hidden = true; $('dash').hidden = false; $('topRight').hidden = false;
     refresh();
     clearInterval(timer);
@@ -109,6 +110,7 @@
     renderSeg();
     renderGoR1();
     renderVote();
+    renderQuiz();
   }
 
   /* 開始 Round 1 (flow: 等候 → 身份揭曉 → Round 1): shown once the reveal stage has started, until a round is on the TV.
@@ -610,6 +612,157 @@
   $('reset').addEventListener('click', function () {
     if (!confirm('開始新一場？\n\n會清空所有玩家與身分，大家需要重新選角色加入。')) return;
     act(this, function () { return WWYF.admin('POST', 'reset').then(function (r) { lastSig = ''; toast('新的一場已開始'); }); }).then(renderPhase);
+  });
+
+
+  /* ---------- Round 3 問答: live control (admin/quiz-open · quiz-close · quiz-reset) ---------- */
+  var QDUR_KEY = 'wwyf.admin.quizDur', quizDur = 0, qzPick = null, qzBusy = false, qzResetArm = false, qzResetT = 0;
+  try { var qd = localStorage.getItem(QDUR_KEY); if (qd != null && [0, 20, 30, 45, 60, 90].indexOf(+qd) >= 0) quizDur = +qd; } catch (e) {}
+  var ABCD = 'ABCD';
+  function quizOpenNow() {
+    var z = state && state.quiz, q = z && z.q;
+    if (!q || !q.open) return null;
+    var left = q.remain != null ? q.remain - (Date.now() - fetchedAt) : null;
+    return { q: q, left: left };
+  }
+  function qzDefaultPick(z) {
+    if (z.q && z.q.open) return z.q.index;
+    var i = (z.states || []).indexOf('none');
+    return i >= 0 ? i : (z.q ? z.q.index : 0);
+  }
+  function renderQuiz() {
+    var z = state && state.quiz;
+    if (!z) return;
+    var on = curScreen() === 'r3', open = quizOpenNow(), N = z.total || 5;
+    if (open) qzPick = open.q.index;
+    if (qzPick == null || qzPick >= N) qzPick = qzDefaultPick(z);
+    var st = z.states || [], res = z.results || {};
+    $('qzDots').innerHTML = st.map(function (x, i) {
+      var r = res[i], lab = x === 'ok' ? '成功' : x === 'fail' ? '未達標' : x === 'open' || x === 'closing' ? '作答中' : '未開始';
+      return '<span class="qz-dot ' + x + (i === qzPick ? ' is-pick' : '') + '"><b>' + (i + 1) + '</b>' + lab + (r ? ' ' + r.pct + '%' : '') + '</span>';
+    }).join('');
+    var segH = st.map(function (x, i) { return '<button type="button" class="seg__btn" data-i="' + i + '" aria-pressed="' + (i === qzPick) + '"' + (open || qzBusy ? ' disabled' : '') + '>第 ' + (i + 1) + ' 題</button>'; }).join('');
+    if ($('qzSegBtns').innerHTML !== segH) $('qzSegBtns').innerHTML = segH;
+    // the question shown: the live / last one if it is the pick, otherwise a preview from the saved content
+    var q = z.q && z.q.index === qzPick ? z.q : null, html = '';
+    var pv = !q && content && content.r3 && content.r3.questions[qzPick];
+    if (q || pv) {
+      var text = q ? q.q : pv.q, opts = q ? q.options : pv.options, ans = q ? q.answer : pv.answer;
+      html = '<div class="qz-cur__q">第 ' + (qzPick + 1) + ' 題：' + esc(text) + (q ? '' : ' <small style="color:#9a927f;font-weight:500">（預覽）</small>') + '</div><div class="qz-cur__opts">' +
+        opts.map(function (o, i) { return '<span' + (i === ans ? ' class="is-ans"' : '') + '>' + ABCD[i] + '. ' + esc(o) + (i === ans ? ' ✓' : '') + '</span>'; }).join('') + '</div>';
+      var L = q && (q.live || q.result);
+      if (L) {
+        var thr = (q.result && q.result.threshold) || z.threshold;
+        html += '<div class="qz-cur__res">已作答 <b>' + (L.answered != null ? L.answered : (res[qzPick] || {}).answered) + '</b> / ' + L.total + ' · 答對 <b>' + L.correct + '</b> 人（<b>' + L.pct + '%</b>，門檻 ' + thr + '%）' +
+          (q.result ? ' · <span class="' + (q.result.success ? 'ok">成功' : 'fail">未達標') + '</span>' : '') + '</div>' +
+          '<div class="qz-bar"><i style="width:' + Math.min(100, L.pct) + '%"></i><em style="left:' + thr + '%"></em></div>';
+      }
+    }
+    if ($('qzCur').innerHTML !== html) $('qzCur').innerHTML = html;
+    var dur = $('qzDur');
+    var dsh = open ? open.q.duration : quizDur;
+    dur.textContent = dsh ? '作答 ' + dsh + ' 秒' : '作答 不限時';
+    dur.disabled = !!open || qzBusy;
+    var go = $('qzGo');
+    go.disabled = qzBusy || (!on && !open);
+    var redo = !open && st[qzPick] && st[qzPick] !== 'none';
+    go.textContent = open ? '結束作答' : (redo ? '重新開始第 ' : '開始第 ') + (qzPick + 1) + ' 題';
+    go.classList.toggle('btn--primary', !open); go.classList.toggle('btn--danger', !!open);
+    var t, dot = '';
+    if (open) { t = '第 ' + (open.q.index + 1) + ' 題作答中 · ' + (open.left == null ? '不限時' : '剩 ' + mmss(open.left)) + (open.q.live ? ' · 已作答 ' + open.q.live.answered + '/' + open.q.live.total : ''); dot = 'live'; }
+    else if (!on) t = 'TV 切到 Round 3 後可開始問答';
+    else t = z.unlocked ? '已解鎖最後的線索！' : z.lost ? '已不能解鎖最後的線索' : '成功 ' + z.solved + ' / ' + z.need + ' 題';
+    $('qzLiveText').textContent = t;
+    $('qzLiveDot').className = 'dot' + (dot ? ' v-' + dot : '');
+    $('qzSum').textContent = open ? '第 ' + (open.q.index + 1) + ' 題作答中' : z.unlocked ? '已解鎖 · 成功 ' + z.solved + ' 題' : st.some(function (x) { return x !== 'none'; }) ? '成功 ' + z.solved + ' / ' + z.need : '未開始';
+    $('qzDot').className = 'dot' + (open ? ' v-live' : z.unlocked ? ' on' : '');
+    $('qzNote').textContent = '門檻：每題至少 ' + z.threshold + '% 玩家答對（以所有非領袖玩家計算）；成功 ' + z.need + ' 題即解鎖最後的線索。' + (on ? '' : '（TV 目前不是 Round 3）');
+    $('qzReset').textContent = qzResetArm ? '再按一次確認重設' : '重設問答進度';
+    $('qzReset').classList.toggle('is-armed', qzResetArm);
+  }
+  $('qzSegBtns').addEventListener('click', function (e) {
+    var b = e.target.closest('.seg__btn'); if (!b || b.disabled) return;
+    qzPick = +b.dataset.i; renderQuiz();
+  });
+  $('qzDur').addEventListener('click', function () {
+    var L = (state && state.quiz && state.quiz.durations) || [0, 20, 30, 45, 60, 90];
+    quizDur = L[(L.indexOf(quizDur) + 1) % L.length];
+    try { localStorage.setItem(QDUR_KEY, String(quizDur)); } catch (e) {}
+    renderQuiz();
+  });
+  $('qzGo').addEventListener('click', function () {
+    if (!state || this.disabled) return;
+    var open = quizOpenNow(), st = (state.quiz && state.quiz.states) || [], i = qzPick;
+    if (!open && st[i] && st[i] !== 'none' && !confirm('第 ' + (i + 1) + ' 題已經答過，要重新作答嗎？\n（會清除這一題之前的答案和結果）')) return;
+    qzBusy = true; renderQuiz();
+    (open ? WWYF.admin('POST', 'quiz-close').then(function (r) {
+      var res = r.q && r.q.result; toast('第 ' + (r.q.index + 1) + ' 題結束：' + (res ? (res.success ? '成功！' : '未達標') + ' 答對 ' + res.pct + '%' : ''));
+      qzPick = null;
+    }) : WWYF.admin('POST', 'quiz-open', { index: i, duration: quizDur }).then(function () { toast('第 ' + (i + 1) + ' 題開始作答！' + (quizDur ? quizDur + ' 秒' : '不限時')); }))
+      .then(refresh).catch(fail).then(function () { qzBusy = false; renderQuiz(); });
+  });
+  $('qzReset').addEventListener('click', function () {
+    if (!qzResetArm) { qzResetArm = true; clearTimeout(qzResetT); qzResetT = setTimeout(function () { qzResetArm = false; renderQuiz(); }, 3000); renderQuiz(); return; }
+    clearTimeout(qzResetT); qzResetArm = false;
+    act(this, function () { return WWYF.admin('POST', 'quiz-reset').then(function () { qzPick = null; toast('問答進度已重設'); }); });
+  });
+  setInterval(function () { if (state && !document.hidden && quizOpenNow()) renderQuiz(); }, 500);
+
+  /* ---------- 遊戲內容 editor (GET / POST admin/content; kept across games) ---------- */
+  var content = null, ctDirty = false;
+  function ctQs() {
+    var h = '';
+    for (var i = 0; i < 5; i++) {
+      h += '<div class="ct-q" data-q="' + i + '"><div class="ct-q__head">第 ' + (i + 1) + ' 題<span>選中的圓點 = 正確答案</span></div>' +
+        '<input class="ct__in" data-f="q" maxlength="90" placeholder="題目" aria-label="第 ' + (i + 1) + ' 題題目" />' +
+        '<div class="ct-q__opts">' + [0, 1, 2, 3].map(function (j) {
+          return '<div class="ct-opt"><label><input type="radio" name="ans' + i + '" value="' + j + '" aria-label="第 ' + (i + 1) + ' 題正確答案 ' + ABCD[j] + '" />' + ABCD[j] + '</label>' +
+            '<input class="ct__in" data-o="' + j + '" maxlength="30" placeholder="選項 ' + ABCD[j] + '" /></div>';
+        }).join('') + '</div></div>';
+    }
+    $('ctQs').innerHTML = h;
+  }
+  function ctMarkAns() {
+    [].forEach.call(document.querySelectorAll('.ct-q'), function (qe) {
+      [].forEach.call(qe.querySelectorAll('.ct-opt'), function (oe) { oe.classList.toggle('is-ans', oe.querySelector('input[type=radio]').checked); });
+    });
+  }
+  function ctFill(c) {
+    content = c;
+    $('ctMyst').value = c.r2.mystery.all || '';
+    $('ctPct').value = c.r3.threshold; $('ctNeed').value = c.r3.need; $('ctClue').value = c.r3.clue || '';
+    c.r3.questions.forEach(function (q, i) {
+      var qe = document.querySelector('.ct-q[data-q="' + i + '"]'); if (!qe) return;
+      qe.querySelector('[data-f=q]').value = q.q;
+      q.options.forEach(function (o, j) { qe.querySelector('[data-o="' + j + '"]').value = o; });
+      var r = qe.querySelector('input[type=radio][value="' + q.answer + '"]'); if (r) r.checked = true;
+    });
+    ctMarkAns(); ctSetDirty(false); $('ctErr').textContent = '';
+    $('ctSum').textContent = 'Round 3：門檻 ' + c.r3.threshold + '% · 成功 ' + c.r3.need + ' 題';
+  }
+  function ctSetDirty(d) { ctDirty = d; $('ctForm').classList.toggle('is-dirty', d); $('ctSave').textContent = d ? '儲存內容 *' : '儲存內容'; }
+  function ctRead() {
+    var qs = [].map.call(document.querySelectorAll('.ct-q'), function (qe) {
+      var r = qe.querySelector('input[type=radio]:checked');
+      return { q: qe.querySelector('[data-f=q]').value.trim(), options: [0, 1, 2, 3].map(function (j) { return qe.querySelector('[data-o="' + j + '"]').value.trim(); }), answer: r ? +r.value : -1 };
+    });
+    return { r2: { mystery: $('ctMyst').value.trim() }, r3: { threshold: +$('ctPct').value, need: +$('ctNeed').value, clue: $('ctClue').value.trim(), questions: qs } };
+  }
+  function loadContent() {
+    return WWYF.admin('GET', 'content').then(function (r) { if (!ctDirty) ctFill(r.content); else content = r.content; renderQuiz(); }).catch(function (e) { if (e.status === 401) fail(e); });
+  }
+  ctQs();
+  $('ctForm').addEventListener('input', function () { ctSetDirty(true); ctMarkAns(); });
+  $('ctForm').addEventListener('change', ctMarkAns);
+  $('ctUndo').addEventListener('click', function () { if (content) ctFill(content); });
+  $('ctForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var b = $('ctSave'), body = ctRead(), bad = '';
+    body.r3.questions.forEach(function (q, i) { if (!bad && (!q.q || q.options.some(function (o) { return !o; }))) bad = '第 ' + (i + 1) + ' 題的題目或選項未填'; if (!bad && q.answer < 0) bad = '第 ' + (i + 1) + ' 題未選正確答案'; });
+    if (bad) { $('ctErr').textContent = bad; return; }
+    b.disabled = true;
+    WWYF.admin('POST', 'content', body).then(function (r) { ctFill(r.content); toast('遊戲內容已儲存'); renderQuiz(); })
+      .catch(function (err) { $('ctErr').textContent = err.message || '儲存失敗'; fail(err); }).then(function () { b.disabled = false; });
   });
 
   /* ---------- collapsible sections: any .acc[data-acc] gets toggle + remembered state ---------- */

@@ -17,6 +17,8 @@
 //                        meta.votes = { r1|r2|r3: { id, openedAt, duration, deadline, closedAt, sealed, leaders } }, meta.vote = current round
 //                        meta.knocks = { r1|r2|r3: { at, by, vid, targets: [playerId], fake: fakeLeaderId, seen: { playerId: t } } }   私下敲門 records (see "knocks")
 //                        meta.speaks = { r1|r2|r3: { id, startedAt, duration, deadline, endedAt } }   發言 timers (see "speaking")
+//                        meta.quiz = Round 3 問答 state (see "Round 3 問答"); answers/<index>/<playerId> { choice, at, qid }
+//   content              editable game content (Round 2 神秘描述, Round 3 questions / threshold / clue) — kept across games
 import { getStore } from '@netlify/blobs';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
@@ -240,11 +242,13 @@ async function me(req, s, heartbeatOnly) {
     const ps = (await cachedGet(s, pl)).filter(Boolean).map(normalize);
     out.round = { screen: out.screen, leaders: leaderCards(ps), speak: speakView(meta, out.screen) };
     const me1 = normalize(p);
+    if (out.screen === 'r2') out.round.mystery = mysteryFor(await getContent(s), me1);
+    if (out.screen === 'r3') out.round.quiz = await quizForPhone(s, await quizSettle(s, meta), await getContent(s), me1);
     if (LEADER_ROLES.includes(me1.role)) {
       // leaders only, about themselves only: their instructions (by role; the copy never reaches other phones) and,
       // once this round's vote has closed, how many players follow them (a number — never who)
       const lt = LEADER_TEXT[out.screen] && LEADER_TEXT[out.screen][me1.role];
-      if (lt) out.round.leaderText = lt;
+      if (lt) out.round.leaderText = { desc: lt.desc, tip: lt.tip };
       out.round.followers = await followersOf(s, meta, me1, out.screen, ps);
     }
   }
@@ -342,7 +346,8 @@ async function adminState(s) {
   const reveal = { stage: screenOf(meta) === REVEAL, revealed: !!meta.revealed, done: list.filter((p) => p.seen).length, total: list.length };
   const votes = await adminVotes(s, meta, players);
   const sc = screenOf(meta), speak = ROUND_SCREENS.includes(sc) ? speakView(meta, sc) : null;
-  return { meta, votes, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
+  const quiz = await adminQuiz(s, await quizSettle(s, meta), players, await getContent(s));
+  return { meta, votes, quiz, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
 }
 
 async function setRole(req, s) {
@@ -428,7 +433,7 @@ async function reset(s) {
       players: players.sort((a, b) => a.joinedAt - b.joinedAt).map((p) => ({ characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, role: p.role, leader: p.leader || null, supports: (players.find((q) => q.id === p.supports) || {}).characterId || null })),
     });
   }
-  const keys = [...await listKeys(s, 'players/'), ...await listKeys(s, 'claims/'), ...await listKeys(s, 'seen/'), ...await listKeys(s, 'mini/'), ...await listKeys(s, 'ballots/')];
+  const keys = [...await listKeys(s, 'players/'), ...await listKeys(s, 'claims/'), ...await listKeys(s, 'seen/'), ...await listKeys(s, 'mini/'), ...await listKeys(s, 'ballots/'), ...await listKeys(s, 'answers/')];
   await Promise.all(keys.map((k) => s.delete(k)));
   const next = { gameId: rid(6), startedAt: t, revealed: false, phase: LOBBY, phaseAt: t };
   await s.setJSON('meta', next);
@@ -615,6 +620,15 @@ const LEADER_TEXT = {
   r1: {
     '真正領袖': { desc: '輪到你時，分享三句關於自己的說話——三句都必須是真的。', tip: '小心！你的另一半最了解你，別讓對方輕易猜中。' },
     '假領袖': { desc: '輪到你時，分享三句關於自己的說話——兩句真、一句假。', tip: '另一半最清楚你，假的那句要編得巧妙，別讓對方一聽就拆穿！' },
+  },
+  // placeholder (same for true and fake): the host explains this round's speaking rules
+  r2: {
+    '真正領袖': { desc: '輪到你時，按主持人指示發言。', tip: '留意神秘描述，想清楚你要怎樣說服大家。', placeholder: true },
+    '假領袖': { desc: '輪到你時，按主持人指示發言。', tip: '留意神秘描述，想清楚你要怎樣說服大家。', placeholder: true },
+  },
+  r3: {
+    '真正領袖': { desc: '領袖不參與作答。輪到你時，按主持人指示發言。', tip: '留意討論，想好怎樣說服大家跟隨你！', placeholder: true },
+    '假領袖': { desc: '領袖不參與作答。輪到你時，按主持人指示發言。', tip: '留意討論，想好怎樣說服大家跟隨你！', placeholder: true },
   },
 };
 /** a leader's own follower count for a round: { state: 'none' (no vote yet) | 'open' | 'closed', count (closed only) }.
@@ -887,6 +901,7 @@ async function miniState(s) {
     // lambs easter egg: r1 = 1; r2 / r3 = how many voted for the 真正領袖 in the previous round's (closed) vote — one integer, nothing else
     out.lambs = screen === 'r1' ? 1 : await trueVotes(s, meta, screen === 'r2' ? 'r1' : 'r2', ps);
     out.speak = speakView(meta, screen);   // 發言 timer: state + countdown only
+    if (screen === 'r3') out.quiz = await quizForTv(s, await quizSettle(s, meta), await getContent(s), ps.filter(canVote).length);   // question + answered count; result after close
   }
   // an open vote: countdown + aggregate count only (never who voted, never for whom)
   // just sealed (everyone voted): keep showing 已封票 + the full count for a while
@@ -1013,6 +1028,228 @@ async function adminLogin(req, s, context) {
   return { token: sign({ role: 'admin', iat: now(), exp: now() + SESSION_MS, n: rid(6) }), expiresIn: SESSION_MS };
 }
 
+
+/* ---------------- game content (admin 「遊戲內容」; editable without code) ----------------
+   blob `content` (kept across games, NOT cleared by 新一場):
+     { r2: { mystery: { all, byRole: {} } },                        Round 2 神秘描述: one shared text for everyone.
+                                                                     byRole[<role>] (optional, not in the admin UI yet) would
+                                                                     override it for that role — reserved for per-role variants.
+       r3: { threshold (%), need (successes to unlock), clue, questions: [{ q, options: [4], answer: 0-3 }] x 5 } } */
+const QUIZ_N = 5;
+const QUIZ_DURATIONS = [0, 20, 30, 45, 60, 90];
+const DEFAULT_CONTENT = {
+  r2: { mystery: { all: '我係香港一間連鎖米線店，以雲南風味米線為主打，可以自由選擇配料同辣度。我同另一間名字相似嘅米線店有歷史淵源，但我哋係兩個唔同品牌。', byRole: {} } },
+  r3: { threshold: 60, need: 3, clue: '（最後的線索：請在管理頁「遊戲內容」填寫）', questions: [
+    { q: '以下哪個數字最接近一小時的秒數？', options: ['360', '600', '3600', '6000'], answer: 2 },
+    { q: '（範例）一星期有幾多日？', options: ['5', '6', '7', '8'], answer: 2 },
+    { q: '（範例）一打雞蛋有幾多隻？', options: ['6', '10', '12', '20'], answer: 2 },
+    { q: '（範例）香港的國際電話區號是？', options: ['+852', '+853', '+86', '+886'], answer: 0 },
+    { q: '（範例）彩虹通常有幾多種顏色？', options: ['5', '6', '7', '8'], answer: 2 },
+  ] },
+};
+const str = (v, max, d = '') => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').trim().slice(0, max) : d);
+function cleanContent(b, base) {
+  const out = structuredClone(base);
+  if (b.r2 && b.r2.mystery != null) {
+    const m = b.r2.mystery;
+    out.r2.mystery.all = str(typeof m === 'string' ? m : m.all, 400, out.r2.mystery.all);
+    if (m && typeof m === 'object' && m.byRole && typeof m.byRole === 'object') {
+      out.r2.mystery.byRole = {};
+      for (const r of ROLE_ORDER) if (typeof m.byRole[r] === 'string' && m.byRole[r].trim()) out.r2.mystery.byRole[r] = str(m.byRole[r], 400);
+    }
+  }
+  if (b.r3) {
+    const z = b.r3, o = out.r3;
+    if (z.threshold != null) { const n = Math.round(Number(z.threshold)); if (!(n >= 1 && n <= 100)) fail(400, 'bad_threshold', '門檻需為 1–100%'); o.threshold = n; }
+    if (z.need != null) { const n = Math.round(Number(z.need)); if (!(n >= 1 && n <= QUIZ_N)) fail(400, 'bad_need', `成功題數需為 1–${QUIZ_N}`); o.need = n; }
+    if (z.clue != null) o.clue = str(z.clue, 300, o.clue);
+    if (Array.isArray(z.questions)) {
+      if (z.questions.length !== QUIZ_N) fail(400, 'bad_questions', `需要 ${QUIZ_N} 道題目`);
+      o.questions = z.questions.map((q, i) => {
+        const opts = Array.isArray(q && q.options) ? q.options.slice(0, 4).map((x) => str(x, 30)) : [];
+        const a = Number(q && q.answer);
+        const qq = str(q && q.q, 90);
+        if (!qq || opts.length !== 4 || opts.some((x) => !x)) fail(400, 'bad_question', `第 ${i + 1} 題：題目及四個選項都要填寫`);
+        if (!(a >= 0 && a <= 3)) fail(400, 'bad_answer', `第 ${i + 1} 題：請選擇正確答案`);
+        return { q: qq, options: opts, answer: a };
+      });
+    }
+  }
+  return out;
+}
+let contentCache = null;   // { t, data } — 3 s in the warm instance (phones poll /me every 2–3 s)
+async function getContent(s, fresh) {
+  if (!fresh && contentCache && now() - contentCache.t < 3000) return contentCache.data;
+  const c = (await s.get('content', { type: 'json' })) || {};
+  const data = { r2: { mystery: { ...DEFAULT_CONTENT.r2.mystery, ...((c.r2 && c.r2.mystery) || {}) } }, r3: { ...DEFAULT_CONTENT.r3, ...(c.r3 || {}) } };
+  contentCache = { t: now(), data };
+  return data;
+}
+async function saveContent(req, s) {
+  const b = await body(req);
+  const next = cleanContent(b, await getContent(s, true));
+  await s.setJSON('content', next);
+  contentCache = { t: now(), data: next };
+  return { ok: true, content: next };
+}
+const mysteryFor = (c, p) => { const m = c.r2.mystery; return (p && m.byRole && m.byRole[p.role]) || m.all; };
+
+/* ---------------- Round 3 問答 (破解密碼) ----------------
+   meta.quiz = { cur: index | null, qs: { <index>: { id, openedAt, duration, deadline, closedAt, snap: { q, options, answer },
+                 result: { correct, answered, total, pct, success, threshold } } } }
+   answers/<index>/<playerId> { choice, at, qid }   one answer per player per question (changeable while open).
+   admin/quiz-open {index, duration} opens a question (the question is snapshotted, so later edits don't change a live one);
+   admin/quiz-close (or the timer) closes it: pct = correct / all non-leader players (leaders never answer), success = pct >= threshold.
+   Phones see the question + their own choice; the correct answer and the result only after close. The TV sees the
+   question, the answered count (never who / what) and, after close, the result. The clue unlocks after `need` successes. */
+const qOpen = (x, t = now()) => !!x && !x.closedAt && !x.result && (!x.deadline || t < x.deadline);
+const answerKeys = (s, i) => listKeys(s, 'answers/' + i + '/');
+async function answersOf(s, i, qid) {
+  const keys = await answerKeys(s, i);
+  const as = await Promise.all(keys.map((k) => s.get(k, { type: 'json' })));
+  return keys.map((k, j) => as[j] && { player: k.slice(k.lastIndexOf('/') + 1), ...as[j] }).filter((x) => x && (!qid || x.qid === qid));
+}
+async function quizTally(s, x, i, players) {
+  const elig = new Set(players.filter(canVote).map((p) => p.id));
+  const list = (await answersOf(s, i, x.id)).filter((a) => elig.has(a.player));
+  const correct = list.filter((a) => a.choice === x.snap.answer).length;
+  return { answered: list.length, correct, total: elig.size, pct: elig.size ? Math.round((correct / elig.size) * 100) : 0 };
+}
+async function closeQuestion(s, meta0, players) {
+  const z = meta0.quiz, i = z && z.cur, x = z && z.qs && z.qs[i];
+  if (i == null || !x || x.result) return meta0;
+  const c = await getContent(s);
+  const r = await quizTally(s, x, i, players || (await allPlayers(s)).map(normalize));
+  r.threshold = c.r3.threshold;
+  r.success = r.total > 0 && r.pct >= c.r3.threshold;
+  const t = now();
+  return (await update(s, 'meta', (m) => {
+    const y = m.quiz && m.quiz.qs && m.quiz.qs[i];
+    if (!y || y.id !== x.id || y.result) return undefined;
+    y.closedAt = y.closedAt || (y.deadline && y.deadline < t ? y.deadline : t);
+    y.result = r;
+    return m;
+  })) || meta0;
+}
+/** the timer ran out -> settle the result once (called from the polls; no cron) */
+async function quizSettle(s, meta) {
+  const z = meta.quiz, x = z && z.cur != null && z.qs && z.qs[z.cur];
+  if (!x || x.result || qOpen(x)) return meta;
+  return closeQuestion(s, meta);
+}
+function quizSummary(meta, c) {
+  const z = meta.quiz || { cur: null, qs: {} }, t = now();
+  const states = [];
+  for (let i = 0; i < QUIZ_N; i++) {
+    const x = z.qs && z.qs[i];
+    states.push(!x ? 'none' : qOpen(x, t) ? 'open' : x.result ? (x.result.success ? 'ok' : 'fail') : 'closing');
+  }
+  const solved = states.filter((st) => st === 'ok').length, left = states.filter((st) => st === 'none' || st === 'open' || st === 'closing').length;
+  const unlocked = solved >= c.r3.need;
+  return { total: QUIZ_N, threshold: c.r3.threshold, need: c.r3.need, states, solved, unlocked, lost: !unlocked && solved + left < c.r3.need, clue: unlocked ? c.r3.clue : null };
+}
+function quizQuestion(meta) {
+  const z = meta.quiz, i = z && z.cur;
+  const x = i != null && z.qs && z.qs[i];
+  if (!x) return null;
+  const t = now(), open = qOpen(x, t);
+  const q = { index: i, id: x.id, q: x.snap.q, options: x.snap.options, open, duration: x.duration,
+    remain: open && x.deadline ? Math.max(0, x.deadline - t) : null };
+  if (!open && x.result) { q.answer = x.snap.answer; q.result = { success: x.result.success, pct: x.result.pct, correct: x.result.correct, total: x.result.total }; }
+  return q;
+}
+async function quizForPhone(s, meta, c, p) {
+  const out = quizSummary(meta, c), q = quizQuestion(meta);
+  out.canAnswer = canVote(p);
+  if (q) {
+    if (out.canAnswer) {
+      const a = await s.get(`answers/${q.index}/${p.id}`, { type: 'json' });
+      q.mine = a && a.qid === q.id ? a.choice : null;
+    }
+    out.q = q;
+  }
+  return out;
+}
+const answerListCache = new Map();
+async function quizForTv(s, meta, c, eligible) {
+  const out = quizSummary(meta, c), q = quizQuestion(meta);
+  if (q) {
+    const key = q.index + ':' + q.id;
+    let e = answerListCache.get(key);
+    if (!e || (q.open && now() - e.t > 1000)) {
+      const keys = await answerKeys(s, q.index);
+      e = { t: now(), keys };
+      if (answerListCache.size > 20) answerListCache.clear();
+      answerListCache.set(key, e);
+    }
+    q.eligible = eligible || 0;   // how many can answer (non-leaders) — a count only
+    q.answered = e.keys.length;   // aggregate only (may include stale keys for a moment; the result uses the real count)
+    out.q = q;
+  }
+  return out;
+}
+async function answerQuiz(req, s) {
+  const b = await body(req);
+  const [p, meta] = await Promise.all([playerFrom(req, s, b), getMeta(s)]);
+  if (!p) fail(404, 'not_joined', '尚未加入或已被移出遊戲');
+  if (!canVote(p)) fail(403, 'no_answer', '領袖不參與作答');
+  const z = meta.quiz, i = z && z.cur, x = i != null && z.qs && z.qs[i];
+  if (!x || !qOpen(x) || (b.index != null && Number(b.index) !== i)) fail(409, 'quiz_closed', '作答已結束');
+  const choice = Number(b.choice);
+  if (!(choice >= 0 && choice <= 3) || !Number.isInteger(choice)) fail(400, 'bad_choice', '請選擇一個答案');
+  await s.setJSON(`answers/${i}/${p.id}`, { choice, at: now(), qid: x.id });
+  return { ok: true, index: i, mine: choice };
+}
+async function openQuestion(req, s) {
+  const b = await body(req);
+  const i = Number(b.index);
+  if (!(Number.isInteger(i) && i >= 0 && i < QUIZ_N)) fail(400, 'bad_index', '未知的題目');
+  const duration = b.duration == null ? 0 : Number(b.duration);
+  if (!QUIZ_DURATIONS.includes(duration)) fail(400, 'bad_duration', '不支援的作答時間');
+  let meta = await getMeta(s);
+  if (phaseOf(meta) !== STARTED || !meta.revealed) fail(409, 'not_started', '請先完成身份揭曉');
+  const players = (await allPlayers(s)).map(normalize);
+  meta = await closeQuestion(s, meta, players);   // another question still open -> settle it first
+  const c = await getContent(s, true), src = c.r3.questions[i];
+  await Promise.all((await answerKeys(s, i)).map((k) => s.delete(k)));   // (re)opening = a fresh question
+  const t = now();
+  const m = await update(s, 'meta', (m) => {
+    m.quiz = m.quiz || { cur: null, qs: {} };
+    m.quiz.qs = m.quiz.qs || {};
+    m.quiz.cur = i;
+    m.quiz.qs[i] = { id: rid(4), openedAt: t, duration, deadline: duration ? t + duration * 1000 : 0, closedAt: 0, snap: { q: src.q, options: src.options.slice(), answer: src.answer } };
+    return m;
+  });
+  return { ok: true, quiz: quizSummary(m, c), q: quizQuestion(m) };
+}
+async function closeQuestionReq(req, s) {
+  const meta = await getMeta(s);
+  const z = meta.quiz, x = z && z.cur != null && z.qs && z.qs[z.cur];
+  if (!x) fail(409, 'no_question', '沒有進行中的題目');
+  if (qOpen(x)) await update(s, 'meta', (m) => { const y = m.quiz.qs[z.cur]; if (y.closedAt) return undefined; y.closedAt = now(); return m; });
+  const m = await closeQuestion(s, await getMeta(s));
+  return { ok: true, quiz: quizSummary(m, await getContent(s)), q: quizQuestion(m) };
+}
+async function resetQuiz(s) {
+  await Promise.all((await listKeys(s, 'answers/')).map((k) => s.delete(k)));
+  await update(s, 'meta', (m) => { if (!m.quiz) return undefined; delete m.quiz; return m; });
+  return { ok: true };
+}
+/** admin-only live view: the current question's answered / correct counts while open; every question's result */
+async function adminQuiz(s, meta, players, c) {
+  const out = quizSummary(meta, c), q = quizQuestion(meta);
+  out.results = {};
+  for (const [i, x] of Object.entries((meta.quiz && meta.quiz.qs) || {})) if (x.result) out.results[i] = x.result;
+  if (q) {
+    const x = meta.quiz.qs[q.index];
+    q.answer = x.snap.answer;
+    q.live = await quizTally(s, x, q.index, players.map(normalize));
+    out.q = q;
+  }
+  out.durations = QUIZ_DURATIONS;
+  return out;
+}
+
 const ROUTES = {
   'GET lobby': (req, s) => lobby(s),
   'POST join': join,
@@ -1046,6 +1283,12 @@ const ROUTES = {
   'POST admin/vote-end': (req, s) => endVote(s),
   'POST admin/speak': startSpeak,
   'POST admin/speak-end': endSpeak,
+  'POST quiz/answer': answerQuiz,
+  'GET admin/content': async (req, s) => ({ content: await getContent(s, true), quizN: QUIZ_N }),
+  'POST admin/content': saveContent,
+  'POST admin/quiz-open': openQuestion,
+  'POST admin/quiz-close': closeQuestionReq,
+  'POST admin/quiz-reset': (req, s) => resetQuiz(s),
 };
 
 export default async (req, context) => {

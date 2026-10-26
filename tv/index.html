@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
-  <link rel="stylesheet" href="../css/tv.css?v=13" />
+  <link rel="stylesheet" href="../css/tv.css?v=14" />
 </head>
 <body>
   <main class="tv" id="tv">
@@ -61,6 +61,19 @@
         <!-- 發言中 (admin → 開始發言): the speaking countdown only, while no vote is shown -->
         <div class="tv-vote tv-speak" id="tvSpeak" hidden aria-live="off">
           <p class="tv-vote__row"><span class="tv-vote__tag">發言中</span><b class="tv-vote__time" id="tvSpeakTime" lang="en">00:00</b></p>
+        </div>
+        <!-- Round 3 破解密碼 (admin → Round 3 問答): the current question + 解鎖進度 + aggregate 已作答 X / N only.
+             The correct answer and 成功 / 未達標 appear only after 結束作答; then the final clue once unlocked. Hidden while a vote is shown. -->
+        <div class="tv-quiz" id="tvQuiz" hidden aria-live="polite" data-q="open">
+          <div class="tq-head">
+            <span class="tq-badge" id="tqBadge">問題 1 / 5</span>
+            <span class="tq-dots" id="tqDots"></span>
+            <span class="tq-st" id="tqSt"></span>
+          </div>
+          <p class="tq-q" id="tqQ"></p>
+          <div class="tq-opts" id="tqOpts"></div>
+          <p class="tq-foot" id="tqFoot"></p>
+          <div class="tq-clue" id="tqClue"><p class="tq-clue__t">最後的線索 <b>已解鎖！</b></p><p class="tq-clue__x" id="tqClueX"></p></div>
         </div>
         <!-- Easter egg: lambs in the bottom-right corner, below the signpost (renderLambs(n) in tv.js).
              The server sends one integer (mini/state lambs): Round 1 = exactly 1 lamb (Nathan already knows who the
@@ -115,6 +128,6 @@
   </script>
   <script src="../js/api.js?v=10"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
-  <script src="../js/tv.js?v=10"></script>
+  <script src="../js/tv.js?v=11"></script>
 </body>
 </html>

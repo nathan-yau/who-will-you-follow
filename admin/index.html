@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=20" />
+  <link rel="stylesheet" href="../css/admin.css?v=21" />
 </head>
 <body>
   <header class="top">
@@ -143,6 +143,64 @@
         </div>
       </section>
 
+      <!-- Round 3 破解密碼: run the 5 questions one by one. Phones answer (leaders read-only), the TV shows the question +
+           已作答 X / N; the answer and 成功 / 未達標 appear on the TV + phones only after 結束作答. -->
+      <section class="acc" data-acc="quiz" id="accQuiz">
+        <div class="acc__head">
+          <button class="acc__toggle" type="button" aria-expanded="true" aria-controls="accQuizBody">
+            <span class="acc__title">Round 3 問答</span>
+            <span class="acc__sum"><i class="dot" id="qzDot"></i> <span id="qzSum">未開始</span></span>
+            <svg class="acc__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="acc__body" id="accQuizBody">
+          <p class="tvnote" id="qzNote">TV 切到 Round 3 後，逐題按「開始第 N 題」，大家作答後按「結束作答」公佈結果。</p>
+          <div class="qz-dots" id="qzDots"></div>
+          <div class="seg" id="qzSeg" role="group" aria-label="題目">
+            <span class="seg__label">題目</span>
+            <div class="seg__btns" id="qzSegBtns"></div>
+          </div>
+          <div class="qz-cur" id="qzCur"></div>
+          <div class="vote__row">
+            <button class="btn btn--ghost vote__dur" id="qzDur" type="button" title="點一下切換作答時間">作答 不限時</button>
+            <span class="vote__live" id="qzLive"><i class="dot" id="qzLiveDot"></i> <span id="qzLiveText">未開始</span></span>
+            <button class="btn btn--primary vote__go" id="qzGo" type="button">開始第 1 題</button>
+          </div>
+          <div class="acc__foot">
+            <button class="btn btn--danger" id="qzReset" type="button">重設問答進度</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 遊戲內容 (saved on the server, kept across games): Round 2 神秘描述 + Round 3 questions / threshold / clue -->
+      <section class="acc" data-acc="content" id="accContent">
+        <div class="acc__head">
+          <button class="acc__toggle" type="button" aria-expanded="true" aria-controls="accContentBody">
+            <span class="acc__title">遊戲內容</span>
+            <span class="acc__sum" id="ctSum">Round 2 神秘描述 · Round 3 題目</span>
+            <svg class="acc__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="acc__body" id="accContentBody">
+          <form id="ctForm" class="ct" autocomplete="off">
+            <label class="ct__lbl" for="ctMyst">Round 2 「神秘描述」<small>（所有玩家看到同一段文字）</small></label>
+            <textarea class="ct__ta" id="ctMyst" maxlength="400" rows="4"></textarea>
+            <div class="ct__row">
+              <label class="ct__lbl ct__lbl--in" for="ctPct">每題門檻</label><input class="ct__num" id="ctPct" type="number" min="1" max="100" inputmode="numeric" /><span class="ct__unit">% 答對</span>
+              <label class="ct__lbl ct__lbl--in" for="ctNeed">成功</label><input class="ct__num" id="ctNeed" type="number" min="1" max="5" inputmode="numeric" /><span class="ct__unit">題解鎖</span>
+            </div>
+            <label class="ct__lbl" for="ctClue">最後的線索<small>（解鎖後顯示在 TV 及手機）</small></label>
+            <textarea class="ct__ta" id="ctClue" maxlength="300" rows="2"></textarea>
+            <div id="ctQs"></div>
+            <p class="ct__err" id="ctErr"></p>
+            <div class="acc__foot">
+              <button class="btn btn--ghost" id="ctUndo" type="button">還原</button>
+              <button class="btn btn--primary" id="ctSave" type="submit">儲存內容</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
       <section class="acc" data-acc="votes" id="accVotes">
         <div class="acc__head">
           <button class="acc__toggle" type="button" aria-expanded="true" aria-controls="accVotesBody">
@@ -162,6 +220,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/admin.js?v=21"></script>
+  <script src="../js/admin.js?v=22"></script>
 </body>
 </html>

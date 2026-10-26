@@ -267,3 +267,51 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .vr__knock { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 6px 8px; border-top: 1px solid #f1ecdf; background: #f6f0fa; font-size: 12px; color: #5d4a6b; }
 .vr__knock small { font-size: 10.5px; color: var(--muted); margin-left: -4px; }
 .vr__fk { color: var(--ink2); }
+
+/* ---------- Round 3 問答 (live control) ---------- */
+.qz-dots { display: flex; gap: 6px; margin: 8px 4px 0; }
+.qz-dot { flex: 1 1 0; min-width: 0; padding: 4px 2px; border-radius: 10px; text-align: center; font-size: 11px; line-height: 1.25; background: #f1eee3; color: var(--muted); border: 1.5px solid transparent; }
+.qz-dot b { display: block; font-family: "Fredoka", sans-serif; font-size: 14px; color: var(--ink2); }
+.qz-dot.ok { background: #e3f0d6; color: var(--green-d); border-color: #b9d4a8; }
+.qz-dot.ok b { color: var(--green-d); }
+.qz-dot.fail { background: #fbe9e3; color: var(--coral-d); border-color: #ecc0b1; }
+.qz-dot.open { background: #fff7e0; color: #8a5a17; border-color: #e5c97a; }
+.qz-dot.is-pick { box-shadow: 0 0 0 2px var(--green); }
+#qzSeg .seg__btn { font-family: "Fredoka", sans-serif; }
+.qz-cur { margin: 8px 4px 0; padding: 8px 10px; border-radius: 12px; background: #fff; border: 1.5px solid var(--line); font-size: 13px; line-height: 1.45; }
+.qz-cur:empty { display: none; }
+.qz-cur__q { font-weight: 700; color: var(--ink); }
+.qz-cur__opts { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; margin-top: 4px; color: var(--ink2); }
+.qz-cur__opts .is-ans { color: var(--green-d); font-weight: 700; }
+.qz-cur__res { margin-top: 5px; font-size: 12.5px; color: var(--ink2); }
+.qz-cur__res b { color: var(--ink); }
+.qz-cur__res .ok { color: var(--green-d); font-weight: 700; }
+.qz-cur__res .fail { color: var(--coral-d); font-weight: 700; }
+.qz-bar { height: 6px; border-radius: 99px; background: #eee9da; margin-top: 5px; position: relative; overflow: hidden; }
+.qz-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--green); border-radius: 99px; transition: width .3s; }
+.qz-bar em { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--coral-d); }
+#accQuizBody .vote__row { margin: 8px 4px 0; }
+
+/* ---------- 遊戲內容 editor ---------- */
+.ct { margin: 4px 4px 0; }
+.ct__lbl { display: block; margin: 10px 0 4px; font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.ct__lbl small { font-weight: 500; color: var(--muted); font-size: 11px; }
+.ct__lbl--in { display: inline; margin: 0; }
+.ct__ta, .ct__in, .ct__num { box-sizing: border-box; width: 100%; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; font: inherit; font-size: 14px; color: var(--ink); padding: 7px 9px; outline: none; }
+.ct__ta { resize: vertical; line-height: 1.5; }
+.ct__ta:focus, .ct__in:focus, .ct__num:focus { border-color: var(--green); }
+.ct__row { display: flex; align-items: center; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.ct__num { width: 58px; text-align: center; font-family: "Fredoka", sans-serif; padding: 5px 4px; }
+.ct__unit { font-size: 12.5px; color: var(--ink2); margin-right: 6px; }
+.ct-q { margin-top: 10px; padding: 8px; border-radius: 12px; background: #fbf8ee; border: 1.5px solid var(--line); }
+.ct-q__head { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; font-weight: 700; color: var(--ink); margin-bottom: 5px; }
+.ct-q__head span { font-weight: 500; font-size: 11px; color: var(--muted); }
+.ct-q__opts { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px; }
+.ct-opt { display: flex; align-items: center; gap: 4px; }
+.ct-opt label { flex: none; display: flex; align-items: center; gap: 2px; font-family: "Fredoka", sans-serif; font-weight: 600; font-size: 13px; color: var(--ink2); cursor: pointer; }
+.ct-opt input[type=radio] { accent-color: var(--green); width: 15px; height: 15px; margin: 0; }
+.ct-opt .ct__in { padding: 5px 7px; font-size: 13.5px; }
+.ct-opt.is-ans .ct__in { border-color: var(--green); background: #f1f7ec; }
+.ct__err { min-height: 0; margin: 6px 0 0; color: var(--coral-d); font-size: 12.5px; font-weight: 600; }
+.ct__err:empty { display: none; }
+.ct.is-dirty #ctSave { box-shadow: 0 0 0 3px rgba(111, 154, 99, .25); }

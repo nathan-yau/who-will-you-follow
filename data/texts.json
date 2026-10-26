@@ -57,18 +57,40 @@
     "r2": {
       "tag": "Round 2 / 3",
       "title": "誰是真領袖？",
-      "desc": "{n}位領袖會再次發言。仔細比較他們的說法，然後選擇你最相信的一位領袖。",
-      "tip": "留意每位領袖前後的說法有沒有矛盾！",
+      "desc": "",
+      "tip": "仔細聆聽每位領袖的說話，\n你可以在發言後向他們提問！",
       "leaderDesc": "輪到你發言時，好好說服大家跟隨你吧！",
-      "leaderTip": "發言後，其他玩家可以向你提問。"
+      "leaderTip": "發言後，其他玩家可以向你提問。",
+      "mysteryTitle": "神秘描述"
     },
     "r3": {
       "tag": "Round 3 / 3",
-      "title": "最後的線索",
-      "desc": "{n}位領袖會作最後發言。這是最後一次投票，選擇你最相信的一位領袖。",
-      "tip": "把所有線索連起來，相信你自己的判斷！",
+      "title": "破解密碼",
+      "desc": "大家將一起完成五道選擇題，\n每題需要至少 {pct} 的玩家答對才算成功。\n只要成功 {need} 題，即可解鎖最後的線索！",
+      "tip": "請大家認真討論，選出你認為正確的答案！",
       "leaderDesc": "這是最後的發言機會，說服大家跟隨你吧！",
       "leaderTip": "發言後，其他玩家可以向你提問。"
     }
-  }
+  },
+  "quiz": {
+    "progress": "解鎖進度",
+    "progressNote": "成功 {need} 題即可解鎖最後線索！",
+    "qLabel": "問題 {i} / {n}",
+    "waiting": "等待主持人開始第 {i} 題",
+    "open": "作答中",
+    "answered": "已作答",
+    "closed": "作答結束",
+    "ok": "成功！",
+    "fail": "未達標",
+    "pctLine": "答對 {pct}% · 門檻 {need}%",
+    "leader": "領袖不參與作答",
+    "unlockedTitle": "最後的線索",
+    "unlocked": "已解鎖！",
+    "lost": "未能解鎖最後的線索",
+    "left": "剩餘時間",
+    "unlimited": "不限時",
+    "yours": "你的答案",
+    "noAnswer": "你未有作答"
+  },
+  "_comment_quiz": "Round 3 問答 labels (phone + TV). The questions, threshold, success count and the final clue are edited in admin 「遊戲內容」 (server-side), not here."
 }

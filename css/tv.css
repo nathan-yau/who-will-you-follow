@@ -304,3 +304,49 @@ body {
 .tv-vote__bar { margin-top: 7px; height: 8px; border-radius: 4px; background: #e4e8d6; overflow: hidden; }
 .tv-vote__bar i { display: block; height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, #a9cf8f, #7fae6e); transition: width 0.6s ease; }
 @media (prefers-reduced-motion: reduce) { .tv-vote, .tv-vote__cnt b.bump { animation: none !important; } .tv-vote__bar i { transition: none !important; } }
+
+/* ---------- Round 3 破解密碼 quiz panel (replaces the leader cards while a question is up / the clue is unlocked) ---------- */
+.tv-quiz { position: absolute; left: 222px; top: 292px; width: 580px; height: 262px; box-sizing: border-box; padding: 12px 18px 10px; z-index: 2;
+  border-radius: 18px; background: rgba(253, 250, 241, 0.96); border: 2px solid #ede5d0; box-shadow: 0 4px 0 rgba(150, 125, 90, 0.10), 0 8px 20px rgba(90, 110, 70, 0.16);
+  animation: tvin 0.5s cubic-bezier(.3, 1.4, .5, 1); }
+.tv-quiz[hidden] { display: none; }
+.tv-round.has-quiz .tv-cards { visibility: hidden; }
+.tq-head { display: flex; align-items: center; gap: 12px; height: 30px; }
+.tq-badge { padding: 0 14px; border-radius: 999px; background: #e9efdc; color: #3e4a33; font-size: 15px; line-height: 28px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
+.tq-dots { display: flex; gap: 6px; }
+.tq-dots i { width: 22px; height: 22px; border-radius: 50%; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-style: normal;
+  font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: 12px; background: #e7e5dc; color: #b3ad9e; border: 2px solid #e7e5dc; }
+.tq-dots i.ok { background: #5f8f57; border-color: #4a7543; color: #fff; }
+.tq-dots i.fail { background: #fbe4df; border-color: #e7b0a5; color: #c0634c; }
+.tq-dots i.open { background: #fff; border-color: #6f9a63; color: #4f7a4b; }
+.tq-st { margin-left: auto; display: flex; align-items: center; gap: 10px; white-space: nowrap; font-size: 15px; font-weight: 700; color: #6d6455; }
+.tq-st b { font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: 24px; color: #4f7a4b; }
+.tq-st b.is-low { color: #c0634c; }
+.tq-st b.is-text { font-family: inherit; font-size: 16px; }
+.tq-st em { font-style: normal; padding: 2px 12px; border-radius: 999px; background: #fdf0c9; color: #8a5a17; font-size: 14px; letter-spacing: 1px; }
+.tq-st em.ok { background: #dcebd5; color: #3f6e39; }
+.tq-st em.fail { background: #fbe4df; color: #b65b4a; }
+.tq-q { margin: 8px 0 0; height: 58px; display: flex; align-items: center; font-size: 24px; line-height: 29px; font-weight: 700; letter-spacing: 1px; color: #3b2a1b; overflow: hidden; }
+.tq-q.is-long { font-size: 19px; line-height: 25px; }
+.tq-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.tq-opt { position: relative; height: 50px; box-sizing: border-box; padding: 0 12px 0 54px; display: flex; align-items: center; border-radius: 12px; background: #fff; border: 2px solid #ece4cf;
+  font-size: 20px; font-weight: 700; color: #3b2a1b; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; transition: opacity 0.3s, border-color 0.3s, background 0.3s; }
+.tq-opt.is-long { font-size: 16px; }
+.tq-opt i { position: absolute; left: 9px; top: 7px; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-style: normal; font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: 18px; }
+.tq-opt:nth-child(1) i { background: #d5ecd0; color: #3f6e39; }
+.tq-opt:nth-child(2) i { background: #f9d6d3; color: #a3523c; }
+.tq-opt:nth-child(3) i { background: #fbe8a6; color: #8a5a17; }
+.tq-opt:nth-child(4) i { background: #d4e3f6; color: #3d5f8c; }
+.tv-quiz[data-q="done"] .tq-opt { opacity: 0.45; }
+.tv-quiz[data-q="done"] .tq-opt.is-right { opacity: 1; border-color: #5f8f57; background: #e6f2df; }
+.tv-quiz[data-q="done"] .tq-opt.is-right::after { content: "✓"; position: absolute; right: 12px; color: #3f6e39; font-size: 22px; }
+.tq-foot { margin: 8px 0 0; display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: #6d6455; white-space: nowrap; }
+.tq-foot b { font-family: "Fredoka", system-ui, sans-serif; font-size: 20px; color: #3b2a1b; }
+.tq-bar { flex: 1 1 auto; height: 8px; border-radius: 99px; background: #eee9da; overflow: hidden; position: relative; }
+.tq-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: #6f9a63; transition: width 0.4s; }
+.tq-clue { display: none; position: absolute; inset: 12px; border-radius: 14px; background: linear-gradient(#fdf6dd, #fbeec4); border: 2px dashed #e5c97a; padding: 18px 24px; box-sizing: border-box; text-align: center; }
+.tv-quiz[data-q="clue"] .tq-clue { display: block; }
+.tv-quiz[data-q="clue"] > :not(.tq-clue) { visibility: hidden; }
+.tq-clue__t { margin: 0; font-size: 26px; line-height: 36px; font-weight: 700; letter-spacing: 3px; color: #6b4a1e; }
+.tq-clue__t b { font-size: 15px; padding: 2px 12px; border-radius: 999px; background: #5f8f57; color: #fff; letter-spacing: 1px; vertical-align: middle; }
+.tq-clue__x { margin: 14px 0 0; font-size: 24px; line-height: 36px; font-weight: 700; letter-spacing: 1.5px; color: #3b2a1b; white-space: pre-line; }

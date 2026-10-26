@@ -349,7 +349,8 @@
     if (screen === 'reveal') renderRevealCount(s.reveal);
     // an open vote shows on any round screen; a just-sealed one only on its own round's screen
     renderVote(ROUNDS[screen] && s.vote && (!s.vote.sealed || s.vote.round === screen) ? s.vote : null);
-    renderSpeak(ROUNDS[screen] && $('tvVote').hidden && s.speak && s.speak.round === screen && s.speak.state === 'live' ? s.speak : null);
+    renderQuiz(screen === 'r3' && $('tvVote').hidden && s.quiz && (s.quiz.q || (s.quiz.unlocked && s.quiz.clue)) ? s.quiz : null);
+    renderSpeak(ROUNDS[screen] && $('tvVote').hidden && $('tvQuiz').hidden && s.speak && s.speak.round === screen && s.speak.state === 'live' ? s.speak : null);
     setPhase(started ? 'started' : 'lobby', list);
   }
 
@@ -473,6 +474,50 @@
     t.classList.toggle('is-text', voteEnd == null);
     if (voteEnd == null) { t.textContent = '不限時'; t.classList.remove('is-low'); return; }
     var x = Math.max(0, Math.ceil((voteEnd - now()) / 1000));
+    t.textContent = ('0' + Math.floor(x / 60)).slice(-2) + ':' + ('0' + (x % 60)).slice(-2);
+    t.classList.toggle('is-low', x <= 10);
+  }
+
+  /* ---------- Round 3 破解密碼: question + 解鎖進度 + 已作答 X / N (aggregate); answer + result only after close ---------- */
+  var quizEnd = null, quizTick = 0, quizKey = '';
+  function renderQuiz(z) {
+    var el = $('tvQuiz'), rnd = $('round');
+    if (!z) { if (!el.hidden) { el.hidden = true; rnd.classList.remove('has-quiz'); clearInterval(quizTick); quizTick = 0; quizKey = ''; } return; }
+    var q = z.q, mode = q && q.open ? 'open' : z.unlocked && z.clue ? 'clue' : 'done';
+    if (el.hidden) { el.hidden = false; rnd.classList.add('has-quiz'); }
+    el.setAttribute('data-q', mode);
+    var dots = (z.states || []).map(function (x, i) { return '<i class="' + x + '">' + (x === 'ok' ? '✓' : i + 1) + '</i>'; }).join('');
+    if ($('tqDots').innerHTML !== dots) $('tqDots').innerHTML = dots;
+    if (mode === 'clue') { $('tqClueX').textContent = z.clue; clearInterval(quizTick); quizTick = 0; return; }
+    $('tqBadge').textContent = '問題 ' + (q.index + 1) + ' / ' + (z.total || 5);
+    var k = q.id + '|' + mode + '|' + q.answer + '|' + q.options.join('|');
+    if (k !== quizKey) {
+      quizKey = k;
+      $('tqQ').textContent = q.q; $('tqQ').classList.toggle('is-long', String(q.q).length > 22);
+      $('tqOpts').innerHTML = q.options.map(function (o, i) {
+        return '<div class="tq-opt' + (q.answer === i ? ' is-right' : '') + (String(o).length > 12 ? ' is-long' : '') + '"><i>' + 'ABCD'[i] + '</i>' + esc(o) + '</div>';
+      }).join('');
+    }
+    var r = q.result;
+    if (mode === 'open') {
+      quizEnd = q.remain == null ? null : now() + q.remain;
+      $('tqSt').innerHTML = '<em>作答中</em><b id="tqTime" lang="en"></b>';
+      var tot = z.answerTotal || (r && r.total) || 0;
+      $('tqFoot').innerHTML = '已作答 <b>' + (q.answered | 0) + '</b>' + (q.eligible ? ' / <b>' + q.eligible + '</b>' : '') + '<span class="tq-bar"><i style="width:' + (q.eligible ? Math.min(100, Math.round(q.answered / q.eligible * 100)) : 0) + '%"></i></span>每題需 ' + z.threshold + '% 答對';
+      quizClock();
+      if (!quizTick) quizTick = setInterval(quizClock, 250);
+    } else {
+      clearInterval(quizTick); quizTick = 0;
+      $('tqSt').innerHTML = r ? '<em class="' + (r.success ? 'ok">成功！' : 'fail">未達標') + '</em>' : '<em>作答結束</em>';
+      $('tqFoot').innerHTML = r ? '答對 <b>' + r.pct + '%</b><span class="tq-bar"><i style="width:' + Math.min(100, r.pct) + '%"></i></span>' +
+        (z.unlocked ? '已解鎖最後的線索！' : z.lost ? '未能解鎖最後的線索' : '已成功 <b>' + z.solved + '</b> / ' + z.need + ' 題') : '';
+    }
+  }
+  function quizClock() {
+    var t = $('tqTime'); if (!t) return;
+    t.classList.toggle('is-text', quizEnd == null);
+    if (quizEnd == null) { t.textContent = '不限時'; t.classList.remove('is-low'); return; }
+    var x = Math.max(0, Math.ceil((quizEnd - now()) / 1000));
     t.textContent = ('0' + Math.floor(x / 60)).slice(-2) + ':' + ('0' + (x % 60)).slice(-2);
     t.classList.toggle('is-low', x <= 10);
   }

@@ -10,13 +10,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/style.css?v=6" />
   <link rel="stylesheet" href="../css/characters.css?v=8" />
-  <link rel="stylesheet" href="../css/round.css?v=2" />
+  <link rel="stylesheet" href="../css/round.css?v=3" />
   <link rel="stylesheet" href="../css/knock.css?v=1" />
 </head>
 <body>
   <!-- 回合頁 (phone, while the TV shows Round 1 / 2 / 3). One page for all rounds: copy from data/texts.json (rounds.<r>).
-       data-state = loading | player | leader; data-speak = ready | live | done (發言 timer); data-vote = none | open | closed -->
-  <main class="cs-app rd-app" id="app" data-state="loading" data-speak="ready" data-vote="none">
+       data-r = r1 | r2 | r3 (layout); data-state = loading | player | leader; data-speak = ready | live | done (發言 timer); data-vote = none | open | closed -->
+  <main class="cs-app rd-app" id="app" data-state="loading" data-speak="ready" data-vote="none" data-r="r1">
     <div class="cs-stage">
       <div class="cs-bg" aria-hidden="true">
         <div class="cs-meadow"></div>
@@ -45,6 +45,29 @@
       <h2 class="rd-title abs"><span id="rdTitle"></span><svg class="rd-brush" viewBox="0 0 160 22" preserveAspectRatio="none" aria-hidden="true"><path d="M4 11.5C30 6 70 4.6 104 5.2c20 .4 38 1.6 52 3.6 2.4.4 2.2 3.6-.2 3.8-16 1-30 1.4-46 2.2-34 1.6-68 3.6-102 6.6-4.6.4-6-8.8-3.8-9.9Z" fill="#f5b3b0" opacity="0.92"/><path d="M14 16.5c30-2.6 64-4 96-4.4" stroke="#f9cfcc" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg></h2>
       <div class="rd-clock abs" aria-live="off"><b id="clock" lang="en">--:--</b><span id="clockLabel">剩餘時間</span></div>
       <p class="rd-desc abs" id="desc"></p>
+
+      <!-- Round 2: 神秘描述 (admin 「遊戲內容」; one shared text) -->
+      <div class="rd-myst abs" id="myst" data-r="r2">
+        <span class="rd-myst__ic" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 4.5h10l6 6v16a1.5 1.5 0 0 1-1.5 1.5h-14.5a1.5 1.5 0 0 1-1.5-1.5v-20.5a1.5 1.5 0 0 1 1.5-1.5Z" fill="#fff" stroke="#4f6e48" stroke-width="2.2" stroke-linejoin="round"/><path d="M19 4.5v6h6" fill="none" stroke="#4f6e48" stroke-width="2.2" stroke-linejoin="round"/><path d="M11.5 15.5h9M11.5 19.5h9M11.5 23.5h6" stroke="#4f6e48" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+        <p class="rd-myst__title" id="mystTitle">神秘描述</p>
+        <svg class="rd-myst__leaf" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-7 5-12 14-13-1 8-6 13-14 13Z" fill="#9cc08a"/><path d="M5 19l8-8" stroke="#6f9a5e" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <p class="rd-myst__text" id="mystText"></p>
+      </div>
+
+      <!-- Round 3: 解鎖進度 + the current question (admin 「Round 3 問答」) -->
+      <div class="rd-prog abs" id="prog" data-r="r3">
+        <p class="rd-prog__label"><span id="progLabel">解鎖進度</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-7 5-12 14-13-1 8-6 13-14 13Z" fill="#9cc08a"/></svg></p>
+        <div class="rd-prog__dots" id="progDots"></div>
+        <p class="rd-prog__note" id="progNote"></p>
+      </div>
+      <div class="rd-quiz abs" id="quiz" data-r="r3" data-q="wait">
+        <p class="rd-quiz__badge" id="qBadge">問題 1 / 5</p>
+        <p class="rd-quiz__st" id="qStatus"></p>
+        <span class="rd-quiz__q" aria-hidden="true" lang="en">Q</span>
+        <p class="rd-quiz__text" id="qText"></p>
+        <div class="rd-opts" id="opts"></div>
+        <div class="rd-clue" id="clue"><p class="rd-clue__title"><span id="clueTitle">最後的線索</span><b id="clueBadge">已解鎖！</b></p><p class="rd-clue__text" id="clueText"></p></div>
+      </div>
 
       <!-- the leaders (same slot order as the TV cards), peeking out of paw-print pots -->
       <div class="rd-scene abs" aria-hidden="true">
@@ -95,8 +118,8 @@
     })();
   </script>
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/knock.js?v=3"></script>
+  <script src="../js/knock.js?v=4"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
-  <script src="../js/round.js?v=2"></script>
+  <script src="../js/round.js?v=3"></script>
 </body>
 </html>

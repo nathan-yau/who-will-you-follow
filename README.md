@@ -79,6 +79,11 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | POST | `/api/admin/vote-end` | host | close the open vote now |
 | POST | `/api/admin/speak` | host | `{round, duration:30\|60\|90\|120\|0}` start the 發言 timer for a round (0 = 不限) |
 | POST | `/api/admin/speak-end` | host | `{round}` end the 發言 now (→ 提問時間); opening a vote also ends it |
+| POST | `/api/quiz/answer` | player | `{index, choice:0-3}` answer / change the open Round 3 question → `{index, mine}`; `403 no_answer` (leaders), `409 quiz_closed` |
+| GET / POST | `/api/admin/content` | host | game content (persists across games): `{r2:{mystery}, r3:{threshold, need, clue, questions:[5 × {q, options[4], answer}]}}` → `{ok, content}` |
+| POST | `/api/admin/quiz-open` | host | `{index:0-4, duration:0\|20\|30\|45\|60\|90}` open a question (snapshotted; reopening clears its result); needs started + revealed |
+| POST | `/api/admin/quiz-close` | host | close the open question now (the timer also closes it) → result |
+| POST | `/api/admin/quiz-reset` | host | clear all question results / answers |
 | POST | `/api/admin/start` | host | phase → `started` (stops the mini-game) |
 | POST | `/api/admin/lobby` | host | phase → `lobby` (clears mini-game counters) |
 
@@ -114,6 +119,15 @@ Game flow: **等候 (bubble battle) → 身份揭曉 → Round 1 → Round 2 →
 * Host: admin 「TV／遊戲」 → 發言 row (duration chip 30 / 60 / 90 / 120 / 不限, 開始發言 / 結束發言); the 投票 box shows 「Round N 跟隨人數」 per leader by character name — 即時 while voting (refreshed every 2 s), 最終 after close; 投票結果 lists 跟隨 N 人.
 * TV: while no vote is shown, a 「發言中 · mm:ss」 pill under the cards (aggregate only).
 * Polling: `/api/me` every 2 s while 發言 or a vote is live, else 3 s; the clock ticks locally.
+
+### Round 2 神秘描述 + Round 3 破解密碼 (quiz)
+
+* Host guide (Traditional Chinese): `docs/HOST-GUIDE.md`.
+* Content: admin 「遊戲內容」 edits the Round 2 mystery text (one text for everyone; `byRole` reserved), the Round 3 threshold % (default 60), success count (default 3), the final clue and 5 questions (A–D + answer). Stored server-side (`content` blob), kept by 新一場.
+* r2 phone: same round page, title 誰是真領袖？, a 「神秘描述」 card (`/api/me` `round.mystery`); speak / vote / knock as in r1.
+* r3 phone: 解鎖進度 (5 circles) + question card (問題 i/5, question, A–D, status). Players answer / change until close; leaders read-only. After close: correct option + 成功 / 未達標 + %. Once `need` questions succeed and no question is open: the clue card. `/api/me` `round.quiz` = summary + `canAnswer` + `q` (`mine`; `answer` / `result` only after close). pct = correct / all non-leader players.
+* Admin 「Round 3 問答」: per-question status, picker, duration chip, 開始第 N 題 / 結束作答, live 已作答 / 答對 / %, 重設問答進度 (tap twice). Enabled while the TV is on Round 3.
+* TV r3: while a question exists (or the clue is unlocked) a panel replaces the leader cards: 問題 i/5, progress dots, 作答中 + countdown, question, A–D, 已作答 X / N; after close the correct option + 成功 / 未達標 + %; then the clue. Hidden while a vote is shown. `/api/mini/state` `quiz` never carries the answer or choices while open.
 
 Default roles (17): 真正領袖 1 · 假領袖 3 · 真領袖支持者 1 · 假領袖支持者 2 · 平民 10.
 
