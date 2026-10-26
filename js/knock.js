@@ -9,7 +9,7 @@
     knock: { button: '私下敲門', hint: '投票已結束，你可以私下敲門。', confirm: '再按一次確認敲門', done: '已敲門', doneHint: '你的敲門已經悄悄送出。', none: '這一輪沒有需要敲門的人。' },
     knocked: { title: '叩叩……', bodies: ['有人輕輕敲了你的門。再想想？'], note: '請保密，不要告訴其他人喔。', dismiss: '知道了' }
   };
-  fetch('../data/texts.json?v=7', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (d) {
+  fetch('../data/texts.json?v=8', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (d) {
     ['knock', 'knocked'].forEach(function (k) { if (d && d[k]) for (var x in d[k]) if (typeof d[k][x] === 'string' || (Array.isArray(d[k][x]) && d[k][x].length)) T[k][x] = d[k][x]; });
     render(); renderModal();
   }).catch(function () {});

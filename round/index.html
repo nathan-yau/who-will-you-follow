@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/style.css?v=6" />
   <link rel="stylesheet" href="../css/characters.css?v=8" />
-  <link rel="stylesheet" href="../css/round.css?v=6" />
+  <link rel="stylesheet" href="../css/round.css?v=7" />
   <link rel="stylesheet" href="../css/knock.css?v=1" />
 </head>
 <body>
@@ -80,6 +80,11 @@
         <div class="rd-end__ls" id="endLs"></div>
         <p class="rd-end__thx" id="endThx"></p>
       </div>
+      <!-- 結局 while the TV is still counting (no result on the phone until then) -->
+      <div class="rd-endw abs" id="endWait" data-r="ending" aria-hidden="true">
+        <div class="rd-endw__lambs"><span class="rd-endw__l"><img class="f1" alt="" src="../assets/tv/lamb-walk1.webp?v=1"><img class="f2" alt="" src="../assets/tv/lamb-walk2.webp?v=1"></span><span class="rd-endw__l"><img class="f1" alt="" src="../assets/tv/lamb-walk1.webp?v=1"><img class="f2" alt="" src="../assets/tv/lamb-walk2.webp?v=1"></span></div>
+        <p class="rd-endw__dots"><i></i><i></i><i></i></p>
+      </div>
 
       <!-- the leaders (same slot order as the TV cards), peeking out of paw-print pots -->
       <div class="rd-scene abs" aria-hidden="true">
@@ -130,8 +135,8 @@
     })();
   </script>
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/knock.js?v=7"></script>
+  <script src="../js/knock.js?v=8"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
-  <script src="../js/round.js?v=6"></script>
+  <script src="../js/round.js?v=7"></script>
 </body>
 </html>

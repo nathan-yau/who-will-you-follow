@@ -425,7 +425,7 @@ body {
   background: rgba(253, 250, 241, 0.94); box-shadow: 0 4px 14px rgba(90, 110, 70, 0.16); animation: tvin 0.55s cubic-bezier(.3, 1.4, .5, 1) 0.15s backwards; }
 .en-meter__label { position: absolute; left: 26px; top: 10px; margin: 0; font-size: 18px; line-height: 26px; font-weight: 700; letter-spacing: 2px; color: #4b301d; }
 .en-meter__count { position: absolute; right: 26px; top: 10px; margin: 0; font-size: 18px; line-height: 26px; font-weight: 700; letter-spacing: 1px; color: #6a5a45; opacity: 0; transition: opacity 0.4s ease; }
-.is-done .en-meter__count { opacity: 1; }
+.is-live .en-meter__count, .is-done .en-meter__count { opacity: 1; }
 .en-bar { position: absolute; left: 26px; right: 26px; top: 44px; height: 30px; border-radius: 15px; background: #ece5cf; box-shadow: inset 0 2px 4px rgba(90, 70, 40, 0.14); }
 .en-bar__fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 15px; background: linear-gradient(90deg, #a9cf8f, #f6c94c); }
 .is-lose.is-done .en-bar__fill { background: linear-gradient(90deg, #f5c9bd, #f0a28e); }
@@ -477,7 +477,19 @@ body {
 .en-chips { position: absolute; left: 0; right: 0; top: 520px; display: flex; justify-content: center; gap: 14px; z-index: 3; }
 .en-chip { position: relative; height: 46px; box-sizing: border-box; padding: 0 14px 0 52px; display: flex; align-items: center; gap: 8px; border-radius: 23px;
   background: rgba(253, 250, 241, 0.95); box-shadow: 0 3px 10px rgba(90, 110, 70, 0.16); opacity: 0; }
-.is-done .en-chip { opacity: 1; animation: fnup 0.45s ease-out backwards; animation-delay: calc(0.5s + var(--k) * 0.1s); }
+.is-live .en-chip { opacity: 1; animation: fnup 0.45s ease-out backwards; animation-delay: calc(0.2s + var(--k) * 0.1s); }
+/* 點票: each ballot pops its leader's 「N 票」 */
+.en-chip.pop { animation: enchip 0.42s cubic-bezier(.3, 1.6, .5, 1); }
+.en-chip.pop .en-chip__v { animation: envote 0.42s cubic-bezier(.3, 1.6, .5, 1); color: #b7862a; }
+@keyframes enchip { 40% { transform: translateY(-5px) scale(1.06); } 100% { transform: none; } }
+@keyframes envote { 0% { transform: scale(1); } 40% { transform: scale(1.5); } 100% { transform: scale(1); } }
+.en-bar__fill { transition: width 0.32s cubic-bezier(.3, 1.4, .5, 1); }
+.en-bar__pct { transition: left 0.32s cubic-bezier(.3, 1.4, .5, 1); }
+/* the pause right before the bar reaches the target: the target line pulses */
+.en-meter.is-tense .en-bar__target { animation: entense 0.55s ease-in-out infinite; }
+@keyframes entense { 0%, 100% { transform: none; } 50% { transform: scaleY(1.25); } }
+.en-meter.is-tense .en-bar__target em { animation: entense2 0.55s ease-in-out infinite; }
+@keyframes entense2 { 0%, 100% { transform: translateX(-50%); } 50% { transform: translateX(-50%) scale(1.15); } }
 .en-chip__c { position: absolute; left: 4px; top: 3px; width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: #f3eedd; }
 .en-chip__c img { position: absolute; left: calc(-4px + var(--dx, 0) * 48px); top: 1px; width: 48px; height: 44px; object-fit: contain; }
 .en-chip.is-fake .en-chip__c img { filter: grayscale(0.4); }
@@ -492,7 +504,8 @@ body {
 @keyframes enfall { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 85% { opacity: 1; } 100% { transform: translate(var(--sx), 620px) rotate(var(--r)); opacity: 0; } }
 .is-wait .en-meter, .is-wait .en-result, .is-wait .en-chips { display: none; }
 @media (prefers-reduced-motion: reduce) {
-  .tv-ending, .en-meter, .is-done .en-result, .is-done .en-spr__in, .is-done .en-crown, .en-rays, .en-drop, .is-done .en-chip, .en-spr .en-f2 { animation: none !important; }
+  .tv-ending, .en-meter, .is-done .en-result, .is-done .en-spr__in, .is-done .en-crown, .en-rays, .en-drop, .is-live .en-chip, .en-chip.pop, .en-chip.pop .en-chip__v, .en-bar__target, .en-bar__target em, .en-spr .en-f2 { animation: none !important; }
+  .en-bar__fill, .en-bar__pct { transition: none !important; }
   .en-scene, .en-lambs, .en-meter__count { transition: none !important; }
   .en-conf { display: none; }
 }

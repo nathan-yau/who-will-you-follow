@@ -29,7 +29,8 @@
     ending: { tag: '結局', winTitle: '勝利！', winLine: '大家成功跟隨了真正的領袖！', loseTitle: '差一點點…', loseLine: '假領袖勝出…', meterLabel: '跟隨真正領袖',
       target: '目標 {t}%', count: '{x} / {n} 人（約 {p}%）', votes: '{n} 票', trueTag: '真正領袖', fakeTag: '假領袖', mineTrue: '你跟隨了真正的領袖 🎉', mineFake: '你跟隨了 {name}',
       mineNone: '你沒有在最後投票中投票', leaderTrueWin: '你成功帶領大家找到你！', leaderTrueLose: '大家未能認出你是真正的領袖…', leaderFakeWin: '你成功迷惑了大家！',
-      leaderFakeLose: '你的偽裝被識破了！', leaderVotes: '最後投票有 {n} 人跟隨你', thanks: '多謝參與幸福小組！', waiting: '結局計算中…' },
+      leaderFakeLose: '你的偽裝被識破了！', leaderVotes: '最後投票有 {n} 人跟隨你', thanks: '多謝參與幸福小組！', waiting: '結局計算中…',
+      phoneWaitTitle: '點票中…', phoneWait: '請看 TV，正在點票…' },
     rounds: {
       r1: { tag: 'Round 1 / 3', title: '三句話', desc: '{n}位領袖會各自分享三句關於自己的說話。\n你可以聽完發言後提問，\n然後選擇你最相信的一位領袖。', tip: '仔細聆聽每位領袖的說話，\n你可以在發言後向他們提問！' },
       r2: { tag: 'Round 2 / 3', title: '誰是真領袖？', desc: '{n}位領袖會再次發言。', tip: '' },
@@ -149,7 +150,7 @@
   }
 
   // 結局: the public result (win / lose, X / N, %, each leader's count) + this phone's own line
-  var endKey = '';
+  var endKey = '', endWaitT = 0;
   function renderEnding(rd) {
     var e = rd.ending, m = rd.mine || {};
     app.setAttribute('data-r', 'ending');
@@ -157,8 +158,8 @@
     app.setAttribute('data-vote', 'none');
     app.setAttribute('data-end', e ? (e.win ? 'win' : 'lose') : 'wait');
     set('tag', EN('tag'));
-    set('rdTitle', e ? (e.win ? EN('winTitle') : EN('loseTitle')) : EN('tag'));
-    var line = e ? (e.win ? EN('winLine') : EN('loseLine')) : EN('waiting');
+    set('rdTitle', e ? (e.win ? EN('winTitle') : EN('loseTitle')) : EN('phoneWaitTitle'));
+    var line = e ? (e.win ? EN('winLine') : EN('loseLine')) : EN('phoneWait');
     if ($('desc').textContent !== line) $('desc').textContent = line;
     var key = JSON.stringify([e, m, Object.keys(names).length, !!T]);
     if (key === endKey) return;
@@ -289,6 +290,10 @@
       var sp = r.round.speak;
       speakEnd = sp && sp.state === 'live' && sp.remain != null ? Date.now() + sp.remain : null;
       last = r;
+      // 結局: the TV is still counting -> poll again exactly when the result is due (one-shot)
+      clearTimeout(endWaitT);
+      var w = r.round.wait;
+      if (w && w.in > 0) endWaitT = setTimeout(function () { poll(); }, w.in + 80);
       render();
     }).catch(function (e) { gone(e); }).then(function () { inflight = false; });
   }
@@ -298,7 +303,7 @@
     window.location.href = '../vote/';
   });
 
-  fetch('../data/texts.json?v=7', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+  fetch('../data/texts.json?v=8', { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) { if (d && (d.rounds || d.round)) { T = { rounds: d.rounds || {}, round: {}, quiz: d.quiz || {}, final: d.final || {}, ending: d.ending || {} }; for (var k in DEF.round) T.round[k] = (d.round && d.round[k]) || DEF.round[k]; } render(); })
     .catch(function () {});
   fetch('../data/characters.json?v=' + V, { cache: 'no-cache' }).then(function (r) { return r.json(); })

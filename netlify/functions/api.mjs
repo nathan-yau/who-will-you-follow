@@ -264,7 +264,10 @@ async function me(req, s, heartbeatOnly) {
     const ps = (await cachedGet(s, await listWithEtags(s, 'players/'))).filter(Boolean).map(normalize);
     const tally = await endingTally(s, meta, ps);
     const ending = endingView(meta, await getContent(s), ps, tally);
-    out.round = { screen: ENDING, leaders: leaderCards(ps), ending, mine: ending ? endingMine(normalize(p), ps, tally, ending) : null };
+    // phones get NOTHING about the result until the TV has finished counting (resultAt) — only how long to wait
+    const wait = ending ? ending.resultAt - now() : 0;
+    out.round = wait > 0 || !ending ? { screen: ENDING, leaders: leaderCards(ps), ending: null, mine: null, wait: { in: Math.max(0, wait) } }
+      : { screen: ENDING, leaders: leaderCards(ps), ending: phoneEnding(ending), mine: endingMine(normalize(p), ps, tally, ending) };
   }
   if (meta.revealed) {
     const kv = knockView(meta, normalize(p));
@@ -921,7 +924,7 @@ async function miniState(s) {
   // 最終揭曉: the leader cards + ONLY what the host has already flipped / revealed (no roles of unflipped cards)
   if (screen === FINAL) out.final = await finalView(s, meta, players.filter(Boolean).map(normalize));
   // 結局: aggregate result only (X / N, %, win, per-leader counts by character) — never who voted for whom
-  if (screen === ENDING) { const ps = players.filter(Boolean).map(normalize); out.ending = endingView(meta, await getContent(s), ps, await endingTally(s, meta, ps)); }
+  if (screen === ENDING) { const ps = players.filter(Boolean).map(normalize); out.ending = endingView(meta, await getContent(s), ps, await endingTally(s, meta, ps)); if (out.ending) out.ending.el = out.t - out.ending.at; }
   // an open vote: countdown + aggregate count only (never who voted, never for whom)
   // just sealed (everyone voted): keep showing 已封票 + the full count for a while
   const v = currentVote(meta);
@@ -1355,7 +1358,7 @@ async function adminFinal(s, meta, players) {
     on: screenOf(meta) === FINAL, votes: !!f.votes, voteReady: ready,
     // 結局 (host preview of the result; the TV / phones only get it once the host shows the ending)
     ending: { on: screenOf(meta) === ENDING, ready, trueFlipped: tl.length > 0 && tl.every((p) => !!fl[p.id]),
-      result: ready ? endingView(meta, await getContent(s), players, await endingTally(s, meta, players)) : null },
+      result: ready ? endingView(meta, await getContent(s), players, await endingTally(s, meta, players)) : null, t: now() },
     leaders: leaderSlots(players).map((p) => p && {
       id: p.id, characterId: p.characterId, nickname: p.nickname || '', role: p.role, flipped: !!fl[p.id], suppRevealed: !!sp[p.id],
       supporters: supportersOf(p, players).map((q) => ({ id: q.id, characterId: q.characterId, nickname: q.nickname || '', role: q.role })),
@@ -1371,28 +1374,55 @@ async function endingTally(s, meta, players) {
   if (!v || voteOpen(v)) return null;
   const key = `${meta.gameId}:${v.id}:${v.closedAt || v.deadline}:` + sha(players.map((p) => p.id + '=' + p.role).sort().join(','));
   if (endingCache.has(key)) return endingCache.get(key);
-  const byId = new Map(players.map((p) => [p.id, p])), per = {}, mine = {};
+  const byId = new Map(players.map((p) => [p.id, p])), per = {}, mine = {}, counted = [];
   let x = 0, n = 0;
   for (const b of await ballotsOf(s, 'r3')) {
     const vt = byId.get(b.voter), tg = byId.get(b.target);
     if (!canVote(vt) || !tg || !LEADER_ROLES.includes(tg.role)) continue;
-    n++; per[tg.id] = (per[tg.id] || 0) + 1; mine[vt.id] = tg.id;
+    n++; per[tg.id] = (per[tg.id] || 0) + 1; mine[vt.id] = tg.id; counted.push([vt.id, tg.characterId]);
     if (tg.role === TRUE_LEADER) x++;
   }
-  const out = { x, n, per, mine };
+  // the TV counts the ballots one by one in a shuffled order: random, but fixed per game + vote (seeded), so every
+  // TV / reload sees the same sequence. Only leader characterIds — never who cast which ballot.
+  counted.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const order = counted.map((c) => c[1]);
+  let seed = parseInt(sha(meta.gameId + ':' + v.id).slice(0, 8), 16) >>> 0;
+  const rnd = () => { seed = (seed + 0x6d2b79f5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  const out = { x, n, per, mine, order };
   if (endingCache.size > 20) endingCache.clear();
   endingCache.set(key, out);
   return out;
 }
+/**
+ * The TV's 點票 timeline (ms after 顯示結局) — the ONE formula; the TV plays exactly these times and phones wait for
+ * `result` + ENDING_BUFFER. 0.9 s intro, then one ballot every 0.6 s -> 0.35 s (accelerating; scaled so all the steps
+ * fit in 9 s), a 1.1 s pause right before the ballot that takes the bar over the target (or before the last ballot
+ * if it never gets there), 0.5 s settle, then the result. 20 voters ≈ 11.5 s.
+ */
+const ENDING_BUFFER = 1500;
+function endingPlan(order, trueCid, thr) {
+  const n = order.length, START = 900, PAUSE = 1100, SETTLE = 500;
+  const base = order.map((_, i) => 600 - 250 * (n > 1 ? i / (n - 1) : 0));
+  const sum = base.reduce((a, b) => a + b, 0), k = sum > 9000 ? 9000 / sum : 1;
+  let x = 0, c = n - 1;
+  for (let i = 0; i < n; i++) if (order[i] === trueCid && ++x * 100 >= thr * n) { c = i; break; }
+  const t = [];
+  let at = START;
+  for (let i = 0; i < n; i++) { if (i === c) at += PAUSE; t.push(Math.round(at)); at += base[i] * k; }
+  return { t, result: Math.round(at + SETTLE) };
+}
 function endingView(meta, content, players, tally) {
   if (!tally) return null;
   const thr = (content.end && content.end.threshold) || 70, { x, n } = tally;
+  const leaders = leaderSlots(players).filter(Boolean).map((p) => ({ characterId: p.characterId, role: p.role === TRUE_LEADER ? 'true' : 'fake', votes: tally.per[p.id] || 0 }));
+  const tl = leaders.find((l) => l.role === 'true'), plan = endingPlan(tally.order, tl && tl.characterId, thr);
   return {
-    win: n > 0 && x * 100 >= thr * n, x, n, pct: n ? Math.round((x * 100) / n) : 0, threshold: thr,
-    leaders: leaderSlots(players).filter(Boolean).map((p) => ({ characterId: p.characterId, role: p.role === TRUE_LEADER ? 'true' : 'fake', votes: tally.per[p.id] || 0 })),
-    at: meta.endingAt || 0,
+    win: n > 0 && x * 100 >= thr * n, x, n, pct: n ? Math.round((x * 100) / n) : 0, threshold: thr, leaders,
+    at: meta.endingAt || 0, order: tally.order, plan, resultAt: (meta.endingAt || 0) + plan.result + ENDING_BUFFER,
   };
 }
+const phoneEnding = (e) => ({ win: e.win, x: e.x, n: e.n, pct: e.pct, threshold: e.threshold, leaders: e.leaders, at: e.at });
 /** this phone only: leaders -> their own side's result + own count; voters -> who THEY followed; else none */
 function endingMine(p, players, tally, view) {
   if (LEADER_ROLES.includes(p.role)) {

@@ -317,3 +317,21 @@
 .rd-end__lv { position: absolute; left: calc(74 * var(--U)); top: calc(53 * var(--U)); font-size: calc(13.5 * var(--U)); line-height: calc(18 * var(--U)); font-weight: 700; color: #6d6455; white-space: nowrap; }
 .rd-end__thx { position: absolute; left: 0; right: 0; top: calc(372 * var(--U)); margin: 0; text-align: center; font-size: calc(17 * var(--U)); line-height: calc(26 * var(--U)); font-weight: 700; letter-spacing: calc(2 * var(--U)); color: #5f8f57; }
 @media (prefers-reduced-motion: reduce) { .rd-end__bar i { transition: none; } }
+/* 結局 waiting (TV still counting): two lambs walking + dots, no result */
+.rd-app[data-r="ending"] .rd-endw { display: none; }
+.rd-app[data-r="ending"][data-end="wait"] .rd-endw { display: block; }
+.rd-endw { left: 0; right: 0; top: calc(470 * var(--U)); height: calc(260 * var(--U)); text-align: center; }
+.rd-endw__lambs { display: flex; justify-content: center; gap: calc(26 * var(--U)); }
+.rd-endw__l { position: relative; width: calc(120 * var(--U)); height: calc(110 * var(--U)); animation: rdbob 0.9s ease-in-out infinite; }
+.rd-endw__l + .rd-endw__l { animation-delay: -0.45s; }
+.rd-endw__l img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.rd-endw__l .f2 { animation: rdstep 0.9s steps(1, end) infinite; }
+.rd-endw__l + .rd-endw__l .f2 { animation-delay: -0.45s; }
+@keyframes rdstep { 0% { opacity: 0; } 50% { opacity: 1; } }
+@keyframes rdbob { 0%, 100% { transform: none; } 50% { transform: translateY(calc(-6 * var(--U))); } }
+.rd-endw__dots { margin: calc(26 * var(--U)) 0 0; display: flex; justify-content: center; gap: calc(12 * var(--U)); }
+.rd-endw__dots i { width: calc(14 * var(--U)); height: calc(14 * var(--U)); border-radius: 50%; background: #a9cf8f; animation: rddot 1.2s ease-in-out infinite; }
+.rd-endw__dots i:nth-child(2) { animation-delay: 0.2s; }
+.rd-endw__dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes rddot { 0%, 100% { transform: scale(0.6); opacity: 0.5; } 50% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .rd-endw__l, .rd-endw__l .f2, .rd-endw__dots i { animation: none; } .rd-endw__l .f2 { opacity: 0; } }

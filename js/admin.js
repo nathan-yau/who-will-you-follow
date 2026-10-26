@@ -767,7 +767,8 @@
     $('fnEnd').classList.toggle('is-on', endOn);
     var rh = !en.ready ? '最後投票（Round 3）結束後才可顯示結局。'
       : res ? (endOn ? 'TV 及手機正顯示：' : '預覽（只限主持人）：') + '<b>' + res.x + ' / ' + res.n + '</b> 人（約 ' + res.pct + '%）跟隨真正領袖 → <b class="' + (res.win ? 'is-win">勝利' : 'is-lose">假領袖勝出') + '</b>（門檻 ' + res.threshold + '%）' +
-        (!en.trueFlipped && !endOn ? '<br>真正領袖的卡未翻開：顯示結局需按兩次。' : '') : '';
+        (!en.trueFlipped && !endOn ? '<br>真正領袖的卡未翻開：顯示結局需按兩次。' : '') +
+        (endOn && en.t && res.resultAt > en.t ? '<br>TV 點票中…手機約 ' + Math.ceil((res.resultAt - en.t) / 1000) + ' 秒後顯示結果。' : '') : '';
     if ($('fnEndRes').innerHTML !== rh) $('fnEndRes').innerHTML = rh;
     if (endOn && res) $('fnSum').textContent = '結局：' + (res.win ? '勝利' : '假領袖勝出');
     if (endOn) $('fnDot').className = 'dot v-live';

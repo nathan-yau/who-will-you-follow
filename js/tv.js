@@ -538,11 +538,11 @@
   var EDEF = { tvTitle: '結局', tvSub: '最後投票：有幾多人跟隨了真正的領袖？', meterLabel: '跟隨真正領袖', target: '目標 {t}%', count: '{x} / {n} 人（約 {p}%）',
     winTitle: '勝利！', winLine: '大家成功跟隨了真正的領袖！', loseTitle: '差一點點…', loseLine: '假領袖勝出…', votes: '{n} 票', trueTag: '真正領袖', fakeTag: '假領袖', waiting: '結局計算中…' };
   var ET = null;
-  fetch('../data/texts.json?v=7', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+  fetch('../data/texts.json?v=8', { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) { if (d && d.ending) { ET = d.ending; endKey = ''; if (screen === 'ending') renderEnding(lastEnding); } }).catch(function () {});
   function E(k) { return ET && ET[k] != null && ET[k] !== '' ? ET[k] : EDEF[k]; }
   function fillT(t, o) { return String(t).replace(/\{(\w+)\}/g, function (m, k) { return o[k] != null ? o[k] : m; }); }
-  var endKey = '', lastEnding = null, enTimers = [], enRaf = 0, enStage = '';
+  var endKey = '', lastEnding = null, lastEndingRecv = 0, enTimers = [], enRaf = 0, enStage = '', enCounted = 0;
   function enClear() { enTimers.forEach(clearTimeout); enTimers = []; cancelAnimationFrame(enRaf); enRaf = 0; }
   function enSprite(cid, cls, frames) {
     var box = window.wwyfSpriteBox ? wwyfSpriteBox(cid) : [0.1, 0.15, 0.9, 0.96], dx = window.wwyfSpriteDx ? wwyfSpriteDx(cid) : 0;
@@ -564,24 +564,24 @@
   }
   function renderEnding(e) {
     if (e === undefined) { if (endKey || lastEnding) { endKey = ''; lastEnding = null; enStage = ''; enClear(); $('enConf').innerHTML = ''; } return; }
-    lastEnding = e;
+    if (e !== lastEnding) { lastEnding = e; lastEndingRecv = now(); }
     var sec = $('ending');
     $('enTitle').textContent = E('tvTitle');
     if (!e) { if (endKey !== 'none') { endKey = 'none'; enClear(); enStage = 'wait'; sec.className = 'tv-round tv-ending is-wait'; $('enSub').textContent = E('waiting');
       ['enScene', 'enChips', 'enLambs', 'enConf'].forEach(function (id) { $(id).innerHTML = ''; }); } return; }
-    var key = [e.win, e.x, e.n, e.pct, e.threshold, e.at, (e.leaders || []).map(function (l) { return l.characterId + l.role + l.votes; }).join(','), Object.keys(names).length, ET ? 1 : 0].join('|');
+    var key = [e.win, e.x, e.n, e.pct, e.threshold, e.at, (e.order || []).join(','), (e.leaders || []).map(function (l) { return l.characterId + l.role + l.votes; }).join(','), Object.keys(names).length, ET ? 1 : 0].join('|');
     if (key === endKey) return;
-    var replay = !endKey || endKey === 'none' || enStage !== 'done';
+    // where we are on the server's 點票 timeline (ms since 顯示結局) — a reload mid-count resumes, after the end it shows the result
+    var EL = (e.el || 0) + (lastEndingRecv ? now() - lastEndingRecv : 0);
     endKey = key; enClear();
     $('enSub').textContent = E('tvSub');
     $('enLabel').textContent = E('meterLabel');
     $('enTargetText').textContent = fillT(E('target'), { t: e.threshold });
     $('enTarget').style.left = Math.max(0, Math.min(100, e.threshold)) + '%';
-    $('enCount').textContent = fillT(E('count'), { x: e.x, n: e.n, p: e.pct });
     $('enResTitle').textContent = e.win ? E('winTitle') : E('loseTitle');
     $('enResLine').textContent = e.win ? E('winLine') : E('loseLine');
     var L = e.leaders || [], tl = L.filter(function (l) { return l.role === 'true'; })[0], fk = L.filter(function (l) { return l.role !== 'true'; });
-    // the scene (existing sprites: stale = idle / smug bounce, hit = sad)
+    // the scene (existing sprites: stale = idle / smug bounce, hit = sad) — hidden until the count is done
     var sc = '';
     if (e.win && tl) sc = '<i class="en-rays"></i>' + enSprite(tl.characterId, 'en-spr--hero', ['stale1', 'stale2']) ;
     else if (!e.win) {
@@ -598,27 +598,54 @@
     }).join('') : '';
     $('enChips').innerHTML = L.map(function (l, k) {
       var dx = window.wwyfSpriteDx ? wwyfSpriteDx(l.characterId) : 0;
-      return '<div class="en-chip is-' + (l.role === 'true' ? 'true' : 'fake') + '" style="--k:' + k + '"><span class="en-chip__c"><img alt="" src="' + img(l.characterId, 'stale1') + '" style="--dx:' + dx + '"></span>' +
+      return '<div class="en-chip is-' + (l.role === 'true' ? 'true' : 'fake') + '" data-cid="' + esc(l.characterId) + '" style="--k:' + k + '"><span class="en-chip__c"><img alt="" src="' + img(l.characterId, 'stale1') + '" style="--dx:' + dx + '"></span>' +
         '<b class="en-chip__n" lang="en">' + esc(names[l.characterId] || '') + '</b><span class="en-chip__r">' + esc(l.role === 'true' ? E('trueTag') : E('fakeTag')) + '</span>' +
-        '<span class="en-chip__v">' + esc(fillT(E('votes'), { n: l.votes | 0 })) + '</span></div>';
+        '<span class="en-chip__v"></span></div>';
     }).join('');
-    sec.className = 'tv-round tv-ending ' + (e.win ? 'is-win' : 'is-lose');
-    var pct = Math.max(0, Math.min(100, e.pct | 0));
+    sec.className = 'tv-round tv-ending is-live ' + (e.win ? 'is-win' : 'is-lose');
+    var order = e.order || [], plan = e.plan || { t: [], result: 0 }, n = e.n | 0, trueCid = tl && tl.characterId;
+    var cnt = {}, x = 0, chipEl = {};
+    [].forEach.call($('enChips').children, function (c) { chipEl[c.getAttribute('data-cid')] = c; cnt[c.getAttribute('data-cid')] = 0; });
     function setFill(p) { $('enFill').style.width = p + '%'; $('enPct').textContent = Math.round(p) + '%'; $('enPct').style.left = Math.max(4, Math.min(96, p)) + '%'; }
-    function done() { enStage = 'done'; sec.classList.add('is-done'); $('enMeter').classList.toggle('is-met', !!e.win); if (e.win) enConfetti(3); }
-    if (RM || !replay) { setFill(pct); done(); return; }
-    // live: meter fills (count up) over ~2.4 s, then the result
-    enStage = 'meter'; setFill(0);
-    var D = 2400, t0 = 0;
-    enTimers.push(setTimeout(function () {
-      var stepE = (function (ts) {
-        if (!t0) t0 = ts;
-        var k = Math.min(1, (ts - t0) / D), ease = 1 - Math.pow(1 - k, 3);
-        setFill(pct * ease);
-        if (k < 1) enRaf = requestAnimationFrame(stepE); else { enRaf = 0; enTimers.push(setTimeout(done, 450)); }
-      });
-      enRaf = requestAnimationFrame(stepE);
-    }, 700));
+    function paint(popCid) {
+      var p = n ? Math.round(x * 100 / n) : 0;
+      setFill(p);
+      $('enCount').textContent = fillT(E('count'), { x: x, n: n, p: Math.round(p) });
+      $('enMeter').classList.toggle('is-met', n > 0 && x * 100 >= e.threshold * n);
+      Object.keys(chipEl).forEach(function (cid) { chipEl[cid].querySelector('.en-chip__v').textContent = fillT(E('votes'), { n: cnt[cid] }); });
+      if (popCid && chipEl[popCid]) { var c = chipEl[popCid]; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); }
+    }
+    function step(i, live) {
+      var cid = order[i];
+      if (cid in cnt) cnt[cid]++;
+      if (cid === trueCid) x++;
+      enCounted = i + 1;
+      $('enMeter').classList.remove('is-tense');
+      if (live) { $('enFill').classList.toggle('is-up', cid === trueCid); paint(cid); }
+    }
+    function done(fresh) {
+      enStage = 'done'; enCounted = order.length;
+      sec.classList.remove('is-counting'); sec.classList.add('is-done');
+      $('enMeter').classList.remove('is-tense');
+      if (fresh && e.win) enConfetti(3);
+    }
+    enCounted = 0;
+    if (RM || EL >= plan.result) {
+      // reduced motion, or the count already finished (reload / late TV): straight to the result — no replay
+      for (var i0 = 0; i0 < order.length; i0++) step(i0, false);
+      paint(); done(!RM && EL < plan.result + 3000);
+      return;
+    }
+    enStage = 'count'; sec.classList.add('is-counting');
+    var i1 = 0;
+    for (; i1 < order.length && plan.t[i1] <= EL; i1++) step(i1, false);
+    paint();
+    for (var i = i1; i < order.length; i++) (function (i) {
+      var gap = plan.t[i] - (i ? plan.t[i - 1] : 0);
+      if (gap > 1000 && plan.t[i] - 1100 > EL) enTimers.push(setTimeout(function () { $('enMeter').classList.add('is-tense'); }, plan.t[i] - 1100 - EL));
+      enTimers.push(setTimeout(function () { step(i, true); }, plan.t[i] - EL));
+    })(i);
+    enTimers.push(setTimeout(function () { done(true); }, plan.result - EL));
   }
 
   /* ---------- 投票中 overlay (round screens): countdown + 已投票 X / N, then 已封票 ---------- */
@@ -789,5 +816,5 @@
   poll();
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get ending() { return lastEnding; }, get endingStage() { return enStage; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get ending() { return lastEnding; }, get endingStage() { return enStage; }, get endingCounted() { return enCounted; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
 })();

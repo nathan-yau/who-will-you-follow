@@ -125,6 +125,8 @@
     "leaderFakeLose": "你的偽裝被識破了！",
     "leaderVotes": "最後投票有 {n} 人跟隨你",
     "thanks": "多謝參與幸福小組！",
-    "waiting": "結局計算中…"
+    "waiting": "結局計算中…",
+    "phoneWaitTitle": "點票中…",
+    "phoneWait": "請看 TV，正在點票…"
   }
 }
