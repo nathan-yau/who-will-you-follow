@@ -20,5 +20,55 @@
     ],
     "note": "請保密，不要告訴其他人喔。",
     "dismiss": "知道了"
+  },
+  "_comment_rounds": "Phone round page (/round/) copy, keyed by TV round (r1/r2/r3). desc: {n} = the number of leaders on the TV, written as 一/兩/三/四. leaderDesc / leaderTip are only a fallback: leader instructions come from the server (/api/me) for that leader only. Safe to edit; keep the keys.",
+  "round": {
+    "speak": {
+      "ready": "準備中",
+      "live": "發言中",
+      "done": "提問時間",
+      "left": "剩餘時間",
+      "waitLabel": "等待開始",
+      "doneLabel": "發言結束",
+      "unlimited": "不限時"
+    },
+    "vote": {
+      "wait": "等待投票開始",
+      "go": "前往投票",
+      "closed": "本輪投票已結束"
+    },
+    "followers": {
+      "label": "跟隨你的人數",
+      "pending": "投票結束後公佈",
+      "unit": "人"
+    },
+    "again": "再看一次身份",
+    "tipTitle": "小提示"
+  },
+  "rounds": {
+    "r1": {
+      "tag": "Round 1 / 3",
+      "title": "三句話",
+      "desc": "{n}位領袖會各自分享三句關於自己的說話。\n你可以聽完發言後提問，\n然後選擇你最相信的一位領袖。",
+      "tip": "仔細聆聽每位領袖的說話，\n你可以在發言後向他們提問！",
+      "leaderDesc": "輪到你發言時，說出你的三句話吧！",
+      "leaderTip": "發言後，其他玩家可以向你提問。"
+    },
+    "r2": {
+      "tag": "Round 2 / 3",
+      "title": "誰是真領袖？",
+      "desc": "{n}位領袖會再次發言。仔細比較他們的說法，然後選擇你最相信的一位領袖。",
+      "tip": "留意每位領袖前後的說法有沒有矛盾！",
+      "leaderDesc": "輪到你發言時，好好說服大家跟隨你吧！",
+      "leaderTip": "發言後，其他玩家可以向你提問。"
+    },
+    "r3": {
+      "tag": "Round 3 / 3",
+      "title": "最後的線索",
+      "desc": "{n}位領袖會作最後發言。這是最後一次投票，選擇你最相信的一位領袖。",
+      "tip": "把所有線索連起來，相信你自己的判斷！",
+      "leaderDesc": "這是最後的發言機會，說服大家跟隨你吧！",
+      "leaderTip": "發言後，其他玩家可以向你提問。"
+    }
   }
 }

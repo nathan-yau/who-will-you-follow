@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=19" />
+  <link rel="stylesheet" href="../css/admin.css?v=20" />
 </head>
 <body>
   <header class="top">
@@ -124,6 +124,16 @@
               <span class="vote__live" id="voteLive"><i class="dot" id="voteDot"></i> <span id="voteText">未開始</span></span>
               <button class="btn btn--primary vote__go" id="voteGo" type="button">開始投票</button>
             </div>
+            <!-- 跟隨人數: per leader (character name), live while voting, final after close. Admin only (never on the TV). -->
+            <p class="vote__tally" id="voteTally" hidden></p>
+          </div>
+          <!-- 發言 timer for the round on the TV (phones: 準備中 → 發言中 + countdown → 提問時間) -->
+          <div class="vote speak" id="speakBox">
+            <div class="vote__row">
+              <button class="btn btn--ghost vote__dur" id="speakDur" type="button" title="點一下切換發言時間">發言 60 秒</button>
+              <span class="vote__live" id="speakLive"><i class="dot" id="speakDot"></i> <span id="speakText">未開始</span></span>
+              <button class="btn btn--primary vote__go" id="speakGo" type="button">開始發言</button>
+            </div>
           </div>
           <div class="acc__foot">
             <a class="btn btn--ghost" id="openTv" href="../tv/" target="_blank" rel="noopener">開啟 TV 畫面</a>
@@ -152,6 +162,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/admin.js?v=20"></script>
+  <script src="../js/admin.js?v=21"></script>
 </body>
 </html>

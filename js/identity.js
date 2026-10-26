@@ -15,6 +15,9 @@
   var roles = {}, leaderLabel = '{name}', names = {};
   function nameOf(id) { return (names[id] && names[id].name) || ''; }
   var state = 'loading', role = null, supports = null, helped = false, charId = null;
+  // ../identity/#card (再看一次身份 on the round page): open straight on the role card
+  var review = window.location.hash === '#card', onRound = false;
+  if (review && window.history && history.replaceState) history.replaceState(null, '', window.location.pathname + window.location.search);
   var ackSeq = 0;   // ignore /me answers that were requested before the latest 揭曉 tap
 
   var ICONS = {
@@ -125,8 +128,12 @@
       if (r.player.characterId !== me.characterId) { me.characterId = r.player.characterId; WWYF.setPlayer(me); }
       if (!r.revealed) { window.location.replace('../lobby/'); return; }
       if (window.WWYF_KNOCK) WWYF_KNOCK.update(r);
-      // the host opened a vote: go vote (only once this player has seen their identity)
-      if (r.seen && r.vote && r.vote.open && state !== 'shown') { window.location.replace('../vote/'); return; }
+      onRound = !!r.round;
+      // the TV is on a round screen: the round page (it has the 「前往投票」 button; nothing auto-jumps to the vote).
+      // Re-viewing from the round page (#card) shows the card and 知道了 goes back.
+      if (r.seen && r.round && state !== 'shown' && !(review && (state === 'loading'))) { window.location.replace('../round/'); return; }
+      // a vote opened while the TV is not on a round screen: go vote (only once this player has seen their identity)
+      if (r.seen && !r.round && r.vote && r.vote.open && state !== 'shown') { window.location.replace('../vote/'); return; }
       if (ackAt !== ackSeq || busy) return;   // a 揭曉 tap happened meanwhile: its answer wins
       if (!r.seen) {                           // first time, or the host changed this player's role
         role = null; supports = null; helped = false; roleKey = '';
@@ -134,6 +141,7 @@
         return;
       }
       var changed = take(r);
+      if (review && state === 'loading') { review = false; setState('shown', 'is-pop'); return; }
       if (state === 'pre' || state === 'loading') setState('wait');
       else if (state === 'shown' && changed) fillRole();
     }).catch(function (e) { gone(e); });
@@ -154,7 +162,11 @@
       err('連線不穩，請再按一次');
     }).then(function () { busy = false; b.classList.remove('is-busy'); });
   });
-  $('ok').addEventListener('click', function () { if (state === 'shown') setState('wait'); });
+  $('ok').addEventListener('click', function () {
+    if (state !== 'shown') return;
+    if (onRound) { window.location.replace('../round/'); return; }
+    setState('wait');
+  });
   $('again').addEventListener('click', function () { if (state === 'wait' && role) setState('shown', 'is-pop'); });
 
   fetch('../data/characters.json', { cache: 'no-cache' }).then(function (r) { return r.json(); })

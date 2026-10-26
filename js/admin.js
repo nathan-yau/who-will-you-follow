@@ -247,8 +247,73 @@
     $('voteText').textContent = txt;
     $('voteDot').className = 'dot' + (dot ? ' v-' + dot : '');
     $('voteBox').classList.toggle('is-open', !!ov);
+    renderTally(ov ? ov.round : pick);
+    renderSpeak();
     renderVotes();
   }
+  // 跟隨人數 per leader for a round: live while its vote is open, final after it closed (admin only)
+  var tallySig = '';
+  function renderTally(r) {
+    var V = state.votes || {}, v = V[r] || (state.meta && V[state.meta.vote]), el = $('voteTally');
+    if (v && !V[r]) r = state.meta.vote;
+    if (!v) { el.hidden = true; tallySig = ''; return; }
+    var T = v.tally || {};
+    var sig = JSON.stringify([r, v.open, v.sealed, T, v.leaders, !!chars.__ok]);
+    el.hidden = false;
+    if (sig === tallySig) return;
+    tallySig = sig;
+    el.innerHTML = '<b>' + VLABEL[r] + ' 跟隨人數</b><span class="vt-st' + (v.open ? ' is-live' : '') + '">' + (v.open ? '即時' : '最終') + '</span>' +
+      (v.leaders || []).map(function (l, i) {
+        if (!l) return '';
+        return '<span class="vt-n" data-cid="' + esc(l.characterId) + '" style="--c:' + (SLOT_COLORS[state.leaderLabels[i]] || '#eee') + '"><img alt="" src="' + img(l.characterId) + '">' + esc(charName(l.characterId)) + ' <em>' + (T[l.id] | 0) + '</em></span>';
+      }).join('');
+  }
+
+  /* 發言 timer (the round on the TV): tap the chip to cycle 30/60/90/120/不限; 開始發言 / 結束發言 */
+  var SDUR_KEY = 'wwyf.admin.speakDur', speakDur = 60, sBusy = false;
+  try { var sd = localStorage.getItem(SDUR_KEY); if (sd != null && [30, 60, 90, 120, 0].indexOf(+sd) >= 0) speakDur = +sd; } catch (e) {}
+  function speakNow() {
+    var sp = state && state.speak;
+    if (!sp) return null;
+    var left = sp.state === 'live' && sp.remain != null ? sp.remain - (Date.now() - fetchedAt) : null;
+    var st = sp.state === 'live' && left != null && left <= 0 ? 'done' : sp.state;
+    return { sp: sp, state: st, left: left };
+  }
+  function renderSpeak() {
+    if (!state) return;
+    var m = state.meta || {}, on = VROUNDS.indexOf(curScreen()) >= 0 && m.phase === 'started';
+    var x = speakNow(), live = !!(x && x.state === 'live');
+    var dur = $('speakDur');
+    dur.textContent = (live ? x.sp.duration : speakDur) ? '發言 ' + (live ? x.sp.duration : speakDur) + ' 秒' : '發言 不限時';
+    dur.disabled = live || sBusy;
+    var go = $('speakGo');
+    go.disabled = sBusy || !on;
+    go.textContent = live ? '結束發言' : '開始發言';
+    go.classList.toggle('btn--primary', !live); go.classList.toggle('btn--danger', live);
+    var t, dot = '';
+    if (!on) t = 'TV 切到 Round 畫面後可計時發言';
+    else if (live) { t = VLABEL[x.sp.round] + ' 發言中 · ' + (x.left == null ? '不限時' : '剩 ' + mmss(x.left)); dot = 'live'; }
+    else if (x && x.state === 'done') { t = VLABEL[x.sp.round] + ' 發言結束 · 提問時間'; dot = 'done'; }
+    else t = '未開始';
+    $('speakText').textContent = t;
+    $('speakDot').className = 'dot' + (dot ? ' v-' + dot : '');
+    $('speakBox').classList.toggle('is-open', live);
+  }
+  $('speakDur').addEventListener('click', function () {
+    var L = (state && state.speakDurations) || [30, 60, 90, 120, 0];
+    speakDur = L[(L.indexOf(speakDur) + 1) % L.length];
+    try { localStorage.setItem(SDUR_KEY, String(speakDur)); } catch (e) {}
+    renderSpeak();
+  });
+  $('speakGo').addEventListener('click', function () {
+    if (!state || sBusy) return;
+    var x = speakNow(), live = !!(x && x.state === 'live'), r = curScreen();
+    sBusy = true; renderSpeak();
+    (live ? WWYF.admin('POST', 'speak-end', { round: x.sp.round }).then(function () { toast('發言結束'); })
+      : WWYF.admin('POST', 'speak', { round: r, duration: speakDur }).then(function () { toast(VLABEL[r] + ' 發言開始！' + (speakDur ? speakDur + ' 秒' : '不限時')); }))
+      .catch(fail).then(function () { sBusy = false; return refresh(); }).then(renderVote);
+  });
+  setInterval(function () { var x = state && !document.hidden && speakNow(); if (x && x.sp.state === 'live') renderSpeak(); }, 500);
   function vEndDisarm(quiet) { clearTimeout(vEndArmT); vEndArmT = 0; vEndArm = false; if (!quiet) renderVote(); }
   $('voteSeg').addEventListener('click', function (e) {
     var b = e.target.closest('.seg__btn'); if (!b || b.disabled) return;
@@ -298,7 +363,7 @@
         if (!l) return '';
         var lp = byId[l.id], tag = lp && lp.role === '真正領袖' ? '<b class="vr__true">真</b>' : '<b class="vr__fake">假</b>';
         var voters = v.ballots.filter(function (x) { return x.target === l.id; });
-        return '<div class="vr__row" style="--c:' + (SLOT_COLORS[s.leaderLabels[i]] || '#d8d2c0') + '"><span class="vr__lead">' + tag + who(l.id, l.characterId) + '<em>' + voters.length + ' 票</em></span>' +
+        return '<div class="vr__row" style="--c:' + (SLOT_COLORS[s.leaderLabels[i]] || '#d8d2c0') + '"><span class="vr__lead">' + tag + who(l.id, l.characterId) + '<em>跟隨 ' + voters.length + ' 人</em></span>' +
           '<span class="vr__voters">' + (voters.map(function (x) { return who(x.voter); }).join('') || '<i class="vr__none">—</i>') + '</span></div>';
       }).join('');
       var voted = {}; v.ballots.forEach(function (x) { voted[x.voter] = 1; });

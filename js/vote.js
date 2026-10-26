@@ -3,7 +3,7 @@
    voted  : your pick + a hint line chosen by the server + 「更改投票」 (until the vote closes)
    leader : leaders (真 / 假) don't vote — a neutral waiting screen (identical for both)
    ended  : the vote closed (timer, host, or 封票 = everyone voted): your final choice, no more changes; then back to
-            ../identity/ after a few seconds. The countdown always comes from the server (remain ms, no clock skew). */
+            ../round/ (TV on a round screen) or ../identity/ after a few seconds. The countdown always comes from the server (remain ms, no clock skew). */
 (function () {
   'use strict';
   var V = 6;  // character asset version
@@ -32,7 +32,8 @@
     if (e && (e.status === 404 || e.status === 401)) { WWYF.clearPlayer(); window.location.replace('../characters/?removed=1'); return true; }
     return false;
   }
-  function toIdentity() { window.location.replace('../identity/'); }
+  var onRound = false;   // the TV is on a round screen -> back to the round page, else the identity page
+  function toIdentity() { window.location.replace(onRound ? '../round/' : '../identity/'); }
 
   function setState(s) {
     state = s;
@@ -176,7 +177,8 @@
     return WWYF.me().then(function (r) {
       if (r.player && r.player.characterId) myChar = r.player.characterId;
       if (!r.revealed) { window.location.replace('../lobby/'); return; }
-      if (!r.seen) { toIdentity(); return; }   // identity not revealed yet (or the host changed this player's role)
+      onRound = !!r.round;
+      if (!r.seen) { window.location.replace('../identity/'); return; }   // identity not revealed yet (or the host changed this player's role)
       if (window.WWYF_KNOCK) WWYF_KNOCK.update(r);
       if (!r.vote) { if (state !== 'ended') toIdentity(); return; }
       if (busy) return;

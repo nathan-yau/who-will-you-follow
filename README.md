@@ -56,7 +56,7 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 |---|---|---|---|
 | GET | `/api/lobby` | anyone | `{gameId, taken[], joined, capacity}` – no roles |
 | POST | `/api/join` | player | `{characterId, nickname?}` → `{player, token}`; send `X-Player-Id`/`X-Player-Token` to reconnect or switch character; `409 taken` |
-| GET | `/api/me` | player | own status (`assigned` flag; `phase` lobby/started; `screen`; once revealed: `role`, `supports:{characterId}\|null` (假領袖支持者; no leader letter), `helped` (假領袖), `seen`) |
+| GET | `/api/me` | player | own status (`assigned` flag; `phase` lobby/started; `screen`; once revealed: `role`, `supports:{characterId}\|null` (假領袖支持者; no leader letter), `helped` (假領袖), `seen`; on a round screen `round:{screen, leaders, speak}` + for leaders only `leaderText:{desc, tip}` and `followers:{count\|null}` (own count, null until the vote closes)) |
 | POST | `/api/reveal-ack` | player | marks the caller's identity as seen (returns the same role view + `seen:true`); reset whenever their role/pairing/helped changes (a leader-slot change alone does not reset it) |
 | POST | `/api/heartbeat` | player | keep-alive |
 | POST | `/api/admin/login` | host | `{password}` → `{token}` (send as `X-Admin-Token`) |
@@ -77,6 +77,8 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | POST | `/api/knock-ack` | player | `{round}` dismiss a received 叩叩 |
 | POST | `/api/admin/vote` | host | `{round:'r1'\|'r2'\|'r3', duration:30\|45\|60\|90\|0}` open (or restart — clears that round's ballots) a vote; 0 = 無限; needs phase started + revealed |
 | POST | `/api/admin/vote-end` | host | close the open vote now |
+| POST | `/api/admin/speak` | host | `{round, duration:30\|60\|90\|120\|0}` start the 發言 timer for a round (0 = 不限) |
+| POST | `/api/admin/speak-end` | host | `{round}` end the 發言 now (→ 提問時間); opening a vote also ends it |
 | POST | `/api/admin/start` | host | phase → `started` (stops the mini-game) |
 | POST | `/api/admin/lobby` | host | phase → `lobby` (clears mini-game counters) |
 
@@ -98,11 +100,20 @@ Game flow: **等候 (bubble battle) → 身份揭曉 → Round 1 → Round 2 →
 
 * Rounds: `r1` (Round 1), `r2` (Round 2), `r3` (最後投票). Host: admin 「TV／遊戲」 → 投票 row: round picker (defaults to the TV round), duration chip (tap to cycle 30 / 45 / 60 / 90 秒 / 無限; remembered on that device), 開始投票 / 結束投票 (tap twice), live 「投票中 · 剩 mm:ss · X / N 已投」. Restarting a round that already has ballots asks first and clears that round's ballots. Section 「投票結果」: per-round collapsible tally (真/假 tag, character name, count, voters, 未投票) and the 私下敲門 record (targets, 已讀/未讀, the fake leader they voted for) — host only.
 * Who votes: every non-leader; 真正領袖 / 假領袖 don't vote (neutral 「投票進行中」 waiting screen, identical for true and fake). The leader cards are snapshotted when the vote opens (TV slot order + colours, character names only). The server closes the vote at the deadline.
-* Phone `vote/` (`css/vote.css`, `js/vote.js`): identity / lobby jump here while a vote is open (once the identity has been seen). Grid → 確認投票 → 「你目前選擇」 + bubble + 更改投票 (allowed until close; preselects the current pick). The bubble line comes from the server (`HINTS` in api.mjs, re-picked on every change, never the same line twice in a row): a vote for a fake leader gets one of the `f` lines (gently mentions 更改投票), a vote for the true leader one of the neutral `t` lines — a quiet easter egg. Polls `/api/me` every 2 s while open (3 s otherwise) + exactly at the deadline. After close: 「投票已結束」 + the final choice for ~10 s, then back to `identity/`.
+* Phone `vote/` (`css/vote.css`, `js/vote.js`): reached from 「前往投票」 on `round/` (no auto-jump). Grid → 確認投票 → 「你目前選擇」 + bubble + 更改投票 (allowed until close; preselects the current pick). The bubble line comes from the server (`HINTS` in api.mjs, re-picked on every change, never the same line twice in a row): a vote for a fake leader gets one of the `f` lines (gently mentions 更改投票), a vote for the true leader one of the neutral `t` lines — a quiet easter egg. Polls `/api/me` every 2 s while open (3 s otherwise) + exactly at the deadline. After close: 「投票已結束」 + the final choice for ~10 s, then back to `round/`.
 * 封票: once every eligible player has voted the vote seals at once (server-side): changes are rejected, phones hide 更改投票 and show 「所有人已完成投票，票已封存。」, the TV shows 已封票 (hint lines are only sent while a change is still possible).
 * TV (round screens): pill under the cards 「投票中 / 最後投票 · mm:ss · 已投票 X / N」 + progress bar, then 已封票 — aggregate only (the ballot list is read at most 1×/s). Lambs easter egg = one integer from the server: r1 = 1; r2 = votes for the true leader in r1; r3 = votes for the true leader in r2 (max 20; > 5 → two smaller rows).
 * 私下敲門: after a round's vote closes, only the 真正領袖's phone (vote ended screen or identity wait screen) shows 「私下敲門」 once per round (tap twice). The server picks: 2 random voters of ONE fake leader that has ≥ 2 voters (that fake leader chosen at random); otherwise 1 random fake-leader voter; otherwise nobody (「這一輪沒有需要敲門的人。」). Non-voters and true-leader voters are never knocked. The leader only sees 「已敲門」 (`KNOCK_SHOW_TARGETS = false` in api.mjs). Knocked phones get a private 「叩叩……」 card via `/api/me` until 知道了; the copy never names or hints at any leader. Fake leaders' phones look identical at idle; the TV and public endpoints never mention knocks. Records: `meta.knocks[round]` (cleared by 新一場).
 * Texts: `data/texts.json` (knock button / hints, 叩叩 title, `bodies` = subtle variants, one picked per knock, note, dismiss).
+
+### 回合頁 (phone while the TV is on Round 1 / 2 / 3)
+
+* Phone `round/` (`css/round.css`, `js/round.js`), one page for r1 / r2 / r3: Round pill, 發言 pill + clock (準備中 `--:--` → 發言中 + countdown → 提問時間 / 發言結束), title with a brush stroke, description, the round's leaders (character names) peeking out of paw-print pots, 小提示 box and 「前往投票」. Copy: `data/texts.json` → `rounds.<r>` (`title`, `desc` with `{n}` = 一 / 二 / 三 / 四 leaders, `tip`) and `round.*` (pill / button / follower labels). r2 / r3 copy is placeholder.
+* Routing: lobby / identity send a revealed player who has seen their identity to `round/` on a round screen (not seen yet → `identity/`); 「再看一次身份」 opens `identity/#card` and 知道了 returns to `round/`. There is NO auto-jump to the vote: 前往投票 is disabled (「等待投票開始」) until the host opens the vote, then the player taps it; after the vote it reads 「本輪投票已結束」 and the vote page returns to `round/`.
+* Leaders (true and fake, identical layout, gender-neutral copy from `LEADER_TEXT` in api.mjs, sent via `/api/me` only to that leader): their own desc / tip, and instead of the vote button a 「跟隨你的人數」 box — 「投票結束後公佈」 while the vote is open, then their own count (no names; never on the TV or anyone else's phone). After the round's vote closes, the 真正領袖's page swaps the tip box for 「私下敲門」 (the existing once-per-round knock; 「已敲門」 after use); fake leaders keep the tip box (no knock). Knocked players get the 叩叩 card on this page too.
+* Host: admin 「TV／遊戲」 → 發言 row (duration chip 30 / 60 / 90 / 120 / 不限, 開始發言 / 結束發言); the 投票 box shows 「Round N 跟隨人數」 per leader by character name — 即時 while voting (refreshed every 2 s), 最終 after close; 投票結果 lists 跟隨 N 人.
+* TV: while no vote is shown, a 「發言中 · mm:ss」 pill under the cards (aggregate only).
+* Polling: `/api/me` every 2 s while 發言 or a vote is live, else 3 s; the clock ticks locally.
 
 Default roles (17): 真正領袖 1 · 假領袖 3 · 真領袖支持者 1 · 假領袖支持者 2 · 平民 10.
 

@@ -16,6 +16,7 @@
 //   ballots/<round>/<playerId> { target, characterId, at, pool, li }   one vote per player per round (see "votes")
 //                        meta.votes = { r1|r2|r3: { id, openedAt, duration, deadline, closedAt, sealed, leaders } }, meta.vote = current round
 //                        meta.knocks = { r1|r2|r3: { at, by, vid, targets: [playerId], fake: fakeLeaderId, seen: { playerId: t } } }   私下敲門 records (see "knocks")
+//                        meta.speaks = { r1|r2|r3: { id, startedAt, duration, deadline, endedAt } }   發言 timers (see "speaking")
 import { getStore } from '@netlify/blobs';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
@@ -233,6 +234,20 @@ async function me(req, s, heartbeatOnly) {
   // the current (or most recent) round vote: open/closed, countdown, this phone's own ballot only
   const v = currentVote(meta);
   if (v && meta.revealed) out.vote = await voteView(s, p, v);
+  // round screens (r1–r3): the phone's round page — the TV's leader cards (character only, same slot order) + the 發言 timer
+  if (meta.revealed && ROUND_SCREENS.includes(out.screen)) {
+    const pl = await listWithEtags(s, 'players/');   // etag-cached gets: a poll only re-reads players that changed
+    const ps = (await cachedGet(s, pl)).filter(Boolean).map(normalize);
+    out.round = { screen: out.screen, leaders: leaderCards(ps), speak: speakView(meta, out.screen) };
+    const me1 = normalize(p);
+    if (LEADER_ROLES.includes(me1.role)) {
+      // leaders only, about themselves only: their instructions (by role; the copy never reaches other phones) and,
+      // once this round's vote has closed, how many players follow them (a number — never who)
+      const lt = LEADER_TEXT[out.screen] && LEADER_TEXT[out.screen][me1.role];
+      if (lt) out.round.leaderText = lt;
+      out.round.followers = await followersOf(s, meta, me1, out.screen, ps);
+    }
+  }
   if (meta.revealed) {
     const kv = knockView(meta, normalize(p));
     if (kv) out.knock = kv;                    // 真正領袖 only
@@ -326,7 +341,8 @@ async function adminState(s) {
   const archive = (await listKeys(s, 'archive/')).sort().reverse().slice(0, 20);
   const reveal = { stage: screenOf(meta) === REVEAL, revealed: !!meta.revealed, done: list.filter((p) => p.seen).length, total: list.length };
   const votes = await adminVotes(s, meta, players);
-  return { meta, votes, voteDurations: VOTE_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
+  const sc = screenOf(meta), speak = ROUND_SCREENS.includes(sc) ? speakView(meta, sc) : null;
+  return { meta, votes, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
 }
 
 async function setRole(req, s) {
@@ -585,12 +601,84 @@ async function openVote(req, s) {
   const m = await update(s, 'meta', (m) => {
     m.votes = m.votes || {};
     for (const r of Object.keys(m.votes)) if (voteOpen(m.votes[r], t)) m.votes[r].closedAt = t;
+    const sp = m.speaks && m.speaks[b.round];
+    if (speakLive(sp, t)) sp.endedAt = t;   // the vote starts -> that round's 發言 is over
     m.votes[b.round] = { id: rid(4), openedAt: t, duration, deadline: duration ? t + duration * 1000 : 0, closedAt: 0, leaders };
     m.vote = b.round;
     return m;
   });
   return { ok: true, vote: currentVote(m) };
 }
+/* Leader instructions on the phone's round page (served by /api/me to that leader only, by their own role).
+   True and fake read the same layout / length; gender-neutral. Rounds without an entry fall back to data/texts.json. */
+const LEADER_TEXT = {
+  r1: {
+    '真正領袖': { desc: '輪到你時，分享三句關於自己的說話——三句都必須是真的。', tip: '小心！你的另一半最了解你，別讓對方輕易猜中。' },
+    '假領袖': { desc: '輪到你時，分享三句關於自己的說話——兩句真、一句假。', tip: '另一半最清楚你，假的那句要編得巧妙，別讓對方一聽就拆穿！' },
+  },
+};
+/** a leader's own follower count for a round: { state: 'none' (no vote yet) | 'open' | 'closed', count (closed only) }.
+    Closed votes never change -> cached per vote id + leader (+ player set) in the warm instance. */
+const followCache = new Map();
+async function followersOf(s, meta, p, round, players) {
+  const v = meta.votes && meta.votes[round];
+  if (!v) return { state: 'none', count: null };
+  if (voteOpen(v)) return { state: 'open', count: null };
+  const key = `${meta.gameId}:${round}:${v.id}:${v.closedAt || v.deadline}:${p.id}:${players.map((q) => q.id + q.role).join(',')}`;
+  if (!followCache.has(key)) {
+    const byId = new Map(players.map((q) => [q.id, q]));
+    const n = (await ballotsOf(s, round)).filter((x) => x.target === p.id && byId.has(x.voter) && canVote(byId.get(x.voter))).length;
+    if (followCache.size > 200) followCache.clear();
+    followCache.set(key, n);
+  }
+  return { state: 'closed', count: followCache.get(key), sealed: !!v.sealed };
+}
+
+/* ---------------- speaking (發言 timer, per round) ----------------
+   admin/speak {round, duration} starts (or restarts) a round's 發言 timer: meta.speaks[round] = { id, startedAt,
+   duration (s, 0 = 不限), deadline (0 = none), endedAt }. admin/speak-end {round} ends it early; opening that round's
+   vote ends it too. Computed on read (no cron). Phones (/me -> round.speak) and the TV (mini/state -> speak) get
+   { round, state: 'ready' | 'live' | 'done', remain (ms, null = 不限), duration } — nothing else. */
+const SPEAK_DURATIONS = [30, 60, 90, 120, 0];
+const speakLive = (x, t = now()) => !!x && !x.endedAt && (!x.deadline || t < x.deadline);
+function speakView(m, r) {
+  const x = m && m.speaks && m.speaks[r], t = now();
+  if (!x) return { round: r, state: 'ready', remain: null, duration: null };
+  if (speakLive(x, t)) return { round: r, id: x.id, state: 'live', remain: x.deadline ? Math.max(0, x.deadline - t) : null, duration: x.duration };
+  return { round: r, id: x.id, state: 'done', remain: 0, duration: x.duration };
+}
+/** POST /api/admin/speak {round, duration} — start (or restart) the 發言 timer for a round */
+async function startSpeak(req, s) {
+  const b = await body(req);
+  const meta0 = await getMeta(s);
+  const round = b.round || screenOf(meta0);
+  if (!ROUND_SCREENS.includes(round)) fail(400, 'bad_round', '未知的回合');
+  const duration = b.duration == null ? 60 : Number(b.duration);
+  if (!SPEAK_DURATIONS.includes(duration)) fail(400, 'bad_duration', '不支援的發言時間');
+  if (phaseOf(meta0) !== STARTED) fail(409, 'not_started', '請先開始遊戲');
+  const t = now();
+  const m = await update(s, 'meta', (m) => {
+    m.speaks = m.speaks || {};
+    m.speaks[round] = { id: rid(4), startedAt: t, duration, deadline: duration ? t + duration * 1000 : 0, endedAt: 0 };
+    return m;
+  });
+  return { ok: true, speak: speakView(m, round) };
+}
+/** POST /api/admin/speak-end {round} — end a round's 發言 early (default: the round on the TV) */
+async function endSpeak(req, s) {
+  const b = await body(req);
+  const meta0 = await getMeta(s);
+  const round = b.round || screenOf(meta0);
+  if (!ROUND_SCREENS.includes(round)) fail(400, 'bad_round', '未知的回合');
+  const t = now();
+  const m = await update(s, 'meta', (m) => {
+    const x = m.speaks && m.speaks[round];
+    if (!speakLive(x, t)) return undefined;
+    x.endedAt = t; return m;
+  });
+  return { ok: true, speak: speakView(m || meta0, round) };
+}
+
 /** POST /api/admin/vote-end — close the current vote early */
 async function endVote(s) {
   const t = now();
@@ -798,6 +886,7 @@ async function miniState(s) {
     out.leaders = leaderCards(ps);
     // lambs easter egg: r1 = 1; r2 / r3 = how many voted for the 真正領袖 in the previous round's (closed) vote — one integer, nothing else
     out.lambs = screen === 'r1' ? 1 : await trueVotes(s, meta, screen === 'r2' ? 'r1' : 'r2', ps);
+    out.speak = speakView(meta, screen);   // 發言 timer: state + countdown only
   }
   // an open vote: countdown + aggregate count only (never who voted, never for whom)
   // just sealed (everyone voted): keep showing 已封票 + the full count for a while
@@ -955,6 +1044,8 @@ const ROUTES = {
   'POST admin/screen': setScreen,
   'POST admin/vote': openVote,
   'POST admin/vote-end': (req, s) => endVote(s),
+  'POST admin/speak': startSpeak,
+  'POST admin/speak-end': endSpeak,
 };
 
 export default async (req, context) => {

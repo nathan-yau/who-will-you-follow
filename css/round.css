@@ -1,0 +1,131 @@
+/* 回合頁 (round page: phone while the TV shows Round 1 / 2 / 3) — same 474 x 1024 design grid as identity / vote (characters.css).
+   #app[data-state]: loading | player | leader;  [data-speak]: ready | live | done;  [data-vote]: none | open | closed.
+   Elements list their states in data-for="a b". */
+.rd-card { top: calc(253 * var(--U)); height: calc(707 * var(--U)); }
+[data-for] { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.3s ease, visibility 0s linear 0.3s; }
+[data-state="player"] [data-for~="player"],
+[data-state="leader"] [data-for~="leader"] { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 0.35s ease 0.1s, visibility 0s; }
+.rd-app .rd-tag, .rd-app .rd-pill, .rd-app .rd-title, .rd-app .rd-clock, .rd-app .rd-desc, .rd-app .rd-scene, .rd-app .rd-tip, .rd-app .rd-again { transition: opacity 0.35s ease; }
+[data-state="loading"] .rd-tag, [data-state="loading"] .rd-pill, [data-state="loading"] .rd-title, [data-state="loading"] .rd-clock,
+[data-state="loading"] .rd-desc, [data-state="loading"] .rd-scene, [data-state="loading"] .rd-tip, [data-state="loading"] .rd-again { opacity: 0; }
+
+/* Round 1 / 3 */
+.rd-tag {
+  left: calc(33 * var(--U) - var(--side) * 0.5); top: calc(280 * var(--U)); height: calc(32 * var(--U)); margin: 0; padding: 0 calc(16 * var(--U));
+  border-radius: 999px; background: #e9efdc; color: #3e4a33; white-space: nowrap;
+  font-family: "Fredoka", system-ui, sans-serif; font-size: calc(16 * var(--U)); line-height: calc(32 * var(--U)); font-weight: 600; letter-spacing: calc(0.3 * var(--U));
+}
+/* ⏱ 發言中 */
+.rd-pill {
+  right: calc(34 * var(--U) - var(--side) * 0.5); top: calc(278 * var(--U)); height: calc(36 * var(--U)); margin: 0; padding: 0 calc(16 * var(--U)) 0 calc(12 * var(--U));
+  display: flex; align-items: center; gap: calc(9 * var(--U)); border-radius: 999px; background: #e9efdc; color: #3e5a37; white-space: nowrap;
+  font-size: calc(15 * var(--U)); font-weight: 700; letter-spacing: calc(1.2 * var(--U));
+}
+.rd-pill svg { width: calc(22 * var(--U)); height: calc(22 * var(--U)); flex: none; }
+[data-speak="ready"] .rd-pill { background: #f1eee3; color: #7a705f; }
+[data-speak="done"] .rd-pill { background: #fbecc4; color: #8a5a17; }
+[data-speak="live"] .rd-pill svg { animation: rdTick 1s steps(2, jump-none) infinite; transform-origin: 50% 56%; }
+@keyframes rdTick { 0% { transform: rotate(-8deg); } 100% { transform: rotate(8deg); } }
+
+/* 三句話 with a pink brush stroke */
+.rd-title {
+  left: calc(40 * var(--U) - var(--side) * 0.5); top: calc(322 * var(--U)); margin: 0; white-space: nowrap;
+  font-weight: 700; font-size: calc(39 * var(--U)); line-height: calc(50 * var(--U)); letter-spacing: calc(2 * var(--U)); color: #3b2a1b;
+}
+.rd-title span { position: relative; z-index: 1; }
+.rd-brush { position: absolute; left: calc(-14 * var(--U)); bottom: calc(-2 * var(--U)); width: calc(100% + 24 * var(--U)); height: calc(24 * var(--U)); z-index: 0; }
+/* 00:18 剩餘時間 */
+.rd-clock {
+  right: calc(36 * var(--U) - var(--side) * 0.5); top: calc(318 * var(--U)); width: calc(120 * var(--U));
+  display: flex; flex-direction: column; align-items: flex-end; text-align: right;
+}
+.rd-clock b { font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: calc(33 * var(--U)); line-height: calc(40 * var(--U)); letter-spacing: calc(0.5 * var(--U)); color: #4f7a4b; white-space: nowrap; }
+.rd-clock b.is-text { font-family: inherit; font-size: calc(24 * var(--U)); letter-spacing: calc(1.5 * var(--U)); }
+.rd-clock span { margin-top: calc(4 * var(--U)); font-size: calc(14 * var(--U)); line-height: calc(20 * var(--U)); font-weight: 600; letter-spacing: calc(1.2 * var(--U)); color: #6d6455; white-space: nowrap; }
+[data-speak="ready"] .rd-clock b { color: #a9a08e; }
+[data-speak="done"] .rd-clock b { color: #c0634c; }
+.rd-clock.is-low b { color: #c0634c; }
+.rd-desc {
+  left: calc(40 * var(--U) - var(--side) * 0.5); right: calc(36 * var(--U) - var(--side) * 0.5); top: calc(383 * var(--U)); margin: 0;
+  font-size: calc(16.4 * var(--U)); line-height: calc(26.5 * var(--U)); font-weight: 500; letter-spacing: calc(1.1 * var(--U)); color: #3f362b;
+  white-space: pre-line;
+}
+
+/* the leaders in pots */
+.rd-scene { left: calc(14 * var(--U) - var(--side)); width: calc(445 * var(--U) + 2 * var(--side)); top: calc(476 * var(--U)); height: calc(218 * var(--U)); overflow: hidden; pointer-events: none; }
+.rd-hills { position: absolute; left: 0; top: calc(8 * var(--U)); width: 100%; height: calc(180 * var(--U)); }
+.rd-ground { position: absolute; left: 0; right: 0; top: calc(184 * var(--U)); height: calc(34 * var(--U)); background: linear-gradient(#f2f0e2, rgba(242, 240, 226, 0)); }
+.rd-tick { position: absolute; width: calc(26 * var(--U)); height: calc(26 * var(--U)); top: calc(30 * var(--U)); }
+.rd-tick--l { left: calc(24 * var(--U)); }
+.rd-tick--r { right: calc(24 * var(--U)); }
+.rd-row { position: absolute; left: 0; right: 0; top: 0; height: 100%; display: flex; justify-content: center; gap: calc(14 * var(--U)); z-index: 1; }
+.rd-row.n2 { gap: calc(46 * var(--U)); }
+.rd-ld { position: relative; flex: none; width: calc(86 * var(--U)); height: 100%; }
+/* sprite: same scale for everyone; the visible top of the shorter ones lifted to a common head line (--t), long ears stick out above it;
+   shifted by --dx (js/sprite-fit.js) to centre on the pot. The pot covers the lower body (they peek out of it). */
+.rd-ld__spr { position: absolute; width: calc(104 * var(--U)); height: calc(96.4 * var(--U)); left: calc(-9 * var(--U) - var(--dx, 0) * 104 * var(--U)); top: calc(72 * var(--U) - var(--t, 0.17) * 96.4 * var(--U)); }
+.rd-ld__spr img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; -webkit-user-drag: none; }
+.rd-ld__spr .f1 { animation: flipA 1s steps(1, end) infinite; }
+.rd-ld__spr .f2 { animation: flipB 1s steps(1, end) infinite; }
+.rd-ld:nth-child(2) .rd-ld__spr img { animation-delay: -0.25s; }
+.rd-ld:nth-child(4) .rd-ld__spr img { animation-delay: -0.25s; }
+.rd-pot { position: absolute; left: 0; top: calc(132 * var(--U)); width: calc(86 * var(--U)); height: calc(68.8 * var(--U)); }
+.rd-pot svg { width: 100%; height: 100%; display: block; }
+.rd-ld__name {
+  position: absolute; left: calc(-8 * var(--U)); right: calc(-8 * var(--U)); top: calc(200 * var(--U)); margin: 0; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: calc(13.5 * var(--U)); line-height: calc(18 * var(--U)); color: #5b4c3a;
+}
+
+/* 小提示 */
+.rd-tip {
+  left: calc(35 * var(--U) - var(--side) * 0.5); right: calc(34 * var(--U) - var(--side) * 0.5); top: calc(710 * var(--U)); height: calc(124 * var(--U));
+  box-sizing: border-box; border-radius: calc(18 * var(--U)); background: #fbf6e8; border: calc(2 * var(--U)) solid #f0e6cd;
+}
+.rd-tip::before { content: ""; position: absolute; left: calc(34 * var(--U)); top: calc(-10 * var(--U)); width: calc(16 * var(--U)); height: calc(16 * var(--U)); background: #fbf6e8; border-left: calc(2 * var(--U)) solid #f0e6cd; border-top: calc(2 * var(--U)) solid #f0e6cd; transform: rotate(45deg); border-radius: calc(3 * var(--U)) 0 0 0; }
+.rd-bulb { position: absolute; left: calc(18 * var(--U)); top: calc(20 * var(--U)); width: calc(28 * var(--U)); height: calc(28 * var(--U)); }
+.rd-tip__title { position: absolute; left: calc(58 * var(--U)); top: calc(20 * var(--U)); margin: 0; font-size: calc(16.5 * var(--U)); line-height: calc(26 * var(--U)); font-weight: 700; letter-spacing: calc(1.4 * var(--U)); color: #3b2a1b; }
+.rd-tip__text { position: absolute; left: calc(58 * var(--U)); right: calc(126 * var(--U)); white-space: pre-line; top: calc(52 * var(--U)); margin: 0; font-size: calc(14.6 * var(--U)); line-height: calc(24 * var(--U)); font-weight: 500; letter-spacing: calc(0.9 * var(--U)); color: #4c4234; }
+.rd-cat { position: absolute; right: calc(36 * var(--U)); top: calc(36 * var(--U)); width: calc(78 * var(--U)); height: calc(72.3 * var(--U)); animation: bob 1s ease-in-out infinite; transform-origin: 50% 92%; }
+.rd-cat img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; -webkit-user-drag: none; }
+.rd-cat .f1 { animation: flipA 1s steps(1, end) infinite; }
+.rd-cat .f2 { animation: flipB 1s steps(1, end) infinite; }
+.rd-q { position: absolute; right: calc(10 * var(--U)); top: calc(14 * var(--U)); width: calc(34 * var(--U)); height: calc(34 * var(--U)); }
+.rd-dash { position: absolute; right: calc(108 * var(--U)); top: calc(40 * var(--U)); width: calc(18 * var(--U)); height: calc(18 * var(--U)); }
+/* the true leader's 私下敲門 button (knock.js) takes the tip's place once available */
+.rd-knock { left: calc(35 * var(--U) - var(--side) * 0.5); right: calc(34 * var(--U) - var(--side) * 0.5); top: calc(710 * var(--U)); height: calc(124 * var(--U)); width: auto; box-sizing: border-box; padding: 0 calc(18 * var(--U)); border-radius: calc(18 * var(--U)); background: #f6f1f8; border: calc(2 * var(--U)) solid #e6dcec; display: flex; flex-direction: column; align-items: stretch; justify-content: center; }
+.rd-knock[hidden] { display: none; }
+.rd-app.has-knock .rd-tip { visibility: hidden; }
+
+/* 前往投票 */
+.rd-btn { left: calc(35 * var(--U) - var(--side) * 0.5); width: auto; right: calc(34 * var(--U) - var(--side) * 0.5); top: calc(856 * var(--U)); height: calc(62 * var(--U)); }
+.rd-btn:disabled { background: #b4c2ad; cursor: default; gap: 0; }
+.rd-btn:disabled .btn__arrow { display: none; }
+.rd-btn:disabled .btn__label { letter-spacing: calc(2 * var(--U)); }
+[data-vote="open"] .rd-btn { animation: rdGlow 1.6s ease-in-out infinite; }
+@keyframes rdGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(114, 147, 106, 0.0); } 50% { box-shadow: 0 0 0 calc(6 * var(--U)) rgba(114, 147, 106, 0.22); } }
+
+/* leaders: 跟隨你的人數 */
+.rd-follow {
+  left: calc(35 * var(--U) - var(--side) * 0.5); right: calc(34 * var(--U) - var(--side) * 0.5); top: calc(856 * var(--U)); height: calc(62 * var(--U));
+  box-sizing: border-box; padding: 0 calc(22 * var(--U)); border-radius: 999px; background: #fdf0ea; border: calc(2 * var(--U)) solid #f6d6cb;
+  display: flex; align-items: center; gap: calc(10 * var(--U)); color: #6b3f33; white-space: nowrap;
+}
+.rd-follow svg { width: calc(26 * var(--U)); height: calc(26 * var(--U)); flex: none; }
+.rd-follow__label { font-size: calc(17 * var(--U)); font-weight: 700; letter-spacing: calc(1.6 * var(--U)); }
+.rd-follow__val { margin-left: auto; font-size: calc(14.5 * var(--U)); font-weight: 600; letter-spacing: calc(1 * var(--U)); color: #9a7466; }
+.rd-follow__val b { font-family: "Fredoka", system-ui, sans-serif; font-size: calc(32 * var(--U)); font-weight: 600; letter-spacing: 0; color: #c0634c; margin-right: calc(4 * var(--U)); vertical-align: calc(-3 * var(--U)); }
+.rd-follow.is-in { animation: pop 0.32s cubic-bezier(.3,1.5,.5,1); }
+
+/* 再看一次身份 */
+.rd-again {
+  left: 50%; transform: translateX(-50%); top: calc(924 * var(--U)); height: calc(30 * var(--U)); padding: 0 calc(12 * var(--U));
+  display: flex; align-items: center; gap: calc(6 * var(--U)); color: #6f8a68; text-decoration: none; white-space: nowrap;
+  font-size: calc(13.5 * var(--U)); font-weight: 600; letter-spacing: calc(1.2 * var(--U)); -webkit-tap-highlight-color: transparent;
+}
+.rd-again svg { width: calc(17 * var(--U)); height: calc(17 * var(--U)); }
+.rd-again span { border-bottom: calc(1.5 * var(--U)) dotted rgba(111, 138, 104, 0.6); }
+.rd-err { left: calc(30 * var(--U)); right: calc(30 * var(--U)); top: calc(836 * var(--U)); margin: 0; text-align: center; font-size: calc(13 * var(--U)); line-height: calc(20 * var(--U)); color: #b65b4a; font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rd-cat, [data-vote="open"] .rd-btn, [data-speak="live"] .rd-pill svg { animation: none; }
+}

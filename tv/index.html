@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
-  <link rel="stylesheet" href="../css/tv.css?v=12" />
+  <link rel="stylesheet" href="../css/tv.css?v=13" />
 </head>
 <body>
   <main class="tv" id="tv">
@@ -57,6 +57,10 @@
         <div class="tv-vote" id="tvVote" hidden aria-live="polite">
           <p class="tv-vote__row"><span class="tv-vote__tag" id="tvVoteTag">投票中</span><b class="tv-vote__time" id="tvVoteTime" lang="en">00:00</b><span class="tv-vote__cnt">已投票 <b id="tvVoted">0</b> / <b id="tvTotal">0</b></span></p>
           <div class="tv-vote__bar"><i id="tvVoteBar"></i></div>
+        </div>
+        <!-- 發言中 (admin → 開始發言): the speaking countdown only, while no vote is shown -->
+        <div class="tv-vote tv-speak" id="tvSpeak" hidden aria-live="off">
+          <p class="tv-vote__row"><span class="tv-vote__tag">發言中</span><b class="tv-vote__time" id="tvSpeakTime" lang="en">00:00</b></p>
         </div>
         <!-- Easter egg: lambs in the bottom-right corner, below the signpost (renderLambs(n) in tv.js).
              The server sends one integer (mini/state lambs): Round 1 = exactly 1 lamb (Nathan already knows who the
@@ -111,6 +115,6 @@
   </script>
   <script src="../js/api.js?v=10"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
-  <script src="../js/tv.js?v=9"></script>
+  <script src="../js/tv.js?v=10"></script>
 </body>
 </html>

@@ -289,6 +289,8 @@ body {
   background: rgba(253, 250, 241, 0.94); box-shadow: 0 4px 14px rgba(90, 110, 70, 0.18); text-align: center; z-index: 2;
   animation: tvin 0.5s cubic-bezier(.3, 1.4, .5, 1); }
 .tv-vote[hidden] { display: none; }
+.tv-speak { left: 397px; width: 230px; padding: 9px 18px; }
+.tv-speak .tv-vote__tag { background: #e2ebd4; color: #4f7a4b; }
 .tv-vote__row { margin: 0; display: flex; align-items: center; justify-content: center; gap: 14px; white-space: nowrap; }
 .tv-vote__tag { padding: 3px 12px; border-radius: 999px; background: #f6d9cf; color: #a3523c; font-size: 16px; font-weight: 700; letter-spacing: 2px; }
 .tv-vote.is-final .tv-vote__tag { background: #fbe4b0; color: #8a5a17; }

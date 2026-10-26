@@ -230,6 +230,16 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .vote__go { flex: none; min-height: 34px; height: 34px; padding: 0 14px; font-size: 13px; }
 .vote__go.is-armed { background: var(--coral-d); border-color: var(--coral-d); color: #fff; animation: armpulse .6s ease-in-out infinite alternate; }
 .vote.is-open .vote__live { color: var(--ink); font-weight: 700; }
+.vote__tally { margin: 7px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 12.5px; line-height: 1.3; color: var(--ink2); }
+.vote__tally[hidden] { display: none; }
+.vote__tally > b { font-weight: 700; color: var(--ink); }
+.vote__tally .vt-n { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 3px; border-radius: 999px; background: var(--c, #eee); color: #3b2a1b; font-weight: 600; }
+.vote__tally .vt-n img { width: 20px; height: 20px; object-fit: contain; }
+.vote__tally .vt-n em { font-style: normal; font-weight: 800; }
+.vote__tally .vt-st { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: #eef2e3; color: #5f7c58; font-weight: 700; }
+.vote__tally .vt-st.is-live { background: #fde5dc; color: #b6503b; }
+.speak { margin-top: 8px; }
+.speak.is-open .vote__live { color: var(--ink); font-weight: 700; }
 .dot.v-live { background: var(--coral); animation: armpulse .8s ease-in-out infinite alternate; }
 .dot.v-done { background: #8a7f6a; }
 

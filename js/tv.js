@@ -349,6 +349,7 @@
     if (screen === 'reveal') renderRevealCount(s.reveal);
     // an open vote shows on any round screen; a just-sealed one only on its own round's screen
     renderVote(ROUNDS[screen] && s.vote && (!s.vote.sealed || s.vote.round === screen) ? s.vote : null);
+    renderSpeak(ROUNDS[screen] && $('tvVote').hidden && s.speak && s.speak.round === screen && s.speak.state === 'live' ? s.speak : null);
     setPhase(started ? 'started' : 'lobby', list);
   }
 
@@ -476,6 +477,26 @@
     t.classList.toggle('is-low', x <= 10);
   }
 
+  /* ---------- 發言中 pill (round screens, while no vote is shown): the speaking countdown only ---------- */
+  var speakEnd = null, speakTick = 0;
+  function renderSpeak(sp) {
+    var el = $('tvSpeak');
+    if (!sp) { if (!el.hidden) { el.hidden = true; clearInterval(speakTick); speakTick = 0; } return; }
+    speakEnd = sp.remain == null ? null : now() + sp.remain;
+    el.hidden = false;
+    speakClock();
+    if (!speakTick) speakTick = setInterval(speakClock, 250);
+  }
+  function speakClock() {
+    var t = $('tvSpeakTime');
+    t.classList.toggle('is-text', speakEnd == null);
+    if (speakEnd == null) { t.textContent = '不限時'; t.classList.remove('is-low'); return; }
+    var x = Math.max(0, Math.ceil((speakEnd - now()) / 1000));
+    t.textContent = ('0' + Math.floor(x / 60)).slice(-2) + ':' + ('0' + (x % 60)).slice(-2);
+    t.classList.toggle('is-low', x <= 10);
+    if (x <= 0) { $('tvSpeak').hidden = true; clearInterval(speakTick); speakTick = 0; }
+  }
+
   /* ---------- lambs easter egg (bottom-right, below the signpost) ----------
      up to LAMB_MAX lambs: one row of ≤ 5 at full size; more = two rows, smaller and closer together */
   var LAMB = ['../assets/tv/lamb-walk1.webp?v=1', '../assets/tv/lamb-walk2.webp?v=1'];
@@ -549,5 +570,5 @@
   poll();
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
 })();
