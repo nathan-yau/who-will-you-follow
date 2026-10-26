@@ -57,7 +57,7 @@
       show(r.player.characterId);
       if (r.player.characterId !== me.characterId) { me.characterId = r.player.characterId; WWYF.setPlayer(me); }
       setCount(r.joined);
-      setStarted(r.phase === 'started');
+      setStarted(r.phase === 'started', r.screen === 'howto');
     }).catch(function (e) {
       if (e.status === 404 || e.status === 401) {
         WWYF.clearPlayer();
@@ -75,14 +75,17 @@
   var pushTimes = [], lastDodge = -1e9, pendPush = 0, pendDodge = 0, inFlight = false, lastSend = 0, sendT = 0, seq = 0;
   var started = false;
 
-  function setStarted(v) {
-    v = !!v;
-    if (v === started) return;
-    started = v;
+  var howtoOn = false;
+  // howto = the TV is showing 玩法說明 (before 身份揭曉): the game counts as started, phones just point at the TV
+  function setStarted(v, howto) {
+    v = !!v; howto = v && !!howto;
+    if (v === started && howto === howtoOn) return;
+    started = v; howtoOn = howto;
+    document.body.classList.toggle('is-howto', howto);
     document.body.classList.toggle('is-started', v);
     ['dodge', 'dash'].forEach(function (id) { $(id).disabled = v; });
-    $('wait').innerHTML = v ? '遊戲已開始！' : '等待其他玩家加入<span class="lb-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>';
-    $('hint').textContent = v ? '請看 TV，留意主持人的指示！' : '當所有人準備好後，遊戲就會開始！';
+    $('wait').innerHTML = howto ? '請睇 TV 玩法說明' : v ? '遊戲已開始！' : '等待其他玩家加入<span class="lb-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>';
+    $('hint').textContent = howto ? '主持人會逐頁講解玩法，請留意 TV！' : v ? '請看 TV，留意主持人的指示！' : '當所有人準備好後，遊戲就會開始！';
     if (v) { pendPush = 0; pendDodge = 0; }
   }
   function scheduleSend() {

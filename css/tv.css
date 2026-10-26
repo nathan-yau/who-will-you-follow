@@ -509,3 +509,79 @@ body {
   .en-scene, .en-lambs, .en-meter__count { transition: none !important; }
   .en-conf { display: none; }
 }
+
+/* ---------- 玩法說明 (screen 'howto', before 身份揭曉) — one slide per page on the meadow.
+   Title in the artwork's cream box (.fn-title), a big cream card with the art on top and 1–2 big lines below, page dots.
+   Leader cards are mystery "?" cards only. Art is never cropped (object-fit: contain, no overflow clipping). */
+.tv-howto { animation: tvfade 0.45s ease-out; }
+.hw-card {
+  position: absolute; left: 124px; top: 130px; width: 776px; height: 346px; box-sizing: border-box;
+  background: rgba(253, 248, 238, 0.94); border: 3px solid #e8d8c1; border-radius: 28px;
+  box-shadow: 0 4px 0 rgba(150, 125, 90, 0.12), 0 10px 26px rgba(90, 110, 70, 0.14);
+  display: flex; flex-direction: column; align-items: center; padding: 14px 28px 16px;
+}
+.hw-art { flex: none; width: 100%; height: 182px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.hw-text { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; }
+.hw-text p { margin: 0; text-wrap: balance; color: #4b301d; }
+.hw-l1 { font-size: 30px; line-height: 40px; font-weight: 700; letter-spacing: 1.5px; }
+.hw-l2 { font-size: 26px; line-height: 36px; font-weight: 600; letter-spacing: 1px; color: #6a5a45 !important; }
+.hw-l2:empty { display: none; }
+.tv-howto .fn-title h1.is-latin { letter-spacing: 3px; text-indent: 3px; }
+.is-turn .hw-card { animation: hwturn 0.45s cubic-bezier(.3, 1.3, .5, 1); }
+.is-turn .fn-title { animation: tvin 0.45s cubic-bezier(.3, 1.4, .5, 1); }
+@keyframes hwturn { 0% { transform: translateX(26px) scale(0.97); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.hw-dots { position: absolute; left: 0; right: 0; top: 494px; display: flex; justify-content: center; gap: 12px; }
+.hw-dots i { width: 14px; height: 14px; border-radius: 50%; background: rgba(253, 248, 238, 0.85); border: 2px solid #d9c7aa; box-sizing: border-box; transition: transform 0.25s, background 0.25s; }
+.hw-dots i.is-on { background: #6f9a63; border-color: #6f9a63; transform: scale(1.25); }
+.hw-row { display: flex; align-items: center; justify-content: center; gap: 16px; }
+/* mystery leader cards (the .lc card at 80 %; layout box shrunk to match so nothing overlaps) */
+.hw-lc { animation: lcin 0.5s cubic-bezier(.3, 1.5, .5, 1) backwards; animation-delay: calc(var(--i) * 0.07s); }
+.hw-art .lc { zoom: 0.8; }
+.hw-row--final .hw-lc--flip { animation: lcin 0.5s cubic-bezier(.3, 1.5, .5, 1) backwards, hwflip 2.6s ease-in-out 0.8s infinite; }
+@keyframes hwflip { 0%, 60%, 100% { transform: none; } 70% { transform: rotateY(90deg) scale(1.06); } 80% { transform: rotateY(0) scale(1.1); } 90% { transform: scale(1); } }
+.hw-row--final { perspective: 800px; }
+/* cover: everyone who joined (no roles), standing in a row */
+.hw-row--chars { gap: 4px; flex-wrap: nowrap; }
+.hw-spr { width: 76px; height: 92px; flex: none; position: relative; animation: hwhop 1.6s ease-in-out infinite; animation-delay: calc(var(--i) * -0.18s); }
+.hw-spr img { position: absolute; left: calc(var(--dx, 0) * 76px); top: 0; width: 76px; height: 92px; object-fit: contain; -webkit-user-drag: none; }
+@keyframes hwhop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+/* 遊戲目標: the target */
+.hw-goal { display: flex; align-items: center; gap: 10px; padding: 3px 16px; border-radius: 16px; background: #e4eed8; color: #4b5a37; font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+.hw-goal b { font-family: "Fredoka", system-ui, sans-serif; font-size: 22px; font-weight: 600; color: #4b6b40; }
+/* 角色 */
+.hw-row--roles { gap: 46px; align-items: flex-end; }
+.hw-role { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.hw-tag { padding: 2px 16px; border-radius: 14px; background: #e4eed8; color: #4b301d; font-size: 20px; line-height: 28px; font-weight: 700; letter-spacing: 3px; text-indent: 3px; }
+.hw-tag--shh { background: #fee7e1; }
+.hw-people { display: flex; align-items: flex-end; height: 122px; }
+.hw-person { width: 64px; height: 64px; margin: 0 -6px; }
+.hw-person.c1 { color: #b8cfa6; } .hw-person.c2 { color: #f5c2b5; width: 80px; height: 80px; margin-bottom: 4px; } .hw-person.c3 { color: #a9c2dd; }
+.hw-role--phone svg { width: 78px; height: 124px; }
+/* Round 1 */
+.hw-row--r1 { gap: 34px; }
+.hw-say { display: flex; flex-direction: column; gap: 14px; }
+.hw-say p { margin: 0; display: flex; align-items: center; gap: 14px; font-size: 22px; font-weight: 700; color: #4b301d; letter-spacing: 1px; }
+.hw-say p span { width: 104px; text-align: right; }
+.hw-ticks { display: flex; gap: 8px; }
+.hw-ticks i { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 24px; font-weight: 700; color: #fff; }
+.hw-ticks i.is-ok { background: #8fb87d; } .hw-ticks i.is-no { background: #e9907d; }
+/* Round 2 */
+.hw-row--r2 { gap: 30px; }
+.hw-desc svg { width: 100px; height: 158px; }
+.hw-chat { display: flex; flex-direction: column; gap: 4px; }
+.hw-bub { width: 70px; height: 56px; animation: hwbob 1.8s ease-in-out infinite; animation-delay: calc(var(--i) * 0.3s); }
+.hw-bub:nth-child(2) { margin-left: 34px; }
+@keyframes hwbob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+.hw-ballot, .hw-lock { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 20px; font-weight: 700; color: #4b301d; letter-spacing: 2px; }
+.hw-ballot svg, .hw-lock svg { width: 96px; height: 96px; }
+/* Round 3 */
+.hw-row--r3 { gap: 40px; }
+.hw-qs { display: flex; gap: 12px; }
+.hw-q { width: 58px; height: 58px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-style: normal;
+  font-family: "Fredoka", system-ui, sans-serif; font-size: 28px; font-weight: 600; color: #6a5a45; background: #fdfaf1; border: 3px solid #e0d5b8; box-sizing: border-box;
+  animation: lcin 0.5s cubic-bezier(.3, 1.5, .5, 1) backwards; animation-delay: calc(var(--i) * 0.08s); }
+.hw-q.is-ok { background: #8fb87d; border-color: #7aa868; color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  .tv-howto, .is-turn .hw-card, .is-turn .fn-title, .hw-lc, .hw-row--final .hw-lc--flip, .hw-spr, .hw-bub, .hw-q { animation: none !important; }
+  .hw-dots i { transition: none; }
+}

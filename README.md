@@ -71,7 +71,7 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | POST | `/api/admin/reveal` | host | `{revealed}` (legacy flag) |
 | POST | `/api/admin/reveal-stage` | host | `{on}` start/end the 身份揭曉 stage (start = phase started, `revealed`, TV screen `reveal`, fake pairs synced); `admin/screen {screen:'reveal'}` also starts it |
 | POST | `/api/mini/act` | player | `{push, dodge, seq}` batched TV mini-game input (≤ every 250 ms); stored in `mini/<playerId>`; `409 started` once the game has started |
-| GET | `/api/mini/state` | anyone | TV poll (every 250 ms): `{phase, gameId, joined, players:[{id, characterId, nickname, joinedAt, push, dodge}], leaders? (round screens), reveal?:{revealed, total} (身份揭曉 screen)}` |
+| GET | `/api/mini/state` | anyone | TV poll (every 250 ms): `{phase, gameId, joined, players:[{id, characterId, nickname, joinedAt, push, dodge}], leaders? (round screens), reveal?:{revealed, total} (身份揭曉 screen), howto?:{page, pages, threshold, quiz:{n, threshold, need}} (玩法說明 screen)}` |
 | POST | `/api/vote` | player | `{characterId, round?}` cast / change own ballot in the open round → `{round, sealed, mine:{characterId, line}}`; `403 no_vote` (leaders), `400 bad_target`, `409 vote_closed` (closed / sealed / other round) |
 | POST | `/api/knock` | 真正領袖 | 私下敲門 for the latest closed round (once per round; server picks the targets) → `{round, count}` only |
 | POST | `/api/knock-ack` | player | `{round}` dismiss a received 叩叩 |
@@ -85,8 +85,20 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | POST | `/api/admin/quiz-close` | host | close the open question now (the timer also closes it) → result |
 | POST | `/api/admin/quiz-reset` | host | clear all question results / answers |
 | POST | `/api/admin/final` | host | 最終揭曉: `{action:'enter'}` (TV → `final`; also `admin/screen {screen:'final'}`), `{action:'flip', playerId}`, `{action:'supporter', playerId}` (after flip; `409 no_supporter` / `not_flipped`), `{action:'all'}` (flip the rest, 700 ms stagger), `{action:'reset'}`, `{action:'votes', on}`, `{action:'ending'}` (TV → `ending`; also `admin/screen {screen:'ending'}`; `409 vote_not_closed` until the r3 vote exists and is closed; `enter` = 返回揭曉); flip / supporter / all need the TV on `final` (`409 not_final`) → `{ok, screen, final}` |
+| POST | `/api/admin/howto` | host | 玩法說明: `{action:'enter'\|'exit'\|'next'\|'prev'\|'go', page?}` (7 pages, 0–6, clamped; `go` needs an integer `page` else `400 bad_page`). `enter` = phase started + TV screen `howto` (also `admin/screen {screen:'howto'}`); `exit` returns to the previous phase (lobby / started). Only before 身份揭曉: `409 revealed` after; `409 not_howto` for next/prev/go when not on `howto` → admin state `howto:{on, allowed, page, pages}` |
 | POST | `/api/admin/start` | host | phase → `started` (stops the mini-game) |
 | POST | `/api/admin/lobby` | host | phase → `lobby` (clears mini-game counters) |
+
+### 玩法說明 (TV screen `howto`, before 身份揭曉)
+
+Game flow: **等候 → 玩法說明 (optional) → 身份揭曉 → Round 1 → Round 2 → Round 3 → 最終揭曉 → 結局**.
+
+* Host: admin section 「玩法說明」 (collapsible, above 身份揭曉) → 開始玩法說明 / 結束, then 上一頁 / 下一頁 with 「第 N / 7 頁」. Disabled once identities are revealed (`409 revealed`).
+* TV: 7 slides — 玩法說明 cover (characters, ~15 分鐘) · 遊戲目標 · 角色 · Round 1 聽佢講 · Round 2 誰是真領袖？ · Round 3 破解密碼 · 最終揭曉. Big text, ≤ 2 lines per slide, SVG / character art (never cropped), leader cards are mystery 「？」 cards — no names, no roles, no per-player data.
+* Numbers come from 遊戲內容: `{t}` = 最後投票勝利門檻 (`end.threshold`), `{q}` / `{need}` = Round 3 每題門檻 / 需要成功題數, `{n}` = 題數. Copy lives in `data/texts.json` → `howto[7]` (`title, sub, l1, l2`).
+* The slides only mention 領袖 and 平民 — the secret supporter role and tips (敲門 / 改票 / 封票) are deliberately never mentioned.
+* Phones (lobby page): 「請睇 TV 玩法說明」 / 「主持人會逐頁講解玩法，請留意 TV！」 while the TV is on `howto`. Entering stops the bubble battle (phase `started`); 結束 restores the previous phase.
+* Tests: `pwt/instr-test.mjs`.
 
 ### 身份揭曉 (identity reveal)
 

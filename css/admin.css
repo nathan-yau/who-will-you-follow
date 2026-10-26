@@ -349,3 +349,7 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .fn-t__b.is-done { opacity: .6; }
 #fnAll.is-armed, #fnReset.is-armed { background: #c0634c; color: #fff; border-color: #c0634c; }
 @media (min-width: 720px) { .fn-tiles { grid-template-columns: repeat(4, 1fr); } }
+
+/* 玩法說明 controls */
+.hw-nav { align-items: center; }
+.hw-page { flex: 0 0 auto; min-width: 84px; text-align: center; font-size: 14px; font-weight: 700; color: #4b301d; white-space: nowrap; }

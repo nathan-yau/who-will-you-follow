@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=23" />
+  <link rel="stylesheet" href="../css/admin.css?v=24" />
 </head>
 <body>
   <header class="top">
@@ -60,6 +60,29 @@
             <button class="btn btn--primary" id="random" type="button">隨機分配</button>
             <button class="btn btn--ghost" id="clear" type="button">清除角色</button>
             <button class="btn btn--danger" id="reset" type="button">新一場</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 玩法說明 (before 身份揭曉): TV slideshow, paged by the host; phones show 「請睇 TV 玩法說明」 -->
+      <section class="acc" data-acc="howto" id="accHowto">
+        <div class="acc__head">
+          <button class="acc__toggle" type="button" aria-expanded="true" aria-controls="accHowtoBody">
+            <span class="acc__title">玩法說明</span>
+            <span class="acc__sum"><i class="dot" id="hwDot"></i> <span id="hwSum">未開始</span></span>
+            <svg class="acc__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="acc__body" id="accHowtoBody">
+          <p class="tvnote" id="hwNote">身份揭曉之前，可在 TV 逐頁講解玩法（約 15 分鐘的遊戲流程）。</p>
+          <div class="fn-row">
+            <button class="btn btn--primary" id="hwEnter" type="button">開始玩法說明</button>
+            <button class="btn btn--ghost" id="hwExit" type="button">結束</button>
+          </div>
+          <div class="fn-row hw-nav">
+            <button class="btn btn--ghost" id="hwPrev" type="button">上一頁</button>
+            <span class="hw-page" id="hwPage" aria-live="polite">— / 7</span>
+            <button class="btn btn--primary" id="hwNext" type="button">下一頁</button>
           </div>
         </div>
       </section>
@@ -262,6 +285,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/admin.js?v=25"></script>
+  <script src="../js/admin.js?v=26"></script>
 </body>
 </html>

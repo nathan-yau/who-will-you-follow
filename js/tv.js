@@ -345,7 +345,8 @@
     emptyEl.hidden = list.length > 0;
     var started = s.phase === 'started';
     // round title screen (r1–r3) only while started; an older backend without `screen` = placeholder
-    setScreen(started && (ROUNDS[s.screen] || s.screen === 'reveal' || s.screen === 'final' || s.screen === 'ending') ? s.screen : 'lobby', s.leaders, s);
+    setScreen(started && (ROUNDS[s.screen] || s.screen === 'reveal' || s.screen === 'final' || s.screen === 'ending' || s.screen === 'howto') ? s.screen : 'lobby', s.leaders, s);
+    renderHowto(screen === 'howto' ? s.howto || {} : null, list);
     renderFinal(screen === 'final' ? s.final : null);
     renderEnding(screen === 'ending' ? s.ending || null : undefined);
     if (screen === 'reveal') renderRevealCount(s.reveal);
@@ -388,7 +389,10 @@
     if (sc !== screen) {
       screen = sc;
       document.body.classList.toggle('is-round', sc !== 'lobby');
-      document.body.classList.toggle('is-final', sc === 'final' || sc === 'ending');
+      document.body.classList.toggle('is-final', sc === 'final' || sc === 'ending' || sc === 'howto');
+      var hw = $('howto');
+      if (sc === 'howto') { hw.hidden = true; void hw.offsetWidth; hwKey = ''; }
+      hw.hidden = sc !== 'howto';
       document.body.classList.toggle('is-ending', sc === 'ending');
       var en = $('ending');
       if (sc === 'ending') { en.hidden = true; void en.offsetWidth; }
@@ -538,8 +542,11 @@
   var EDEF = { tvTitle: '結局', tvSub: '最後投票：有幾多人跟隨了真正的領袖？', meterLabel: '跟隨真正領袖', target: '目標 {t}%', count: '{x} / {n} 人（約 {p}%）',
     winTitle: '勝利！', winLine: '大家成功跟隨了真正的領袖！', loseTitle: '差一點點…', loseLine: '假領袖勝出…', votes: '{n} 票', trueTag: '真正領袖', fakeTag: '假領袖', waiting: '結局計算中…' };
   var ET = null;
-  fetch('../data/texts.json?v=8', { cache: 'no-cache' }).then(function (r) { return r.json(); })
-    .then(function (d) { if (d && d.ending) { ET = d.ending; endKey = ''; if (screen === 'ending') renderEnding(lastEnding); } }).catch(function () {});
+  fetch('../data/texts.json?v=9', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d && d.ending) { ET = d.ending; endKey = ''; if (screen === 'ending') renderEnding(lastEnding); }
+      if (d && d.howto) { HT = d.howto; hwKey = ''; if (screen === 'howto') renderHowto(lastHowto, lastHowtoList); }
+    }).catch(function () {});
   function E(k) { return ET && ET[k] != null && ET[k] !== '' ? ET[k] : EDEF[k]; }
   function fillT(t, o) { return String(t).replace(/\{(\w+)\}/g, function (m, k) { return o[k] != null ? o[k] : m; }); }
   var endKey = '', lastEnding = null, lastEndingRecv = 0, enTimers = [], enRaf = 0, enStage = '', enCounted = 0;
@@ -815,6 +822,98 @@
   document.addEventListener('visibilitychange', function () { if (!document.hidden) { lastT = 0; if (!inflight) poll(); } else clearTimeout(pollTimer); });
   poll();
 
+  /* ---------- 玩法說明 (screen 'howto', before 身份揭曉): one slide per page, the host pages through them.
+     mini/state howto = {page, pages, threshold (結局 %), quiz: {n, threshold, need}} — general rules only.
+     The leader cards are mystery "?" cards: nobody is shown as a leader before Round 1. Copy: data/texts.json "howto"
+     (an array of {title, sub, l1, l2}; {t} {n} {q} {need} are filled in), defaults below. */
+  var HDEF = [
+    { title: '玩法說明', sub: 'Who Will You Follow? 你會跟隨誰？', l1: '一起找出真正的領袖！', l2: '遊戲大約 15 分鐘' },
+    { title: '遊戲目標', sub: '4 位領袖，只有 1 位是真的', l1: '4 位領袖：1 位真正領袖、3 位假領袖。', l2: '最後投票有 {t}% 或以上的人選中真正領袖，全體勝利！' },
+    { title: '角色', sub: '領袖 · 平民', l1: '每位玩家的身份是「領袖」或「平民」。', l2: '身份只會顯示在你自己的手機上，請保密！' },
+    { title: 'Round 1 聽佢講', sub: '每位領袖講 3 件關於自己的事', l1: '真正領袖 3 句全真；假領袖 2 真 1 假。', l2: '聽完之後，投票選出你相信的領袖！' },
+    { title: 'Round 2 誰是真領袖？', sub: '神秘描述', l1: '每個人的手機都會看到一段神秘描述。', l2: '大家一起討論，然後投票！' },
+    { title: 'Round 3 破解密碼', sub: '{n} 條選擇題', l1: '每題有 {q}% 或以上的人答對，就算成功。', l2: '成功 {need} 題就解鎖最後的線索，然後最後投票！' },
+    { title: '最終揭曉', sub: '誰才是真正領袖？', l1: '逐張翻開領袖卡，揭曉誰是真正領袖！', l2: '然後就是結局：大家能一起勝利嗎？' }
+  ];
+  var HT = null, hwKey = '', lastHowto = null, lastHowtoList = [], hwPage = -1;
+  function HX(i, k) { var t = HT && HT[i] && HT[i][k] != null && HT[i][k] !== '' ? HT[i][k] : (HDEF[i] || {})[k]; return t == null ? '' : t; }
+  var HW_COL = ['a', 'b', 'c', 'd'];   // card colours only — never shown as labels
+  function hwCard(i, extra) { return '<div class="lc lc--' + HW_COL[i % 4] + ' hw-lc' + (extra || '') + '" style="--i:' + i + '"><div class="lc__circle"><span class="lc__q">?</span></div><p class="lc__pill"><b>？？？</b></p></div>'; }
+  function hwSpr(cid, i) {
+    var dx = window.wwyfSpriteDx ? wwyfSpriteDx(cid) : 0;
+    return '<div class="hw-spr" style="--dx:' + dx + ';--i:' + i + '"><img alt="" draggable="false" src="' + img(cid, i % 2 ? 'stale2' : 'stale1') + '"></div>';
+  }
+  var HW_PHONE = '<svg class="hw-phone" viewBox="0 0 120 190"><rect x="8" y="6" width="104" height="178" rx="22" fill="#fdfaf1" stroke="#6f5a43" stroke-width="5"/>' +
+    '<rect x="20" y="24" width="80" height="128" rx="10" fill="#e4eed8"/><rect x="46" y="13" width="28" height="5" rx="2.5" fill="#cdbfa6"/>' +
+    '<circle cx="60" cy="168" r="6" fill="none" stroke="#cdbfa6" stroke-width="3"/>';
+  var HW_PERSON = '<path d="M60 58c-12 0-21 9-21 20v6h42v-6c0-11-9-20-21-20z" fill="#b8cfa6"/><circle cx="60" cy="56" r="13" fill="#b8cfa6"/>';
+  function hwPerson(cls) { return '<svg class="hw-person ' + (cls || '') + '" viewBox="30 30 60 60"><path d="M60 58c-12 0-21 9-21 20v8h42v-8c0-11-9-20-21-20z" fill="currentColor"/><circle cx="60" cy="48" r="13" fill="currentColor"/></svg>'; }
+  function HW_BUB(c, i) { return '<svg class="hw-bub" style="--i:' + i + '" viewBox="0 0 70 56"><path d="M10 4h50a8 8 0 0 1 8 8v22a8 8 0 0 1-8 8H30l-12 10v-10h-8a8 8 0 0 1-8-8V12a8 8 0 0 1 8-8z" fill="' + c + '" stroke="#6f5a43" stroke-width="3.5" stroke-linejoin="round"/>' +
+    '<circle cx="23" cy="23" r="4" fill="#6f5a43"/><circle cx="35" cy="23" r="4" fill="#6f5a43"/><circle cx="47" cy="23" r="4" fill="#6f5a43"/></svg>'; }
+  function hwTicks(arr) { return '<span class="hw-ticks">' + arr.map(function (ok) { return '<i class="' + (ok ? 'is-ok' : 'is-no') + '">' + (ok ? '✓' : '✗') + '</i>'; }).join('') + '</span>'; }
+  function hwArt(p, list, o) {
+    var k, h = '';
+    if (p === 0) {
+      var ids = list.map(function (x) { return x.characterId; }).filter(Boolean);
+      if (!ids.length) ids = Object.keys(window.WWYF_SPRITE_BOX || {}).slice(0, 8);
+      ids = ids.slice(0, 9);
+      return '<div class="hw-row hw-row--chars">' + ids.map(hwSpr).join('') + '</div>';
+    }
+    if (p === 1) {
+      for (k = 0; k < 4; k++) h += hwCard(k);
+      return '<div class="hw-row">' + h + '</div><div class="hw-goal"><b lang="en">' + o.t + '%</b><span>選中真正領袖 → 全體勝利</span></div>';
+    }
+    if (p === 2) {
+      return '<div class="hw-row hw-row--roles"><div class="hw-role">' + hwCard(0) + '<span class="hw-tag">領袖</span></div>' +
+        '<div class="hw-role"><div class="hw-people">' + hwPerson('c1') + hwPerson('c2') + hwPerson('c3') + '</div><span class="hw-tag">平民</span></div>' +
+        '<div class="hw-role hw-role--phone">' + HW_PHONE + HW_PERSON + '<text x="60" y="128" text-anchor="middle" font-family="Fredoka, system-ui, sans-serif" font-weight="700" font-size="34" fill="#6f9a63">?</text></svg><span class="hw-tag hw-tag--shh">保密</span></div></div>';
+    }
+    if (p === 3) {
+      return '<div class="hw-row hw-row--r1">' + hwCard(1) +
+        '<div class="hw-say"><p><span>真正領袖</span>' + hwTicks([1, 1, 1]) + '</p><p><span>假領袖</span>' + hwTicks([1, 1, 0]) + '</p></div></div>';
+    }
+    if (p === 4) {
+      return '<div class="hw-row hw-row--r2"><div class="hw-desc">' + HW_PHONE + '<rect x="30" y="44" width="60" height="7" rx="3.5" fill="#b8cfa6"/><rect x="30" y="60" width="52" height="7" rx="3.5" fill="#b8cfa6"/>' +
+        '<rect x="30" y="76" width="58" height="7" rx="3.5" fill="#b8cfa6"/><rect x="30" y="92" width="40" height="7" rx="3.5" fill="#b8cfa6"/>' +
+        '<text x="60" y="138" text-anchor="middle" font-family="Fredoka, system-ui, sans-serif" font-weight="700" font-size="26" fill="#6f9a63">?</text></svg></div>' +
+        '<div class="hw-chat">' + HW_BUB('#fdfaf1', 0) + HW_BUB('#fee7e1', 1) + HW_BUB('#e0e9f2', 2) + '</div>' +
+        '<div class="hw-ballot"><svg viewBox="0 0 80 80"><rect x="10" y="34" width="60" height="38" rx="8" fill="#fde4c0" stroke="#6f5a43" stroke-width="4"/>' +
+        '<rect x="26" y="8" width="28" height="36" rx="4" fill="#fdfaf1" stroke="#6f5a43" stroke-width="4" transform="rotate(-8 40 26)"/><path d="M31 25l6 6 11-12" fill="none" stroke="#6f9a63" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<rect x="22" y="40" width="36" height="5" rx="2.5" fill="#6f5a43"/></svg><span>投票</span></div></div>';
+    }
+    if (p === 5) {
+      for (k = 0; k < o.n; k++) h += '<i class="hw-q' + (k < o.need ? ' is-ok' : '') + '" style="--i:' + k + '">' + (k < o.need ? '✓' : (k + 1)) + '</i>';
+      return '<div class="hw-row hw-row--r3"><div class="hw-qs">' + h + '</div><div class="hw-lock"><svg viewBox="0 0 80 80"><path d="M24 36V24a16 16 0 0 1 31-5" fill="none" stroke="#6f5a43" stroke-width="7" stroke-linecap="round"/>' +
+        '<rect x="14" y="36" width="52" height="38" rx="9" fill="#f6c94c" stroke="#6f5a43" stroke-width="4"/><circle cx="40" cy="52" r="5" fill="#6f5a43"/><rect x="37.5" y="54" width="5" height="10" rx="2.5" fill="#6f5a43"/></svg><span>最後的線索</span></div></div>';
+    }
+    for (k = 0; k < 4; k++) h += hwCard(k, k === 2 ? ' hw-lc--flip' : '');
+    return '<div class="hw-row hw-row--final">' + h + '</div>';
+  }
+  function renderHowto(h, list) {
+    lastHowto = h; lastHowtoList = list || [];
+    if (!h) { hwPage = -1; return; }
+    var pages = h.pages || HDEF.length, p = Math.max(0, Math.min(pages - 1, h.page | 0)), q = h.quiz || {};
+    var o = { t: h.threshold != null ? h.threshold : 70, n: q.n || 5, q: q.threshold != null ? q.threshold : 60, need: q.need || 3 };
+    var chars = p === 0 ? lastHowtoList.map(function (x) { return x.characterId; }).join(',') : '';
+    var k = [p, pages, o.t, o.n, o.q, o.need, chars, HT ? 1 : 0].join('|');
+    if (k === hwKey) return;
+    var turn = hwPage !== p;
+    hwKey = k; hwPage = p;
+    var f = function (t) { return fillT(t, o); };
+    $('hwTitle').textContent = f(HX(p, 'title'));
+    $('hwTitle').classList.toggle('is-latin', /[A-Za-z]/.test($('hwTitle').textContent));
+    $('hwSub').textContent = f(HX(p, 'sub'));
+    $('hwL1').textContent = f(HX(p, 'l1'));
+    $('hwL2').textContent = f(HX(p, 'l2'));
+    $('hwArt').innerHTML = hwArt(p, lastHowtoList, o);
+    var d = '';
+    for (var i = 0; i < pages; i++) d += '<i' + (i === p ? ' class="is-on"' : '') + '></i>';
+    $('hwDots').innerHTML = d;
+    var sec = $('howto');
+    sec.dataset.page = String(p);
+    if (turn && !RM) { sec.classList.remove('is-turn'); void sec.offsetWidth; sec.classList.add('is-turn'); }
+  }
+
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get ending() { return lastEnding; }, get endingStage() { return enStage; }, get endingCounted() { return enCounted; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get ending() { return lastEnding; }, get endingStage() { return enStage; }, get endingCounted() { return enCounted; }, get howto() { return screen === 'howto' ? { page: hwPage, title: $('hwTitle').textContent } : null; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
 })();

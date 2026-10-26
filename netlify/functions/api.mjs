@@ -1,7 +1,8 @@
 // Who Will You Follow? — game backend (Netlify Functions v2 + Netlify Blobs).
 // One game at a time. State lives in the "wwyf-game" blob store:
 //   meta                 { gameId, startedAt, revealed, phase: 'lobby'|'started', phaseAt,
-//                          tvScreen: 'lobby'|'r1'|'r2'|'r3'|'reveal' }   (what the TV shows; set by POST admin/screen)
+//                          tvScreen: 'lobby'|'howto'|'r1'|'r2'|'r3'|'reveal'|'final'|'ending' }   (what the TV shows; set by POST admin/screen)
+//                        howto = { page, from: 'lobby'|'started' }   玩法說明 slideshow (POST admin/howto), only before 身份揭曉
 //                        revealed = phones may see their own role (turned on by the 身份揭曉 stage, stays on until 新一場);
 //                        tvScreen 'reveal' = the 身份揭曉 stage itself (POST admin/reveal-stage)
 //   config               { roles: { <special role>: max } }   (平民 has no limit)
@@ -44,7 +45,9 @@ const ROUND_SCREENS = ['r1', 'r2', 'r3'];
 const REVEAL = 'reveal';   // 身份揭曉 stage
 const FINAL = 'final';     // 最終揭曉 (host flips the leader cards in any order)
 const ENDING = 'ending';   // 結局 (after 最終揭曉: did the group follow the true leader in the final vote?)
-const SCREENS = [...ROUND_SCREENS, REVEAL, FINAL, ENDING];
+const HOWTO = 'howto';    // 玩法說明 slideshow (before 身份揭曉; the host pages through it)
+const HOWTO_PAGES = 7;    // 0 封面 (約 15 分鐘) · 1 遊戲目標 · 2 角色 · 3 Round 1 · 4 Round 2 · 5 Round 3 · 6 最終揭曉 — the copy lives in js/tv.js
+const SCREENS = [...ROUND_SCREENS, REVEAL, FINAL, ENDING, HOWTO];
 // round / reveal screens only make sense once the game has started (lobby -> always the bubble battle)
 const screenOf = (m) => (phaseOf(m) === STARTED && SCREENS.includes(m.tvScreen) ? m.tvScreen : LOBBY);
 const MINI_MAX_PUSH = 4;   // per request; the phone sends at most every 250 ms and caps taps at 2/s
@@ -365,7 +368,8 @@ async function adminState(s) {
   const sc = screenOf(meta), speak = ROUND_SCREENS.includes(sc) ? speakView(meta, sc) : null;
   const quiz = await adminQuiz(s, await quizSettle(s, meta), players, await getContent(s));
   const final = await adminFinal(s, meta, players.map(normalize));
-  return { meta, votes, quiz, final, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
+  const howto = { on: sc === HOWTO, allowed: !meta.revealed, page: sc === HOWTO ? (await howtoView(s, meta)).page : 0, pages: HOWTO_PAGES };
+  return { meta, votes, quiz, final, howto, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
 }
 
 async function setRole(req, s) {
@@ -912,6 +916,8 @@ async function miniState(s) {
   const out = { phase: phaseOf(meta), screen, gameId: meta.gameId, joined: list.length, players: list, t: now() };
   // 身份揭曉 screen: aggregate count ONLY (how many have looked) — never per-player flags, never roles
   if (screen === REVEAL) out.reveal = { revealed: players.filter((p) => p && p.revealedAt).length, total: list.length };
+  // 玩法說明: the page + the configured numbers the slides quote (thresholds etc.) — general rules only, nothing per player
+  if (screen === HOWTO) out.howto = await howtoView(s, meta);
   // round screens: the 4 leader cards (character only, in stable slot order — no letter, never the true/fake role)
   if (ROUND_SCREENS.includes(screen)) {
     const ps = players.filter(Boolean).map(normalize);
@@ -998,6 +1004,7 @@ async function setScreen(req, s) {
   const b = await body(req);
   if (b.screen === LOBBY) return setPhase(s, LOBBY);
   if (b.screen === REVEAL) return revealStage(s, true);
+  if (b.screen === HOWTO) return howtoAction(s, { action: 'enter' });
   if (b.screen === FINAL) return finalAction(s, { action: 'enter' });
   if (b.screen === ENDING) return finalAction(s, { action: 'ending' });
   if (!ROUND_SCREENS.includes(b.screen)) fail(400, 'bad_screen', '未知的畫面');
@@ -1462,6 +1469,46 @@ async function finalAction(s, b) {
   return { ok: true, screen: screenOf(mm), final: await adminFinal(s, mm, players) };
 }
 
+/* ---------------- 玩法說明 (TV slideshow, before 身份揭曉) ----------------
+   admin/howto {action: 'enter'|'exit'|'next'|'prev'|'go', page}. enter: TV -> screen 'howto' at page 0 (the game counts as
+   started so the lobby mini game stops; phones show 「請睇 TV 玩法說明」); exit: back to where it came from (等候 / 遊戲開始).
+   Only before 身份揭曉 (meta.revealed) — the slides never say who the leaders are or mention any secret role. */
+async function howtoView(s, meta) {
+  const c = await getContent(s), h = meta.howto || {};
+  return { page: Math.max(0, Math.min(HOWTO_PAGES - 1, h.page | 0)), pages: HOWTO_PAGES, threshold: c.end.threshold, quiz: { n: QUIZ_N, threshold: c.r3.threshold, need: c.r3.need } };
+}
+async function howtoAction(s, b) {
+  const a = b && b.action;
+  if (!['enter', 'exit', 'next', 'prev', 'go'].includes(a)) fail(400, 'bad_action', '未知的操作');
+  const meta = await getMeta(s);
+  if (a === 'exit') {
+    if (meta.tvScreen !== HOWTO) return { ok: true, screen: screenOf(meta), howto: null };
+    const from = meta.howto && meta.howto.from === STARTED ? STARTED : LOBBY;
+    const r = await setPhase(s, from);
+    return { ...r, howto: null };
+  }
+  if (meta.revealed) fail(409, 'revealed', '身份已揭曉：玩法說明只可在身份揭曉之前顯示');
+  if (a !== 'enter' && screenOf(meta) !== HOWTO) fail(409, 'not_howto', '請先開始玩法說明');
+  if (a === 'go' && !(Number.isInteger(b.page) && b.page >= 0 && b.page < HOWTO_PAGES)) fail(400, 'bad_page', '頁數無效');
+  const t = now();
+  const m = await update(s, 'meta', (m) => {
+    if (a === 'enter') {
+      const from = phaseOf(m) === STARTED ? STARTED : LOBBY;
+      if (m.tvScreen === HOWTO) return undefined;   // already on: keep the page
+      if (m.phase !== STARTED) m.phaseAt = t;
+      m.phase = STARTED; m.tvScreen = HOWTO; m.howto = { page: 0, from };
+      return m;
+    }
+    const h = m.howto || { page: 0, from: LOBBY };
+    const page = a === 'go' ? b.page : Math.max(0, Math.min(HOWTO_PAGES - 1, (h.page | 0) + (a === 'next' ? 1 : -1)));
+    if (page === h.page) return undefined;
+    m.howto = { ...h, page };
+    return m;
+  });
+  const mm = m || (await getMeta(s));
+  return { ok: true, screen: screenOf(mm), howto: await howtoView(s, mm) };
+}
+
 const ROUTES = {
   'GET lobby': (req, s) => lobby(s),
   'POST join': join,
@@ -1502,6 +1549,7 @@ const ROUTES = {
   'POST admin/quiz-close': closeQuestionReq,
   'POST admin/quiz-reset': (req, s) => resetQuiz(s),
   'POST admin/final': async (req, s) => finalAction(s, await body(req)),
+  'POST admin/howto': async (req, s) => howtoAction(s, await body(req)),
 };
 
 export default async (req, context) => {

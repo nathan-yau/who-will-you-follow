@@ -303,7 +303,7 @@
     window.location.href = '../vote/';
   });
 
-  fetch('../data/texts.json?v=8', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+  fetch('../data/texts.json?v=9', { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) { if (d && (d.rounds || d.round)) { T = { rounds: d.rounds || {}, round: {}, quiz: d.quiz || {}, final: d.final || {}, ending: d.ending || {} }; for (var k in DEF.round) T.round[k] = (d.round && d.round[k]) || DEF.round[k]; } render(); })
     .catch(function () {});
   fetch('../data/characters.json?v=' + V, { cache: 'no-cache' }).then(function (r) { return r.json(); })

@@ -102,7 +102,7 @@
     $('phaseDot').classList.toggle('on', !started);
     $('phaseDot').classList.toggle('live', started);
     $('tvNote').textContent = started
-      ? '遊戲已開始：TV 顯示' + (sc === 'reveal' ? '「身份揭曉」畫面' : sc === 'final' ? '「最終揭曉」畫面' : sc === 'ending' ? '「結局」畫面' : rnd ? '「' + rnd + '」標題畫面（含四位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
+      ? '遊戲已開始：TV 顯示' + (sc === 'reveal' ? '「身份揭曉」畫面' : sc === 'howto' ? '「玩法說明」' : sc === 'final' ? '「最終揭曉」畫面' : sc === 'ending' ? '「結局」畫面' : rnd ? '「' + rnd + '」標題畫面（含四位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
       : '等候中：玩家可在手機按「避開啊／衝過去」玩 TV 上的泡泡大戰。';
     $('startGame').disabled = started;
     if (started) disarm();
@@ -112,6 +112,7 @@
     renderVote();
     renderQuiz();
     renderFinal();
+    renderHowto();
   }
 
   /* 開始 Round 1 (flow: 等候 → 身份揭曉 → Round 1): shown once the reveal stage has started, until a round is on the TV.
@@ -151,7 +152,7 @@
   });
 
   /* TV 畫面 segmented control: 等候 / Round 1–3 (POST admin/screen; a round implies 開始遊戲) */
-  var SCREEN_NAMES = { lobby: '等候', r1: 'Round 1', r2: 'Round 2', r3: 'Round 3', reveal: '身份揭曉', final: '最終揭曉', ending: '結局' };
+  var SCREEN_NAMES = { lobby: '等候', r1: 'Round 1', r2: 'Round 2', r3: 'Round 3', reveal: '身份揭曉', final: '最終揭曉', ending: '結局', howto: '玩法說明' };
   var segPending = null, segArm = null, segArmT = 0;
   function curScreen() {
     var m = state && state.meta;
@@ -721,6 +722,35 @@
     act(this, function () { return WWYF.admin('POST', 'quiz-reset').then(function () { qzPick = null; toast('問答進度已重設'); }); });
   });
   setInterval(function () { if (state && !document.hidden && quizOpenNow()) renderQuiz(); }, 500);
+
+  /* ---------- 玩法說明 (POST admin/howto {action: enter | exit | next | prev}) — only before 身份揭曉 ---------- */
+  var hwBusy = false;
+  function renderHowto() {
+    var h = state && state.howto;
+    if (!h) return;
+    var on = !!h.on, n = h.pages || 7;
+    $('hwEnter').disabled = hwBusy || on || !h.allowed;
+    $('hwEnter').textContent = on ? 'TV 顯示玩法說明中' : '開始玩法說明';
+    $('hwExit').disabled = hwBusy || !on;
+    $('hwPrev').disabled = hwBusy || !on || h.page <= 0;
+    $('hwNext').disabled = hwBusy || !on || h.page >= n - 1;
+    $('hwPage').textContent = on ? '第 ' + (h.page + 1) + ' / ' + n + ' 頁' : '— / ' + n;
+    $('hwSum').textContent = on ? '第 ' + (h.page + 1) + ' / ' + n + ' 頁' : h.allowed ? '未開始' : '身份已揭曉';
+    $('hwDot').className = 'dot' + (on ? ' v-live' : '');
+    $('hwNote').textContent = !h.allowed ? '身份已揭曉：玩法說明只可在身份揭曉之前顯示。'
+      : on ? 'TV 正顯示玩法說明，手機顯示「請睇 TV 玩法說明」。按「結束」返回之前的畫面。' : '身份揭曉之前，可在 TV 逐頁講解玩法（約 15 分鐘的遊戲流程）。';
+  }
+  function hwDo(action, msg) {
+    hwBusy = true; renderHowto();
+    return WWYF.admin('POST', 'howto', { action: action }).then(function (r) {
+      if (state && state.howto) { state.howto.on = r.screen === 'howto'; if (r.howto) state.howto.page = r.howto.page; }
+      if (msg) toast(msg);
+    }).catch(fail).then(function () { hwBusy = false; renderPhase(); return refresh(); });
+  }
+  $('hwEnter').addEventListener('click', function () { if (!this.disabled) hwDo('enter', 'TV 已顯示玩法說明'); });
+  $('hwExit').addEventListener('click', function () { if (!this.disabled) hwDo('exit', '玩法說明已結束'); });
+  $('hwPrev').addEventListener('click', function () { if (!this.disabled) hwDo('prev'); });
+  $('hwNext').addEventListener('click', function () { if (!this.disabled) hwDo('next'); });
 
   /* ---------- 最終揭曉 (POST admin/final {action: enter | flip | supporter | all | reset | votes}) ---------- */
   var fnBusy = false, fnArm = null, fnArmT = 0;

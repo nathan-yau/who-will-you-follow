@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
-  <link rel="stylesheet" href="../css/tv.css?v=18" />
+  <link rel="stylesheet" href="../css/tv.css?v=19" />
 </head>
 <body>
   <main class="tv" id="tv">
@@ -120,6 +120,16 @@
         <div class="fn-cards" id="fnCards"></div>
         <div class="fn-fx" id="fnFx" aria-hidden="true"></div>
       </section>
+      <!-- 玩法說明 (screen 'howto', before 身份揭曉): the host pages through the slides (admin 上一頁 / 下一頁).
+           General rules only — leader cards are mystery "?" cards (nobody is shown as a leader before Round 1). Copy: js/tv.js HDEF / data/texts.json "howto". -->
+      <section class="tv-round tv-howto" id="howto" hidden>
+        <div class="fn-title"><h1 id="hwTitle">玩法說明</h1><p id="hwSub"></p></div>
+        <div class="hw-card" id="hwCard">
+          <div class="hw-art" id="hwArt" aria-hidden="true"></div>
+          <div class="hw-text"><p class="hw-l1" id="hwL1"></p><p class="hw-l2" id="hwL2"></p></div>
+        </div>
+        <div class="hw-dots" id="hwDots" aria-hidden="true"></div>
+      </section>
       <!-- 結局 (screen 'ending'): meter -> 勝利！ / 差一點點… ; aggregate counts only (no voter names) -->
       <section class="tv-round tv-ending" id="ending" hidden>
         <div class="fn-title"><h1 id="enTitle">結局</h1><p id="enSub">最後投票：有幾多人跟隨了真正的領袖？</p></div>
@@ -151,6 +161,6 @@
   </script>
   <script src="../js/api.js?v=10"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
-  <script src="../js/tv.js?v=15"></script>
+  <script src="../js/tv.js?v=16"></script>
 </body>
 </html>
