@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=11" />
+  <link rel="stylesheet" href="../css/admin.css?v=12" />
 </head>
 <body>
   <header class="top">
@@ -39,37 +39,37 @@
       <p class="login__err" id="loginErr" role="alert"></p>
     </section>
 
-    <!-- dashboard -->
-    <section id="dash" hidden>
-      <ul class="warnings" id="warnings"></ul>
-
-      <div class="listhead">
-        <h2>玩家</h2>
-        <div class="lockwrap">
-          <span class="lock__hint" id="lockHint">先解鎖</span>
-          <button class="lock" id="lock" type="button" aria-pressed="false" title="鎖定可避免誤觸"><span id="lockIcon" aria-hidden="true">🔒</span><span id="lockText">已鎖定</span></button>
+    <!-- dashboard: a stack of collapsible sections (.acc). To add one, copy the markup with a new data-acc id. -->
+    <div id="dash" class="stack" hidden>
+      <section class="acc" data-acc="players" id="accPlayers">
+        <div class="acc__head">
+          <button class="acc__toggle" type="button" aria-expanded="true" aria-controls="accPlayersBody">
+            <span class="acc__title">玩家管理</span>
+            <span class="acc__sum">已加入 <b id="sumJoined">0</b>/<span id="sumCap">17</span> · 已分配 <b id="sumAssigned">0</b>/<span id="sumAssignedOf">0</span></span>
+            <svg class="acc__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="acc__tools lockwrap">
+            <span class="lock__hint" id="lockHint">先解鎖</span>
+            <button class="lock" id="lock" type="button" aria-pressed="false" title="鎖定可避免誤觸"><span id="lockIcon" aria-hidden="true">🔒</span><span id="lockText">已鎖定</span></button>
+          </div>
         </div>
-      </div>
-      <div class="grid is-locked" id="grid"></div>
-      <p class="empty" id="empty" hidden>目前還沒有玩家加入</p>
-
-      <details class="archive" id="archiveBox">
-        <summary>過往紀錄 <span id="archiveCount"></span></summary>
-        <ul id="archiveList"></ul>
-        <div id="archiveView"></div>
-      </details>
-    </section>
+        <div class="acc__body" id="accPlayersBody">
+          <ul class="warnings" id="warnings"></ul>
+          <div class="grid is-locked" id="grid"></div>
+          <p class="empty" id="empty" hidden>目前還沒有玩家加入</p>
+          <div class="acc__foot">
+            <button class="btn btn--primary" id="random" type="button">隨機分配</button>
+            <button class="btn btn--ghost" id="clear" type="button">清除角色</button>
+            <button class="btn btn--danger" id="reset" type="button">新一場</button>
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
-
-  <nav class="bar" id="bar" hidden>
-    <button class="btn btn--primary" id="random" type="button">隨機分配</button>
-    <button class="btn btn--ghost" id="clear" type="button">清除角色</button>
-    <button class="btn btn--danger" id="reset" type="button">新一場</button>
-  </nav>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=7"></script>
-  <script src="../js/admin.js?v=11"></script>
+  <script src="../js/admin.js?v=12"></script>
 </body>
 </html>

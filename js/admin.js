@@ -31,7 +31,7 @@
   /* ---------- auth ---------- */
   function showLogin(msg) {
     clearInterval(timer);
-    $('dash').hidden = true; $('topRight').hidden = true; $('bar').hidden = true; document.body.classList.remove('has-bar'); $('login').hidden = false;
+    $('dash').hidden = true; $('topRight').hidden = true; $('login').hidden = false;
     $('loginErr').textContent = msg || '';
     setTimeout(function () { $('pw').focus(); }, 50);
   }
@@ -61,7 +61,7 @@
   }
   function start() {
     setLocked(true);
-    $('login').hidden = true; $('dash').hidden = false; $('topRight').hidden = false; $('bar').hidden = false; document.body.classList.add('has-bar');
+    $('login').hidden = true; $('dash').hidden = false; $('topRight').hidden = false;
     refresh();
     clearInterval(timer);
     timer = setInterval(function () { if (!document.hidden) refresh(); }, 2000);
@@ -85,9 +85,10 @@
     $('warnings').innerHTML = warn.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('');
     $('assigned').textContent = s.players.filter(function (p) { return p.role; }).length;
     $('assignedOf').textContent = s.players.length;
+    $('sumJoined').textContent = s.players.length; $('sumCap').textContent = s.capacity;
+    $('sumAssigned').textContent = $('assigned').textContent; $('sumAssignedOf').textContent = s.players.length;
 
     renderGrid();
-    renderArchive();
   }
 
   function renderGrid() {
@@ -100,42 +101,16 @@
     s.players.forEach(function (p) {
       var isLeader = p.role && s.leaderRoles.indexOf(p.role) >= 0;
       var name = esc(charName(p.characterId));
-      html += '<div class="pc' + (p.role ? '' : ' unassigned') + (p.online ? '' : ' off') + (pend[p.id] ? ' saving' : '') + '" data-id="' + esc(p.id) + '">' +
-        '<img class="pc__icon" src="' + img(p.characterId) + '" alt="" loading="lazy" />' +
-        '<div class="pc__main"><i class="dot' + (p.online ? ' on' : '') + '" title="' + (p.online ? '在線' : '離線') + '"></i>' +
-          '<span class="pc__name" lang="en">' + name + '</span>' +
-          (p.nickname ? '<span class="pc__nick">' + esc(p.nickname) + '</span>' : '') + '</div>' +
-        '<button class="pill' + (p.role ? '' : ' pill--none') + '" type="button" data-act="role" style="--c:' + (p.role ? ROLE_COLORS[p.role] : '#b9b4a4') + '" aria-label="身分：' + esc(p.role || '未分配') + '（點一下切換）">' + esc(short(p.role)) + '</button>' +
-        (isLeader ? '<button class="badge" type="button" data-act="leader" style="--c:' + ROLE_COLORS[p.role] + '" aria-label="領袖 ' + esc(p.leader || '?') + '（點一下切換）">' + esc(p.leader || '?') + '</button>' : '<span class="badge badge--none"></span>') +
-        '<button class="kick" type="button" data-act="kick" title="移出玩家" aria-label="移出 ' + name + '">⋯</button>' +
+      html += '<div class="pc' + (p.role ? '' : ' unassigned') + (p.online ? '' : ' off') + (pend[p.id] ? ' saving' : '') + '" data-id="' + esc(p.id) + '" title="' + name + (p.nickname ? '（' + esc(p.nickname) + '）' : '') + (p.online ? '' : ' · 離線') + '">' +
+        '<div class="pc__icon"><img src="' + img(p.characterId) + '" alt="" loading="lazy" />' + (p.online ? '' : '<i class="pc__off" aria-label="離線"></i>') +
+          (isLeader ? '<button class="badge" type="button" data-act="leader" style="--c:' + ROLE_COLORS[p.role] + '" aria-label="領袖 ' + esc(p.leader || '?') + '（點一下切換）">' + esc(p.leader || '?') + '</button>' : '') + '</div>' +
+        '<span class="pc__name" lang="en">' + name + '</span>' +
+        '<button class="pill' + (p.role ? '' : ' pill--none') + '" type="button" data-act="role" style="--c:' + (p.role ? ROLE_COLORS[p.role] : '#b9b4a4') + '" aria-label="' + name + ' 身分：' + esc(p.role || '未分配') + '（點一下切換）">' + esc(short(p.role)) + '</button>' +
+        '<button class="kick" type="button" data-act="kick" title="移出玩家" aria-label="移出 ' + name + '"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2 2 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>' +
         '</div>';
     });
     $('grid').innerHTML = html;
   }
-
-  var archiveSig = '';
-  function renderArchive() {
-    var keys = state.archive || [];
-    $('archiveCount').textContent = '(' + keys.length + ')';
-    var sig = keys.join();
-    if (sig === archiveSig) return;
-    archiveSig = sig;
-    $('archiveList').innerHTML = keys.map(function (k) {
-      var ts = +k.split('/')[1].split('-')[0];
-      return '<li><button type="button" data-key="' + esc(k) + '">' + esc(new Date(ts).toLocaleString('zh-TW', { hour12: false })) + '</button></li>';
-    }).join('');
-  }
-  $('archiveList').addEventListener('click', function (e) {
-    var b = e.target.closest('button'); if (!b) return;
-    var bs = $('archiveList').querySelectorAll('button');
-    for (var i = 0; i < bs.length; i++) bs[i].setAttribute('aria-pressed', String(bs[i] === b));
-    WWYF.admin('GET', 'archive?key=' + encodeURIComponent(b.getAttribute('data-key'))).then(function (a) {
-      $('archiveView').innerHTML = '<table><thead><tr><th>角色</th><th>暱稱</th><th>身分</th><th>領袖</th></tr></thead><tbody>' +
-        a.players.map(function (p) {
-          return '<tr><td lang="en">' + esc(charName(p.characterId)) + '</td><td>' + esc(p.nickname || '–') + '</td><td>' + esc(p.role || '未分配') + '</td><td>' + esc(p.leader || '') + '</td></tr>';
-        }).join('') + '</tbody></table>';
-    }).catch(fail);
-  });
 
   /* ---------- actions ---------- */
   function act(btn, fn) {
@@ -270,9 +245,24 @@
     act(this, function () { return WWYF.admin('POST', 'clear-roles').then(function () { lastSig = ''; toast('已清除所有身分'); }); });
   });
   $('reset').addEventListener('click', function () {
-    if (!confirm('開始新一場？\n\n目前的玩家名單與身分會存到「過往場次紀錄」，然後清空所有玩家，大家需要重新加入。')) return;
-    act(this, function () { return WWYF.admin('POST', 'reset').then(function (r) { lastSig = ''; toast('新的一場已開始' + (r.archived ? '（已封存 ' + r.archived + ' 位玩家）' : '')); }); });
+    if (!confirm('開始新一場？\n\n會清空所有玩家與身分，大家需要重新選角色加入。')) return;
+    act(this, function () { return WWYF.admin('POST', 'reset').then(function (r) { lastSig = ''; toast('新的一場已開始'); }); });
   });
+
+  /* ---------- collapsible sections: any .acc[data-acc] gets toggle + remembered state ---------- */
+  var ACC_KEY = 'wwyf.admin.acc.';
+  function initAcc(sec) {
+    var id = sec.getAttribute('data-acc'), btn = sec.querySelector('.acc__toggle');
+    function set(open, save) {
+      sec.classList.toggle('is-closed', !open);
+      btn.setAttribute('aria-expanded', String(open));
+      if (save) try { localStorage.setItem(ACC_KEY + id, open ? '1' : '0'); } catch (e) {}
+    }
+    var saved = null; try { saved = localStorage.getItem(ACC_KEY + id); } catch (e) {}
+    set(saved !== '0', false);
+    btn.addEventListener('click', function () { set(sec.classList.contains('is-closed'), true); });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.acc[data-acc]'), initAcc);
 
   /* ---------- boot ---------- */
   fetch('../data/characters.json?v=' + V, { cache: 'no-cache' }).then(function (r) { return r.json(); })
