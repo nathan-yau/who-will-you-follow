@@ -170,7 +170,7 @@ body {
 /* row sits right under the banner (shifted a touch right to clear the R1 megaphone) and is scaled to 88 %,
    leaving the bottom-right corner (below the signpost) free for the lambs easter egg */
 .tv-cards {
-  position: absolute; left: 56px; right: 0; top: 292px; display: flex; justify-content: center; gap: 14px;
+  position: absolute; left: 72px; right: 0; top: 310px; display: flex; justify-content: center; gap: 14px;
   transform: scale(0.88); transform-origin: 50% 0;
 }
 .lc {
