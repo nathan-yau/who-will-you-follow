@@ -520,11 +520,13 @@ async function miniState(s) {
   const mini = new Map(miniBlobs.map((b, i) => [b.key.slice(5), minis[i]]));
   const list = players.filter(Boolean).map((p) => {
     const m = mini.get(p.id) || {};
-    // no reveal info here: this endpoint is public (TV) and must not say who has looked at their identity
+    // no per-player reveal info here: this endpoint is public (TV) and must not say WHO has looked (only the aggregate out.reveal)
     return { id: p.id, characterId: p.characterId, nickname: p.nickname || '', joinedAt: p.joinedAt, push: m.push || 0, dodge: m.dodge || 0, pt: m.pt || 0, dt: m.dt || 0 };
   }).sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
   const screen = screenOf(meta);
   const out = { phase: phaseOf(meta), screen, gameId: meta.gameId, joined: list.length, players: list, t: now() };
+  // 身份揭曉 screen: aggregate count ONLY (how many have looked) — never per-player flags, never roles
+  if (screen === REVEAL) out.reveal = { revealed: players.filter((p) => p && p.revealedAt).length, total: list.length };
   // round screens: the 4 leader cards (character only, in stable slot order — no letter, never the true/fake role)
   if (ROUND_SCREENS.includes(screen)) out.leaders = leaderCards(players.filter(Boolean).map(normalize));
   return out;

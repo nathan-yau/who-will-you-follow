@@ -346,6 +346,7 @@
     var started = s.phase === 'started';
     // round title screen (r1–r3) only while started; an older backend without `screen` = placeholder
     setScreen(started && (ROUNDS[s.screen] || s.screen === 'reveal') ? s.screen : 'lobby', s.leaders, s);
+    if (screen === 'reveal') renderRevealCount(s.reveal);
     setPhase(started ? 'started' : 'lobby', list);
   }
 
@@ -363,6 +364,19 @@
   var lastLeaders = null, cardsNames = -1;
   function esc(t) { return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   var screen = 'lobby', cardsKey = '';
+  /* 身份揭曉: aggregate count only ({revealed, total}) — the TV never knows WHO has looked */
+  var rvKey = '';
+  function renderRevealCount(r) {
+    var done = r ? Math.max(0, r.revealed | 0) : 0, total = r ? Math.max(0, r.total | 0) : 0, k = done + '/' + total;
+    $('rvCount').hidden = !r;
+    if (k === rvKey) return;
+    var bump = rvKey && done !== +rvKey.split('/')[0];
+    rvKey = k;
+    var d = $('rvDone');
+    d.textContent = String(done); $('rvTotal').textContent = String(total);
+    $('rvBar').style.width = (total ? Math.min(100, Math.round(done / total * 100)) : 0) + '%';
+    if (bump) { d.classList.remove('bump'); void d.offsetWidth; d.classList.add('bump'); }
+  }
   function roundImg(r, part) { return '../assets/img/round-' + r + '-' + part + '.webp?v=1'; }
   function setScreen(sc, leaders, s) {
     if (sc !== screen) {

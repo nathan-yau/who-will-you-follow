@@ -4,7 +4,7 @@
 .id-card { top: calc(253 * var(--U)); height: calc(600 * var(--U)); transition: height 0.45s cubic-bezier(.3, 1.2, .5, 1); }
 [data-state="shown"] .id-card { height: calc(652 * var(--U)); }
 
-.id-head { top: calc(288 * var(--U)); }
+.id-head { top: calc(288 * var(--U)); font-family: inherit; font-weight: 700; letter-spacing: calc(4 * var(--U)); text-indent: calc(4 * var(--U)); }
 .id-head .id-ticks { width: calc(14 * var(--U)); height: calc(22 * var(--U)); }
 .id-head > svg:first-child { margin-right: calc(10 * var(--U)); }
 

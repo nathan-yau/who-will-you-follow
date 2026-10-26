@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
-  <link rel="stylesheet" href="../css/tv.css?v=8" />
+  <link rel="stylesheet" href="../css/tv.css?v=9" />
 </head>
 <body>
   <main class="tv" id="tv">
@@ -66,11 +66,11 @@
         <img class="tv-round__bg" src="../assets/img/round-r2-bg.webp?v=1" alt="" draggable="false" />
         <div class="rv-banner">
           <img class="rv-banner__img" src="../assets/img/banner-blank.webp?v=1" alt="" draggable="false" />
-          <p class="rv-banner__pill" lang="en">Identity Reveal</p>
+          <p class="rv-banner__pill">秘密身份</p>
           <h1 class="rv-banner__title">身份揭曉</h1>
           <p class="rv-banner__sub">請看你的手機，揭曉你的秘密身份！</p>
         </div>
-        <!-- calm "look at your phone" illustration: no per-player info at all on the TV during this stage -->
+        <!-- calm "look at your phone" illustration + aggregate count only (no per-player icons/names/checks) -->
         <div class="rv-phone" aria-hidden="true">
           <i class="rv-ring"></i><i class="rv-ring rv-ring--2"></i>
           <svg class="rv-phone__svg" viewBox="0 0 120 190">
@@ -85,6 +85,10 @@
           <svg class="rv-spark rv-spark--1" viewBox="0 0 20 20"><path d="M10 0l2.4 7.6L20 10l-7.6 2.4L10 20l-2.4-7.6L0 10l7.6-2.4z" fill="#f2c14e"/></svg>
           <svg class="rv-spark rv-spark--2" viewBox="0 0 20 20"><path d="M10 0l2.4 7.6L20 10l-7.6 2.4L10 20l-2.4-7.6L0 10l7.6-2.4z" fill="#f5ab9b"/></svg>
           <svg class="rv-spark rv-spark--3" viewBox="0 0 20 20"><path d="M10 0l2.4 7.6L20 10l-7.6 2.4L10 20l-2.4-7.6L0 10l7.6-2.4z" fill="#9fbedd"/></svg>
+        </div>
+        <div class="rv-count" id="rvCount" aria-live="polite">
+          <p class="rv-count__txt">已揭曉 <b id="rvDone">0</b> / <b id="rvTotal">0</b></p>
+          <div class="rv-count__bar"><i id="rvBar"></i></div>
         </div>
       </section>
     </div>
@@ -102,6 +106,6 @@
     })();
   </script>
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/tv.js?v=5"></script>
+  <script src="../js/tv.js?v=6"></script>
 </body>
 </html>

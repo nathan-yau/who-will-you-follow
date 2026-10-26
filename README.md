@@ -69,7 +69,7 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | POST | `/api/admin/reveal` | host | `{revealed}` (legacy flag) |
 | POST | `/api/admin/reveal-stage` | host | `{on}` start/end the 身份揭曉 stage (start = phase started, `revealed`, TV screen `reveal`, fake pairs synced); `admin/screen {screen:'reveal'}` also starts it |
 | POST | `/api/mini/act` | player | `{push, dodge, seq}` batched TV mini-game input (≤ every 250 ms); stored in `mini/<playerId>`; `409 started` once the game has started |
-| GET | `/api/mini/state` | anyone | TV poll (every 250 ms): `{phase, gameId, joined, players:[{id, characterId, nickname, joinedAt, push, dodge}]}` |
+| GET | `/api/mini/state` | anyone | TV poll (every 250 ms): `{phase, gameId, joined, players:[{id, characterId, nickname, joinedAt, push, dodge}], leaders? (round screens), reveal?:{revealed, total} (身份揭曉 screen)}` |
 | POST | `/api/admin/start` | host | phase → `started` (stops the mini-game) |
 | POST | `/api/admin/lobby` | host | phase → `lobby` (clears mini-game counters) |
 
@@ -77,7 +77,8 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 
 * Host: admin section 「身份揭曉」 → 開始揭曉 (tap twice to confirm) / 結束揭曉; shows 已揭曉 X / N and who has looked (host only, authenticated).
 * Phone `identity/` (`css/identity.css`, `js/identity.js`): silhouette + 「揭曉我的身份」 → flip → role pill + description → 「知道了」 → 「再看一次身份」 (re-viewable for the rest of the game). The lobby jumps here once `revealed`.
-* TV screen `reveal`: banner 「身份揭曉」/「請看你的手機，揭曉你的秘密身份！」 plus a calm animated phone illustration — NO per-player info (no count, icons or checks). `/api/mini/state` (public) carries no seen flags and no reveal count.
+* TV screen `reveal`: pill 「秘密身份」, banner 「身份揭曉」/「請看你的手機，揭曉你的秘密身份！」, a calm animated phone illustration and the aggregate 「已揭曉 X / N」 with a progress bar — NO per-player icons, names or checks. `/api/mini/state` (public) adds only `reveal:{revealed, total}` on that screen; no per-player seen flags.
+* Phone identity page heading: 「你的身份」 (Chinese; only the game logo stays English).
 * Leader letters (A–D) are internal only and never shown to anyone: phones, TV round cards and the admin pairing badge use the character name from `data/characters.json`; admin shows the slot as a colour dot.
 * Texts: `data/roles.json` — `desc` per role; 假領袖 `helperLine` (appended only for a fake leader who has a fake supporter); 假領袖支持者 `supportsLabel` (「你支持：{name}」, shown with that leader's icon); `leaderLabel` (「{name}」 = the leader's own character name). Entries with `placeholder:true` are draft copy.
 * Fake-supporter pairing (`syncPairs` in api.mjs, server-side, stored as `player.supports` = the fake leader's player id): runs after every role change / random / kick and when the stage starts. Existing pairs are kept while the target is still a 假領袖; every unpaired 假領袖支持者 (in join order) takes the 假領袖 with the fewest supporters, ties → internal slot order, then join order — so supporters get distinct fake leaders while possible and only share once every fake leader has one. No fake leaders → `supports:null`. Admin tiles show it as a small `→<character name>` badge (truncated).
