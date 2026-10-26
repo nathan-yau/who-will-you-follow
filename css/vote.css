@@ -58,9 +58,9 @@
 .vt-lc:active { transform: scale(0.97); }
 .vt-lc:focus-visible { outline: calc(3 * var(--U)) solid #f2d58f; outline-offset: calc(2 * var(--U)); }
 .vt-lc__circle { position: absolute; left: calc(50% - 74.5 * var(--U)); top: calc(14 * var(--U)); width: calc(149 * var(--U)); height: calc(149 * var(--U)); border-radius: 50%; overflow: hidden; background: var(--c); }
-/* sprite: same scale for everyone, feet tucked just behind the pill (visual bottom = 0.959 of the art box → 92% of the circle),
+/* sprite: same scale for everyone, feet resting on the pill's top edge (visual bottom = 0.959 of the art box → 85% of the circle),
    shifted by --dx (js/sprite-fit.js) so the head-weighted visual centre sits on the circle's centre line */
-.vt-lc__circle img { position: absolute; left: calc(6% + var(--dx, 0) * 88%); top: 13.8%; width: 88%; height: 81.6%; object-fit: contain; object-position: 50% 100%; -webkit-user-drag: none; pointer-events: none; }
+.vt-lc__circle img { position: absolute; left: calc(6% + var(--dx, 0) * 88%); top: 6.8%; width: 88%; height: 81.6%; object-fit: contain; object-position: 50% 100%; -webkit-user-drag: none; pointer-events: none; }
 .vt-lc .vt-tuft { position: absolute; width: calc(20 * var(--U)); height: calc(15 * var(--U)); top: calc(150 * var(--U)); }
 .vt-lc .vt-tuft--l { left: calc(20 * var(--U)); }
 .vt-lc .vt-tuft--r { right: calc(20 * var(--U)); }
@@ -84,7 +84,9 @@
 .vt-pick { left: calc(132 * var(--U)); top: calc(372 * var(--U)); width: calc(210 * var(--U)); height: calc(210 * var(--U)); }
 .vt-pick > * { position: absolute; }
 .vt-pick__circle { inset: 0; border-radius: 50%; background: var(--c, #e9f0dd); overflow: hidden; }
-.vt-spr { left: calc(10% + var(--dx, 0) * 80%); width: 80%; top: 21%; height: 74.1%; transform-origin: 50% 92%; animation: bob 1s ease-in-out infinite; }
+/* big sprite: fixed scale (art box 80% of the circle wide, 74.16% tall = the 314×291 aspect); the alpha bbox
+   (--bl/--bt/--br/--bb from js/sprite-fit.js, ears + feet, both idle frames) is centred on the circle */
+.vt-spr { position: absolute; left: calc(50% - (var(--bl, 0.1) + var(--br, 0.9)) / 2 * 80%); width: 80%; top: calc(50% - (var(--bt, 0.15) + var(--bb, 0.96)) / 2 * 74.16%); height: 74.16%; transform-origin: 50% 92%; animation: bob 1s ease-in-out infinite; }
 .vt-spr img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; -webkit-user-drag: none; }
 .vt-spr .f1 { animation: flipA 1s steps(1, end) infinite; }
 .vt-spr .f2 { animation: flipB 1s steps(1, end) infinite; }
@@ -97,7 +99,7 @@
 .vt-dash--l { left: -10%; top: 12%; }
 .vt-dash--r { left: 99%; top: 16%; }
 .vt-pill {
-  left: 50%; transform: translateX(-50%); top: calc(556 * var(--U)); min-width: calc(164 * var(--U)); height: calc(56 * var(--U)); margin: 0;
+  left: 50%; transform: translateX(-50%); top: calc(564 * var(--U)); min-width: calc(164 * var(--U)); height: calc(56 * var(--U)); margin: 0;
   box-sizing: border-box; padding: 0 calc(22 * var(--U)); display: flex; align-items: center; justify-content: center;
   border-radius: 999px; background: var(--p, #dfe9d0); white-space: nowrap; color: #3b2a1b;
   font-family: "Fredoka", system-ui, sans-serif; font-size: calc(26 * var(--U)); font-weight: 600; letter-spacing: calc(0.6 * var(--U));

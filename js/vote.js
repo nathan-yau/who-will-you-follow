@@ -73,7 +73,8 @@
       if ($('pf1').getAttribute('data-cid') !== cid) {
         $('pf1').setAttribute('data-cid', cid);
         $('pf1').src = img(cid, 'stale1'); $('pf2').src = img(cid, 'stale2');
-        $('pickSpr').style.setProperty('--dx', dxOf(cid));
+        var bx = window.wwyfSpriteBox ? window.wwyfSpriteBox(cid) : [0.1, 0.15, 0.9, 0.96], ps = $('pickSpr').style;
+        ps.setProperty('--bl', bx[0]); ps.setProperty('--bt', bx[1]); ps.setProperty('--br', bx[2]); ps.setProperty('--bb', bx[3]);
       }
       p.classList.remove('is-empty');
     } else p.classList.add('is-empty');
