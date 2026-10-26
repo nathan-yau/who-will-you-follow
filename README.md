@@ -43,6 +43,7 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | Host dashboard | `/admin/` |
 | TV (waiting-room bubble battle / rounds / 身份揭曉 progress) | `/tv/` |
 | Identity reveal (phone) | `/identity/` |
+| Round vote (phone) | `/vote/` |
 
 * `netlify/functions/api.mjs` – one Functions v2 handler mounted at `/api/*`, state in Netlify Blobs (store `wwyf-game`, strong consistency). One game at a time; characters are claimed with `onlyIfNew` so a character can never be taken twice.
 * Environment variables (set in Netlify, never in this repo): `ADMIN_PASSWORD` (host PIN), `SESSION_SECRET` (HMAC key for 12 h admin sessions).
@@ -70,6 +71,11 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | POST | `/api/admin/reveal-stage` | host | `{on}` start/end the 身份揭曉 stage (start = phase started, `revealed`, TV screen `reveal`, fake pairs synced); `admin/screen {screen:'reveal'}` also starts it |
 | POST | `/api/mini/act` | player | `{push, dodge, seq}` batched TV mini-game input (≤ every 250 ms); stored in `mini/<playerId>`; `409 started` once the game has started |
 | GET | `/api/mini/state` | anyone | TV poll (every 250 ms): `{phase, gameId, joined, players:[{id, characterId, nickname, joinedAt, push, dodge}], leaders? (round screens), reveal?:{revealed, total} (身份揭曉 screen)}` |
+| POST | `/api/vote` | player | `{characterId, round?}` cast / change own ballot in the open round → `{round, sealed, mine:{characterId, line}}`; `403 no_vote` (leaders), `400 bad_target`, `409 vote_closed` (closed / sealed / other round) |
+| POST | `/api/knock` | 真正領袖 | 私下敲門 for the latest closed round (once per round; server picks the targets) → `{round, count}` only |
+| POST | `/api/knock-ack` | player | `{round}` dismiss a received 叩叩 |
+| POST | `/api/admin/vote` | host | `{round:'r1'\|'r2'\|'r3', duration:30\|45\|60\|90\|0}` open (or restart — clears that round's ballots) a vote; 0 = 無限; needs phase started + revealed |
+| POST | `/api/admin/vote-end` | host | close the open vote now |
 | POST | `/api/admin/start` | host | phase → `started` (stops the mini-game) |
 | POST | `/api/admin/lobby` | host | phase → `lobby` (clears mini-game counters) |
 
@@ -86,6 +92,16 @@ Game flow: **等候 (bubble battle) → 身份揭曉 → Round 1 → Round 2 →
 * Leader letters (A–D) are internal only and never shown to anyone: phones, TV round cards and the admin pairing badge use the character name from `data/characters.json`; admin shows the slot as a colour dot.
 * Texts: `data/roles.json` — `desc` per role; 假領袖 `helperLine` (appended only for a fake leader who has a fake supporter); 假領袖支持者 `supportsLabel` (「你支持：{name}」, shown with that leader's icon); `leaderLabel` (「{name}」 = the leader's own character name). Entries with `placeholder:true` are draft copy.
 * Fake-supporter pairing (`syncPairs` in api.mjs, server-side, stored as `player.supports` = the fake leader's player id): runs after every role change / random / kick and when the stage starts. Existing pairs are kept while the target is still a 假領袖; every unpaired 假領袖支持者 (in join order) takes the 假領袖 with the fewest supporters, ties → internal slot order, then join order — so supporters get distinct fake leaders while possible and only share once every fake leader has one. No fake leaders → `supports:null`. Admin tiles show it as a small `→<character name>` badge (truncated).
+
+### 投票 (round votes) + 封票 + 私下敲門
+
+* Rounds: `r1` (Round 1), `r2` (Round 2), `r3` (最後投票). Host: admin 「TV／遊戲」 → 投票 row: round picker (defaults to the TV round), duration chip (tap to cycle 30 / 45 / 60 / 90 秒 / 無限; remembered on that device), 開始投票 / 結束投票 (tap twice), live 「投票中 · 剩 mm:ss · X / N 已投」. Restarting a round that already has ballots asks first and clears that round's ballots. Section 「投票結果」: per-round collapsible tally (真/假 tag, character name, count, voters, 未投票) and the 私下敲門 record (targets, 已讀/未讀, the fake leader they voted for) — host only.
+* Who votes: every non-leader; 真正領袖 / 假領袖 don't vote (neutral 「投票進行中」 waiting screen, identical for true and fake). The leader cards are snapshotted when the vote opens (TV slot order + colours, character names only). The server closes the vote at the deadline.
+* Phone `vote/` (`css/vote.css`, `js/vote.js`): identity / lobby jump here while a vote is open (once the identity has been seen). Grid → 確認投票 → 「你目前選擇」 + bubble + 更改投票 (allowed until close; preselects the current pick). The bubble line comes from the server (`HINTS` in api.mjs, re-picked on every change, never the same line twice in a row): a vote for a fake leader gets one of the `f` lines (gently mentions 更改投票), a vote for the true leader one of the neutral `t` lines — a quiet easter egg. Polls `/api/me` every 2 s while open (3 s otherwise) + exactly at the deadline. After close: 「投票已結束」 + the final choice for ~10 s, then back to `identity/`.
+* 封票: once every eligible player has voted the vote seals at once (server-side): changes are rejected, phones hide 更改投票 and show 「所有人已完成投票，票已封存。」, the TV shows 已封票 (hint lines are only sent while a change is still possible).
+* TV (round screens): pill under the cards 「投票中 / 最後投票 · mm:ss · 已投票 X / N」 + progress bar, then 已封票 — aggregate only (the ballot list is read at most 1×/s). Lambs easter egg = one integer from the server: r1 = 1; r2 = votes for the true leader in r1; r3 = votes for the true leader in r2 (max 20; > 5 → two smaller rows).
+* 私下敲門: after a round's vote closes, only the 真正領袖's phone (vote ended screen or identity wait screen) shows 「私下敲門」 once per round (tap twice). The server picks: 2 random voters of ONE fake leader that has ≥ 2 voters (that fake leader chosen at random); otherwise 1 random fake-leader voter; otherwise nobody (「這一輪沒有需要敲門的人。」). Non-voters and true-leader voters are never knocked. The leader only sees 「已敲門」 (`KNOCK_SHOW_TARGETS = false` in api.mjs). Knocked phones get a private 「叩叩……」 card via `/api/me` until 知道了; the copy never names or hints at any leader. Fake leaders' phones look identical at idle; the TV and public endpoints never mention knocks. Records: `meta.knocks[round]` (cleared by 新一場).
+* Texts: `data/texts.json` (knock button / hints, 叩叩 title, `bodies` = subtle variants, one picked per knock, note, dismiss).
 
 Default roles (17): 真正領袖 1 · 假領袖 3 · 真領袖支持者 1 · 假領袖支持者 2 · 平民 10.
 

@@ -347,6 +347,8 @@
     // round title screen (r1–r3) only while started; an older backend without `screen` = placeholder
     setScreen(started && (ROUNDS[s.screen] || s.screen === 'reveal') ? s.screen : 'lobby', s.leaders, s);
     if (screen === 'reveal') renderRevealCount(s.reveal);
+    // an open vote shows on any round screen; a just-sealed one only on its own round's screen
+    renderVote(ROUNDS[screen] && s.vote && (!s.vote.sealed || s.vote.round === screen) ? s.vote : null);
     setPhase(started ? 'started' : 'lobby', list);
   }
 
@@ -397,9 +399,9 @@
         el.hidden = true; void el.offsetWidth;
       }
       el.hidden = !on;
-      // easter egg: Round 1 = exactly 1 lamb. TODO: r2/r3 = number of players who voted for the true leader
-      renderLambs(sc === 'r1' ? 1 : 0);
     }
+    // easter egg: the server's lamb count (r1 = 1; r2 / r3 = true-leader votes of the previous round); checked every poll
+    renderLambs(ROUNDS[sc] ? (s && s.lambs != null ? s.lambs : (sc === 'r1' ? 1 : 0)) : 0);
     if (ROUNDS[screen]) {
       // Round 1 = the first time the leaders are shown publicly: play the entrance once per game
       // (remembered in localStorage so a TV reload mid-round doesn't replay it)
@@ -443,18 +445,55 @@
         '<p class="lc__pill"><b lang="en">' + (nm ? esc(nm) : '?') + '</b></p></div>';
     }).join('');
   }
-  /* ---------- lambs easter egg (bottom-right, below the signpost) ---------- */
+  /* ---------- 投票中 overlay (round screens): countdown + 已投票 X / N, then 已封票 ---------- */
+  var voteKey = '', voteEnd = null, voteTick = 0;
+  function renderVote(v) {
+    var el = $('tvVote');
+    if (!v) { if (!el.hidden) { el.hidden = true; voteKey = ''; clearInterval(voteTick); voteTick = 0; } return; }
+    voteEnd = v.sealed || v.remain == null ? null : now() + v.remain;
+    var k = [v.round, v.sealed, v.voted, v.total, v.remain == null].join('|');
+    if (el.hidden) { el.hidden = false; void el.offsetWidth; }
+    if (k !== voteKey) {
+      var bump = voteKey && +voteKey.split('|')[2] !== v.voted;
+      voteKey = k;
+      el.classList.toggle('is-sealed', !!v.sealed);
+      el.classList.toggle('is-final', !!v.final);
+      $('tvVoteTag').textContent = v.sealed ? '已封票' : v.final ? '最後投票' : '投票中';
+      $('tvVoted').textContent = String(v.voted); $('tvTotal').textContent = String(v.total);
+      $('tvVoteBar').style.width = (v.total ? Math.min(100, Math.round(v.voted / v.total * 100)) : 0) + '%';
+      if (bump) { var d = $('tvVoted'); d.classList.remove('bump'); void d.offsetWidth; d.classList.add('bump'); }
+    }
+    voteClock();
+    if (!voteTick) voteTick = setInterval(voteClock, 250);
+  }
+  function voteClock() {
+    var t = $('tvVoteTime'), el = $('tvVote');
+    if (el.classList.contains('is-sealed')) { t.classList.remove('is-text'); t.textContent = '✓'; t.classList.remove('is-low'); return; }
+    t.classList.toggle('is-text', voteEnd == null);
+    if (voteEnd == null) { t.textContent = '不限時'; t.classList.remove('is-low'); return; }
+    var x = Math.max(0, Math.ceil((voteEnd - now()) / 1000));
+    t.textContent = ('0' + Math.floor(x / 60)).slice(-2) + ':' + ('0' + (x % 60)).slice(-2);
+    t.classList.toggle('is-low', x <= 10);
+  }
+
+  /* ---------- lambs easter egg (bottom-right, below the signpost) ----------
+     up to LAMB_MAX lambs: one row of ≤ 5 at full size; more = two rows, smaller and closer together */
   var LAMB = ['../assets/tv/lamb-walk1.webp?v=1', '../assets/tv/lamb-walk2.webp?v=1'];
-  var lambCount = -1;
+  var LAMB_MAX = 20, lambCount = -1;
   function renderLambs(n) {
-    n = Math.max(0, Math.min(12, n | 0));
+    n = Math.max(0, Math.min(LAMB_MAX, n | 0));
     if (n === lambCount) return;
     lambCount = n;
     var box = $('lambs');
     box.hidden = n === 0;
+    var rows = n > 5 ? 2 : 1, cols = Math.ceil(n / rows);
+    var sc = rows === 1 ? 1 : Math.max(0.5, Math.min(0.8, 5.2 / cols));
+    var step = cols > 1 ? Math.min(30, (196 - 84 * sc) / (cols - 1)) : 0;
     box.innerHTML = Array.from({ length: n }, function (_, i) {
-      // stagger each lamb so a flock doesn't march in lockstep
-      return '<div class="lamb" style="--i:' + i + ';--n:' + n + '"><div class="lamb__bob">' +
+      var row = rows === 2 && i >= cols ? 1 : 0, c = row ? i - cols : i;
+      // back row sits higher and a half-step over; stagger each lamb so a flock doesn't march in lockstep
+      var x = 20 + c * step + (row ? step / 2 : 0), b = rows === 1 ? 52 - i * 4 : (row ? 66 : 30) - c * 2;
+      return '<div class="lamb' + (row ? ' lamb--back' : '') + '" style="--i:' + i + ';--n:' + n + ';--x:' + x.toFixed(1) + 'px;--b:' + b + 'px;--s:' + sc.toFixed(3) + '"><div class="lamb__bob">' +
         '<img class="lamb__f1" alt="" draggable="false" src="' + LAMB[0] + '">' +
         '<img class="lamb__f2" alt="" draggable="false" src="' + LAMB[1] + '"></div></div>';
     }).join('');
@@ -510,5 +549,5 @@
   poll();
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
 })();

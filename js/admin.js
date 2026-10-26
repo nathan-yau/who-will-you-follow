@@ -53,7 +53,7 @@
   function sync(ok) { $('sync').hidden = ok; }
   function refresh() {
     return WWYF.admin('GET', 'state').then(function (s) {
-      state = s; overlay(); sync(true);
+      state = s; fetchedAt = Date.now(); overlay(); sync(true);
       render();
     }).catch(function (e) {
       if (e.status === 401) { logout('登入已過期，請重新登入'); return; }
@@ -108,6 +108,7 @@
     $('toLobby').disabled = !started;
     renderSeg();
     renderGoR1();
+    renderVote();
   }
 
   /* 開始 Round 1 (flow: 等候 → 身份揭曉 → Round 1): shown once the reveal stage has started, until a round is on the TV.
@@ -201,6 +202,122 @@
     if (!confirm('回到等候狀態？\n\nTV 會重新顯示泡泡大戰，手機按鈕會重新啟用。')) return;
     act(this, function () { return WWYF.admin('POST', 'lobby').then(function () { toast('已回到等候'); }); }).then(renderPhase);
   });
+
+  /* ---------- 投票 (in TV／遊戲) + 投票結果 section ----------
+     Round picker defaults to the round on the TV (tap another to override); the time limit cycles 30/45/60/90/無限 and is
+     remembered on this device. 開始投票 = one tap (restarting a round that already has votes asks first: its ballots are
+     cleared); 結束投票 = two taps. Live: 投票中 · 剩 mm:ss · 已投票 X / N, then 已封票 (everyone voted) / 已結束. */
+  var VROUNDS = ['r1', 'r2', 'r3'], VLABEL = { r1: 'Round 1', r2: 'Round 2', r3: '最後投票' };
+  var VDUR_KEY = 'wwyf.admin.voteDur', voteDur = 45, votePick = null, votePickScreen = '', fetchedAt = 0;
+  try { var vd = localStorage.getItem(VDUR_KEY); if (vd != null && [30, 45, 60, 90, 0].indexOf(+vd) >= 0) voteDur = +vd; } catch (e) {}
+  var vEndArm = false, vEndArmT = 0, vBusy = false;
+  function durText(d) { return d ? '時限 ' + d + ' 秒' : '時限 無限'; }
+  function mmss(ms) { var x = Math.max(0, Math.ceil(ms / 1000)); return ('0' + Math.floor(x / 60)).slice(-2) + ':' + ('0' + (x % 60)).slice(-2); }
+  function openVote() {   // the round whose vote is open right now (or null)
+    var m = state && state.meta, v = m && m.vote && state.votes && state.votes[m.vote];
+    if (!v || !v.open) return null;
+    var left = v.remain == null ? null : v.remain - (Date.now() - fetchedAt);
+    if (left != null && left <= 0) return null;   // past the deadline: the next poll confirms it closed
+    return { round: m.vote, v: v, left: left };
+  }
+  function renderVote() {
+    if (!state) return;
+    var m = state.meta || {}, started = m.phase === 'started', revealed = !!m.revealed;
+    var sc = curScreen(), def = VROUNDS.indexOf(sc) >= 0 ? sc : (VROUNDS.indexOf(m.vote) >= 0 ? m.vote : 'r1');
+    if (votePickScreen !== sc) { votePickScreen = sc; votePick = null; }
+    var ov = openVote(), pick = ov ? ov.round : (votePick || def);
+    [].forEach.call(document.querySelectorAll('#voteSeg .seg__btn'), function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.round === pick));
+      b.disabled = !!ov || vBusy;
+    });
+    var dur = $('voteDur');
+    dur.textContent = durText(ov ? ov.v.duration : voteDur);
+    dur.disabled = !!ov || vBusy;
+    var go = $('voteGo'), can = started && revealed;
+    go.disabled = vBusy || (!ov && !can);
+    go.classList.toggle('btn--primary', !ov); go.classList.toggle('btn--danger', !!ov);
+    go.classList.toggle('is-armed', !!ov && vEndArm);
+    go.textContent = ov ? (vEndArm ? '再按確認結束' : '結束投票') : '開始投票';
+    if (!ov && vEndArm) vEndDisarm(true);
+    var txt, dot = '', lv = state.votes && m.vote && state.votes[m.vote];
+    if (ov) { txt = '投票中 · ' + (ov.left == null ? '不限時' : '剩 ' + mmss(ov.left)) + ' · ' + ov.v.voted + ' / ' + ov.v.total + ' 已投'; dot = 'live'; }   // the round = the pressed seg button
+    else if (!can) txt = started ? '身份揭曉後才能投票' : '開始遊戲並完成身份揭曉後才能投票';
+    else if (lv && (lv.sealed || lv.endedAt)) { txt = VLABEL[m.vote] + (lv.sealed ? ' 已封票' : ' 已結束') + ' · ' + lv.voted + ' / ' + lv.total; dot = 'done'; }
+    else txt = '未開始';
+    $('voteText').textContent = txt;
+    $('voteDot').className = 'dot' + (dot ? ' v-' + dot : '');
+    $('voteBox').classList.toggle('is-open', !!ov);
+    renderVotes();
+  }
+  function vEndDisarm(quiet) { clearTimeout(vEndArmT); vEndArmT = 0; vEndArm = false; if (!quiet) renderVote(); }
+  $('voteSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('.seg__btn'); if (!b || b.disabled) return;
+    votePick = b.dataset.round; renderVote();
+  });
+  $('voteDur').addEventListener('click', function () {
+    var L = (state && state.voteDurations) || [30, 45, 60, 90, 0];
+    voteDur = L[(L.indexOf(voteDur) + 1) % L.length];
+    try { localStorage.setItem(VDUR_KEY, String(voteDur)); } catch (e) {}
+    renderVote();
+  });
+  $('voteGo').addEventListener('click', function () {
+    if (!state || vBusy) return;
+    var ov = openVote(), b = this;
+    if (ov) {
+      if (!vEndArm) { vEndArm = true; clearTimeout(vEndArmT); vEndArmT = setTimeout(function () { vEndDisarm(); }, 3000); renderVote(); return; }
+      vEndDisarm(true); vBusy = true; renderVote();
+      WWYF.admin('POST', 'vote-end').then(function () { toast(VLABEL[ov.round] + ' 投票已結束'); })
+        .catch(fail).then(function () { vBusy = false; return refresh(); }).then(renderVote);
+      return;
+    }
+    var m = state.meta || {}, sc = curScreen();
+    var pick = votePick || (VROUNDS.indexOf(sc) >= 0 ? sc : (VROUNDS.indexOf(m.vote) >= 0 ? m.vote : 'r1'));
+    var prev = state.votes && state.votes[pick];
+    if (prev && prev.voted && !confirm('重新開始「' + VLABEL[pick] + '」投票？\n\n這一輪之前的 ' + prev.voted + ' 張票會被清除。')) return;
+    vBusy = true; renderVote();
+    WWYF.admin('POST', 'vote', { round: pick, duration: voteDur }).then(function () {
+      toast(VLABEL[pick] + ' 投票開始！' + (voteDur ? voteDur + ' 秒' : '不限時'));
+    }).catch(fail).then(function () { vBusy = false; return refresh(); }).then(renderVote);
+  });
+  setInterval(function () { if (state && !document.hidden && openVote()) renderVote(); }, 500);
+
+  var vrSig = '', vrOpen = {};
+  function renderVotes() {
+    var s = state, V = s.votes || {}, K = (s.meta && s.meta.knocks) || {};
+    var byId = {}; s.players.forEach(function (p) { byId[p.id] = p; });
+    var rounds = VROUNDS.filter(function (r) { return V[r]; });
+    var cur = s.meta && s.meta.vote;
+    $('vrSum').textContent = rounds.length ? rounds.map(function (r) { return VLABEL[r] + ' ' + V[r].voted + '/' + V[r].total + (V[r].open ? '（投票中）' : V[r].sealed ? '（封票）' : ''); }).join(' · ') : '尚未投票';
+    var sig = JSON.stringify([V, K, !!chars.__ok, s.players.map(function (p) { return [p.id, p.characterId]; })].map(function (x) { return x; }), function (k, v) { return k === 'remain' ? undefined : v; });
+    if (sig === vrSig) return;
+    vrSig = sig;
+    function who(id, cid) { var p = byId[id]; cid = cid || (p && p.characterId); return '<span class="vr__who"><img alt="" src="' + img(cid) + '">' + esc(charName(cid)) + '</span>'; }
+    $('vrList').innerHTML = rounds.map(function (r) {
+      var v = V[r], open = vrOpen[r] != null ? vrOpen[r] : r === cur;
+      var rows = (v.leaders || []).map(function (l, i) {
+        if (!l) return '';
+        var lp = byId[l.id], tag = lp && lp.role === '真正領袖' ? '<b class="vr__true">真</b>' : '<b class="vr__fake">假</b>';
+        var voters = v.ballots.filter(function (x) { return x.target === l.id; });
+        return '<div class="vr__row" style="--c:' + (SLOT_COLORS[s.leaderLabels[i]] || '#d8d2c0') + '"><span class="vr__lead">' + tag + who(l.id, l.characterId) + '<em>' + voters.length + ' 票</em></span>' +
+          '<span class="vr__voters">' + (voters.map(function (x) { return who(x.voter); }).join('') || '<i class="vr__none">—</i>') + '</span></div>';
+      }).join('');
+      var voted = {}; v.ballots.forEach(function (x) { voted[x.voter] = 1; });
+      var none = s.players.filter(function (p) { return s.leaderRoles.indexOf(p.role) < 0 && !voted[p.id]; });
+      if (none.length) rows += '<div class="vr__row vr__row--none"><span class="vr__lead">未投票 <em>' + none.length + '</em></span><span class="vr__voters">' + none.map(function (p) { return who(p.id); }).join('') + '</span></div>';
+      var k = K[r], kn = '';
+      if (k) {
+        var fk = byId[k.fake];
+        kn = '<div class="vr__knock">🚪 私下敲門 ' + new Date(k.at).toLocaleTimeString('zh-Hant', { hour: '2-digit', minute: '2-digit' }) + '：' +
+          (k.targets.length ? k.targets.map(function (id) { return who(id) + (k.seen && k.seen[id] ? '<small>已讀</small>' : '<small>未讀</small>'); }).join('') +
+            '<span class="vr__fk">（都投給假領袖 ' + (fk ? who(fk.id) : '?') + '）</span>' : '<span class="vr__fk">沒有可敲門的人</span>') + '</div>';
+      }
+      var st = v.open ? '投票中' : v.sealed ? '已封票' : '已結束';
+      return '<details class="vr__round" data-round="' + r + '"' + (open ? ' open' : '') + '><summary><span class="vr__title">' + VLABEL[r] + '</span><span class="vr__st' + (v.open ? ' is-open' : '') + '">' + st + ' · ' + v.voted + ' / ' + v.total + '</span></summary>' + rows + kn + '</details>';
+    }).join('') || '<p class="empty">還沒有任何投票</p>';
+  }
+  $('vrList').addEventListener('toggle', function (e) {
+    var d = e.target; if (d && d.dataset && d.dataset.round) vrOpen[d.dataset.round] = d.open;
+  }, true);
 
   /* ---------- 身份揭曉 section: start (two taps) / end the stage; X/N players have tapped 揭曉 ---------- */
   var rvArmT = 0, rvSig = '';

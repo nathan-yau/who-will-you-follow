@@ -220,3 +220,40 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
   border: 1.5px solid #fff; background: color-mix(in srgb, var(--c) 80%, white); color: #fff;
   font-family: "Fredoka", sans-serif; font-weight: 600; font-size: 11px; line-height: 15px; text-align: center; pointer-events: auto;
 }
+
+/* ---------- 投票 controls (TV／遊戲) ---------- */
+.vote { margin: 10px 0 0; padding: 8px 4px 0; border-top: 1px dashed var(--line); }
+.vote .seg { margin: 0; }
+.vote__row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.vote__dur { flex: none; min-height: 34px; height: 34px; padding: 0 12px; font-size: 13px; }
+.vote__live { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 5px; font-size: 12.5px; line-height: 1.25; color: var(--ink2); }
+.vote__go { flex: none; min-height: 34px; height: 34px; padding: 0 14px; font-size: 13px; }
+.vote__go.is-armed { background: var(--coral-d); border-color: var(--coral-d); color: #fff; animation: armpulse .6s ease-in-out infinite alternate; }
+.vote.is-open .vote__live { color: var(--ink); font-weight: 700; }
+.dot.v-live { background: var(--coral); animation: armpulse .8s ease-in-out infinite alternate; }
+.dot.v-done { background: #8a7f6a; }
+
+/* ---------- 投票結果 (per round, collapsible) ---------- */
+.vr { margin: 6px 2px 0; display: flex; flex-direction: column; gap: 6px; }
+.vr .empty { margin: 4px 2px; }
+.vr__round { border: 1.5px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden; }
+.vr__round > summary { display: flex; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer; list-style: none; font-size: 13px; }
+.vr__round > summary::-webkit-details-marker { display: none; }
+.vr__round > summary::after { content: ""; margin-left: auto; width: 7px; height: 7px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform .2s; }
+.vr__round[open] > summary::after { transform: rotate(-135deg); }
+.vr__title { font-weight: 700; }
+.vr__st { color: var(--ink2); font-size: 12px; }
+.vr__st.is-open { color: var(--coral-d); font-weight: 700; }
+.vr__row { display: flex; align-items: flex-start; gap: 6px; padding: 5px 8px; border-top: 1px solid #f1ecdf; border-left: 4px solid var(--c, #d8d2c0); }
+.vr__row--none { border-left-color: #e7e2d3; color: var(--muted); }
+.vr__lead { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; font-size: 12.5px; min-width: 128px; }
+.vr__lead em { font-style: normal; font-weight: 700; color: var(--green-d); }
+.vr__true, .vr__fake { font-size: 10.5px; padding: 1px 5px; border-radius: 6px; color: #fff; background: var(--r-true); }
+.vr__fake { background: var(--r-fake); }
+.vr__voters { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 3px 8px; font-size: 12px; }
+.vr__who { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.vr__who img { width: 20px; height: 20px; border-radius: 50%; background: #efeee6; object-fit: contain; }
+.vr__none { color: var(--muted); font-style: normal; }
+.vr__knock { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 6px 8px; border-top: 1px solid #f1ecdf; background: #f6f0fa; font-size: 12px; color: #5d4a6b; }
+.vr__knock small { font-size: 10.5px; color: var(--muted); margin-left: -4px; }
+.vr__fk { color: var(--ink2); }

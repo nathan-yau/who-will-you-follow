@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=18" />
+  <link rel="stylesheet" href="../css/admin.css?v=19" />
 </head>
 <body>
   <header class="top">
@@ -108,11 +108,42 @@
               <button type="button" class="seg__btn" data-screen="r3" aria-pressed="false" lang="en">Round 3</button>
             </div>
           </div>
+          <!-- 投票: pick the round (defaults to the TV's round), the time limit (tap to cycle), then 開始投票 / 結束投票.
+               Phones switch to the vote page by themselves; the TV shows only 投票中 + countdown + 已投票 X / N. -->
+          <div class="vote" id="voteBox">
+            <div class="seg" id="voteSeg" role="group" aria-label="投票回合">
+              <span class="seg__label">投票</span>
+              <div class="seg__btns">
+                <button type="button" class="seg__btn" data-round="r1" aria-pressed="true" lang="en">Round 1</button>
+                <button type="button" class="seg__btn" data-round="r2" aria-pressed="false" lang="en">Round 2</button>
+                <button type="button" class="seg__btn" data-round="r3" aria-pressed="false">最後投票</button>
+              </div>
+            </div>
+            <div class="vote__row">
+              <button class="btn btn--ghost vote__dur" id="voteDur" type="button" title="點一下切換投票時間">時限 45 秒</button>
+              <span class="vote__live" id="voteLive"><i class="dot" id="voteDot"></i> <span id="voteText">未開始</span></span>
+              <button class="btn btn--primary vote__go" id="voteGo" type="button">開始投票</button>
+            </div>
+          </div>
           <div class="acc__foot">
             <a class="btn btn--ghost" id="openTv" href="../tv/" target="_blank" rel="noopener">開啟 TV 畫面</a>
             <button class="btn btn--ghost" id="toLobby" type="button">回到等候</button>
             <button class="btn btn--primary" id="startGame" type="button">開始遊戲</button>
           </div>
+        </div>
+      </section>
+
+      <section class="acc" data-acc="votes" id="accVotes">
+        <div class="acc__head">
+          <button class="acc__toggle" type="button" aria-expanded="true" aria-controls="accVotesBody">
+            <span class="acc__title">投票結果</span>
+            <span class="acc__sum" id="vrSum">尚未投票</span>
+            <svg class="acc__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="acc__body" id="accVotesBody">
+          <p class="tvnote">只有主持人看得到：每一輪誰投給誰、真正領袖的「私下敲門」敲了誰（以及他們投給哪位假領袖）。</p>
+          <div class="vr" id="vrList"></div>
         </div>
       </section>
     </div>
@@ -121,6 +152,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/admin.js?v=19"></script>
+  <script src="../js/admin.js?v=20"></script>
 </body>
 </html>

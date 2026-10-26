@@ -228,7 +228,8 @@ body {
 .lambs[hidden] { display: none; }
 /* sprite faces left; it strolls left, turns round, strolls back (≈14 s loop) */
 .lamb {
-  position: absolute; right: calc(20px + var(--i) * 30px); bottom: calc(52px - var(--i) * 4px); width: 84px; height: 79px;
+  position: absolute; right: var(--x, calc(20px + var(--i) * 30px)); bottom: var(--b, calc(52px - var(--i) * 4px));
+  width: calc(84px * var(--s, 1)); height: calc(79px * var(--s, 1));
   animation: lambdrift 14s linear infinite; animation-delay: calc(var(--i) * -2.3s);
 }
 .lamb__bob { position: absolute; inset: 0; animation: lambbob 0.5s ease-in-out infinite alternate; transform-origin: 50% 100%; }
@@ -279,3 +280,25 @@ body {
 @keyframes rvbump { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .rv-count, .rv-count__txt b.bump, .rv-count__bar i { animation: none !important; transition: none !important; } }
 @media (prefers-reduced-motion: reduce) { .tv-reveal .rv-banner, .rv-phone, .rv-phone__svg, .rv-ring, .rv-spark { animation: none !important; } }
+
+.lamb--back { z-index: -1; }
+.lamb--back .lamb__bob { filter: brightness(0.96); }
+
+/* 投票中 overlay under the leader cards (round screens): countdown + aggregate count only */
+.tv-vote { position: absolute; left: 322px; top: 452px; width: 380px; padding: 9px 18px 11px; box-sizing: border-box; border-radius: 18px;
+  background: rgba(253, 250, 241, 0.94); box-shadow: 0 4px 14px rgba(90, 110, 70, 0.18); text-align: center; z-index: 2;
+  animation: tvin 0.5s cubic-bezier(.3, 1.4, .5, 1); }
+.tv-vote[hidden] { display: none; }
+.tv-vote__row { margin: 0; display: flex; align-items: center; justify-content: center; gap: 14px; white-space: nowrap; }
+.tv-vote__tag { padding: 3px 12px; border-radius: 999px; background: #f6d9cf; color: #a3523c; font-size: 16px; font-weight: 700; letter-spacing: 2px; }
+.tv-vote.is-final .tv-vote__tag { background: #fbe4b0; color: #8a5a17; }
+.tv-vote.is-sealed .tv-vote__tag { background: #e2ebd4; color: #4f7a4b; }
+.tv-vote__time { font-family: "Fredoka", system-ui, sans-serif; font-size: 30px; line-height: 34px; font-weight: 600; color: #4f7a4b; min-width: 82px; }
+.tv-vote__time.is-low { color: #c0634c; }
+.tv-vote__time.is-text { font-family: inherit; font-size: 20px; font-weight: 700; letter-spacing: 2px; }
+.tv-vote__cnt { font-size: 17px; font-weight: 700; letter-spacing: 1.5px; color: #4b301d; }
+.tv-vote__cnt b { font-family: "Fredoka", system-ui, sans-serif; font-weight: 600; font-size: 22px; letter-spacing: 0; color: #5f8a52; }
+.tv-vote__cnt b.bump { display: inline-block; animation: rvbump 0.5s ease-out; }
+.tv-vote__bar { margin-top: 7px; height: 8px; border-radius: 4px; background: #e4e8d6; overflow: hidden; }
+.tv-vote__bar i { display: block; height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, #a9cf8f, #7fae6e); transition: width 0.6s ease; }
+@media (prefers-reduced-motion: reduce) { .tv-vote, .tv-vote__cnt b.bump { animation: none !important; } .tv-vote__bar i { transition: none !important; } }

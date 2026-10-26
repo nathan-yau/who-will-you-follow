@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#e9f2e3" />
+  <title>投票 · Who Will You Follow? 你會跟隨誰？</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css?v=6" />
+  <link rel="stylesheet" href="../css/characters.css?v=8" />
+  <link rel="stylesheet" href="../css/vote.css?v=1" />
+  <link rel="stylesheet" href="../css/knock.css?v=1" />
+</head>
+<body>
+  <!-- 投票: data-state = loading | grid (pick a leader) | voted (your pick + hint + 更改投票) | leader (leaders don't vote) | ended (closed / 封票: final choice) -->
+  <main class="cs-app vt-app" id="app" data-state="loading">
+    <div class="cs-stage">
+      <div class="cs-bg" aria-hidden="true">
+        <div class="cs-meadow"></div>
+        <div class="cs-scene cs-scene--top"></div>
+        <div class="cs-scene cs-scene--bottom"></div>
+        <div class="cs-ground"></div>
+      </div>
+
+      <div class="cs-title">
+        <header class="title-block">
+          <img class="deco spark" src="../assets/img/spark-l.png?v=6" alt="" style="--x:88;--y:206;--w:29" />
+          <img class="deco spark" src="../assets/img/spark-r.png?v=6" alt="" style="--x:486;--y:204;--w:26" />
+          <h1 id="title" class="title" lang="en" aria-label="Who Will You Follow?">
+            <span class="title__line title__line--1" aria-hidden="true"><span class="ch" style="--r:-10.9;--dy:17.6">W</span><span class="ch" style="--r:-7.6;--dy:8.5">h</span><span class="ch" style="--r:-5.3;--dy:4.1">o</span><span class="sp"> </span><span class="ch" style="--r:-1.2;--dy:0.2">W</span><span class="ch" style="--r:1.5;--dy:0.3">i</span><span class="ch" style="--r:2.7;--dy:1.1">l</span><span class="ch" style="--r:4.0;--dy:2.4">l</span><span class="sp"> </span><span class="ch" style="--r:6.9;--dy:7.0">Y</span><span class="ch" style="--r:9.4;--dy:13.1">o</span><span class="ch" style="--r:11.7;--dy:20.1">u</span></span>
+            <span class="title__line title__line--2" aria-hidden="true"><span class="ch" style="--r:-2;--dy:0">F</span><span class="ch" style="--r:0;--dy:-1">o</span><span class="ch">l</span><span class="ch">l</span><span class="ch" style="--r:0;--dy:-1">o</span><span class="ch" style="--r:2;--dy:1">w</span><span class="ch" style="--r:8;--dy:3">?</span></span>
+          </h1>
+          <p class="subtitle">你會跟隨誰？</p>
+        </header>
+      </div>
+
+      <div class="card vt-card abs" aria-hidden="true"></div>
+
+      <p class="vt-round abs" id="roundTag"></p>
+      <h2 class="cs-head vt-head abs"><svg viewBox="0 0 32 32" aria-hidden="true"><g fill="#ec8c7b"><ellipse cx="16" cy="21.5" rx="7.6" ry="6.4"/><ellipse cx="7" cy="13.5" rx="3.1" ry="3.9" transform="rotate(-18 7 13.5)"/><ellipse cx="12.4" cy="7.8" rx="3.1" ry="4" transform="rotate(-6 12.4 7.8)"/><ellipse cx="19.6" cy="7.8" rx="3.1" ry="4" transform="rotate(6 19.6 7.8)"/><ellipse cx="25" cy="13.5" rx="3.1" ry="3.9" transform="rotate(18 25 13.5)"/></g></svg><span id="head">你會跟隨哪一位領袖？</span></h2>
+      <p class="vt-sub abs" id="sub">請選擇一位你認為是真正領袖的人選。</p>
+
+      <p class="vt-timer abs" id="timer" data-for="grid leader"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 7v5.4l3.4 2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>剩餘時間：</span><b id="timeLeft" lang="en">--:--</b></p>
+
+      <!-- grid: one card per leader (character name only, same slot order/colours as the TV) -->
+      <div class="vt-grid abs" id="grid" data-for="grid" role="radiogroup" aria-label="選擇領袖"></div>
+      <button class="btn cs-join vt-btn abs" id="confirm" type="button" data-for="grid" disabled>
+        <span class="btn__label" id="confirmLabel">確認投票</span>
+        <svg class="btn__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12h19M14 4.5l7.5 7.5-7.5 7.5" /></svg>
+      </button>
+
+      <!-- voted / ended / leader: one big circle -->
+      <div class="vt-pick abs" id="pick" data-for="voted ended leader" aria-hidden="true">
+        <div class="vt-pick__circle" id="pickCircle"><div class="vt-spr" id="pickSpr"><img class="f1" id="pf1" alt="" draggable="false" /><img class="f2" id="pf2" alt="" draggable="false" /></div><span class="vt-q" id="pickQ" lang="en">?</span></div>
+        <svg class="vt-tuft vt-tuft--l" viewBox="0 0 24 18" aria-hidden="true"><g fill="#8db07c"><ellipse cx="5.5" cy="12" rx="2.6" ry="5.4" transform="rotate(-28 5.5 12)"/><ellipse cx="12" cy="9.5" rx="2.8" ry="7.5"/><ellipse cx="18.5" cy="12" rx="2.6" ry="5.4" transform="rotate(28 18.5 12)"/></g></svg><svg class="vt-tuft vt-tuft--r" viewBox="0 0 24 18" aria-hidden="true"><g fill="#8db07c"><ellipse cx="5.5" cy="12" rx="2.6" ry="5.4" transform="rotate(-28 5.5 12)"/><ellipse cx="12" cy="9.5" rx="2.8" ry="7.5"/><ellipse cx="18.5" cy="12" rx="2.6" ry="5.4" transform="rotate(28 18.5 12)"/></g></svg>
+        <svg class="vt-dash vt-dash--l" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9l6 3M3 18l8-1.5" stroke="#7fa36f" stroke-width="2.6" stroke-linecap="round" fill="none"/></svg>
+        <svg class="vt-dash vt-dash--r" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 9l-6 3M21 18l-8-1.5" stroke="#7fa36f" stroke-width="2.6" stroke-linecap="round" fill="none"/></svg>
+      </div>
+      <p class="vt-pill abs" id="pickName" data-for="voted ended"></p>
+
+      <!-- the speech bubble (bunny) -->
+      <div class="vt-bubble abs" id="bubble" data-for="voted ended leader" aria-live="polite">
+        <span class="vt-bunny"><img src="../assets/characters/character_02/stale1.webp?v=6" alt="" draggable="false" /></span>
+        <svg class="vt-rays" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9L2 6M9 6L8.5 2M13.5 8l2.5-3" stroke="#f2b83f" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>
+        <p class="vt-bubble__title" id="bTitle">已完成本輪投票！</p>
+        <p class="vt-bubble__line" id="bLine"></p>
+      </div>
+
+      <button class="btn vt-change abs" id="change" type="button" data-for="voted">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.2-4.6L15.8 4.8a2.2 2.2 0 0 1 3.1 0l.3.3a2.2 2.2 0 0 1 0 3.1L8.6 18.8Z M13.8 6.8l3.4 3.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>
+        <span class="btn__label">更改投票</span>
+      </button>
+      <p class="vt-seal abs" id="seal" data-for="ended"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.4" fill="currentColor"/><path d="M8.2 10.5V8a3.8 3.8 0 0 1 7.6 0v2.5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span id="sealText">投票已結束</span></p>
+      <p class="vt-left abs" id="leftSmall" data-for="voted"></p>
+      <div class="kn-slot vt-knock abs" id="knockSlot" hidden></div>
+
+      <span class="vt-chick abs" aria-hidden="true"><img src="../assets/characters/character_12/stale1.webp?v=6" alt="" draggable="false" /></span>
+      <p class="id-err vt-err abs" id="err" role="alert"></p>
+    </div>
+  </main>
+  <script>
+    // The page never scrolls: block touch panning / rubber-band and pinch zoom (iOS Safari).
+    (function () {
+      var stop = function (e) { e.preventDefault(); };
+      document.addEventListener('touchmove', stop, { passive: false });
+      document.addEventListener('gesturestart', stop, { passive: false });
+      document.addEventListener('gesturechange', stop, { passive: false });
+      document.addEventListener('wheel', function (e) { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+      var reset = function () { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); };
+      window.addEventListener('scroll', reset, { passive: true });
+    })();
+  </script>
+  <script src="../js/api.js?v=10"></script>
+  <script src="../js/knock.js?v=1"></script>
+  <script src="../js/vote.js?v=1"></script>
+</body>
+</html>

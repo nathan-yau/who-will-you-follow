@@ -123,6 +123,9 @@
       setChar(r.player.characterId);
       if (r.player.characterId !== me.characterId) { me.characterId = r.player.characterId; WWYF.setPlayer(me); }
       if (!r.revealed) { window.location.replace('../lobby/'); return; }
+      if (window.WWYF_KNOCK) WWYF_KNOCK.update(r);
+      // the host opened a vote: go vote (only once this player has seen their identity)
+      if (r.seen && r.vote && r.vote.open && state !== 'shown') { window.location.replace('../vote/'); return; }
       if (ackAt !== ackSeq || busy) return;   // a 揭曉 tap happened meanwhile: its answer wins
       if (!r.seen) {                           // first time, or the host changed this player's role
         role = null; supports = null; helped = false; roleKey = '';
@@ -161,6 +164,7 @@
     .catch(function () {});
   window.addEventListener('resize', fitDesc);
 
+  if (window.WWYF_KNOCK) WWYF_KNOCK.init($('knockSlot'));
   setChar(me.characterId);
   poll();
   setInterval(function () { if (!document.hidden) poll(); }, 3000);

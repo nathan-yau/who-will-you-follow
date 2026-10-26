@@ -1,0 +1,24 @@
+{
+  "_comment": "Editable copy for 私下敲門 (private knock). knocked.bodies: one is picked per knock (stable for that knock). Never name or hint any leader. Safe to edit; keep the keys.",
+  "knock": {
+    "button": "私下敲門",
+    "hint": "投票已結束，你可以私下敲門一次。",
+    "confirm": "再按一次確認敲門",
+    "done": "已敲門",
+    "doneHint": "你的敲門已經悄悄送出。",
+    "none": "這一輪沒有需要敲門的人。"
+  },
+  "knocked": {
+    "title": "叩叩……",
+    "bodies": [
+      "有人輕輕敲了你的門。再想想？",
+      "門外傳來一句：路，還可以再看清楚一點。",
+      "有人在門外停了一下，又走了。",
+      "門縫裡塞進一張小紙條：「慢慢來，再看看。」",
+      "風把門推開了一點點，又輕輕合上。",
+      "有人在門外低聲說：別急著走，四周再看一眼。"
+    ],
+    "note": "請保密，不要告訴其他人喔。",
+    "dismiss": "知道了"
+  }
+}

@@ -1,0 +1,42 @@
+/* 私下敲門 (private knock) — shared by the identity + vote pages (474 x 1024 grid units, see characters.css). */
+.kn-slot { left: calc(62 * var(--U)); width: calc(350 * var(--U)); text-align: center; }
+.kn-slot[hidden] { display: none; }
+.kn-btn {
+  width: 100%; height: calc(56 * var(--U)); box-sizing: border-box; margin: 0; padding: 0; gap: calc(10 * var(--U));
+  background: #8a6a9e; color: #fff; border: 0; font-family: inherit; font-size: calc(19 * var(--U)); letter-spacing: calc(2 * var(--U));
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.kn-btn svg, .kn-done svg { width: calc(30 * var(--U)); height: calc(30 * var(--U)); flex: none; }
+.kn-btn:active { transform: translateY(calc(2 * var(--U))) scale(0.985); }
+.kn-btn.is-armed { background: #c2734f; animation: knpulse 0.9s ease-in-out infinite alternate; }
+.kn-btn.is-busy { opacity: 0.7; pointer-events: none; }
+@keyframes knpulse { 0% { box-shadow: 0 0 0 0 rgba(194, 115, 79, 0.45); } 100% { box-shadow: 0 0 0 calc(8 * var(--U)) rgba(194, 115, 79, 0); } }
+.kn-done {
+  margin: 0; height: calc(52 * var(--U)); display: flex; align-items: center; justify-content: center; gap: calc(10 * var(--U));
+  border-radius: 999px; background: #efe8f3; color: #5b4568; font-size: calc(19 * var(--U)); font-weight: 700; letter-spacing: calc(2 * var(--U));
+}
+.kn-hint { margin: calc(7 * var(--U)) 0 0; font-size: calc(13.5 * var(--U)); line-height: calc(20 * var(--U)); font-weight: 500; letter-spacing: calc(0.8 * var(--U)); color: #6b6152; }
+
+/* received: private card over the stage (absolute inside .cs-stage) */
+.kn-modal {
+  position: absolute; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center;
+  background: rgba(58, 42, 28, 0.38); opacity: 0; transition: opacity 0.3s ease;
+}
+.kn-modal[hidden] { display: none; }
+.kn-modal.is-on { opacity: 1; }
+.kn-card {
+  position: absolute; left: calc(44 * var(--U)); right: calc(44 * var(--U)); top: calc(300 * var(--U)); height: calc(420 * var(--U));
+  box-sizing: border-box; padding: calc(28 * var(--U)) calc(26 * var(--U)) 0;
+  border-radius: calc(28 * var(--U)); background: #fdfaf1; text-align: center;
+  box-shadow: 0 calc(10 * var(--U)) calc(30 * var(--U)) rgba(60, 40, 20, 0.25);
+  animation: kncard 0.5s cubic-bezier(.3, 1.5, .5, 1);
+}
+@keyframes kncard { 0% { transform: translateY(calc(30 * var(--U))) scale(0.9); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.kn-door { width: calc(96 * var(--U)); height: calc(96 * var(--U)); margin: 0 auto; border-radius: 50%; background: #f6e9cf; display: flex; align-items: center; justify-content: center; }
+.kn-door svg { width: calc(64 * var(--U)); height: calc(64 * var(--U)); animation: knknock 1.2s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes knknock { 0%, 40%, 100% { transform: none; } 10%, 30% { transform: rotate(-6deg); } 20% { transform: rotate(6deg); } }
+.kn-title { margin: calc(16 * var(--U)) 0 0; font-size: calc(30 * var(--U)); line-height: calc(40 * var(--U)); font-weight: 700; letter-spacing: calc(4 * var(--U)); color: #3b2a1b; }
+.kn-body { margin: calc(8 * var(--U)) 0 0; font-size: calc(18 * var(--U)); line-height: calc(28 * var(--U)); font-weight: 600; letter-spacing: calc(1.4 * var(--U)); color: #4a4033; }
+.kn-note { margin: calc(6 * var(--U)) 0 0; font-size: calc(14 * var(--U)); line-height: calc(22 * var(--U)); font-weight: 500; letter-spacing: calc(1 * var(--U)); color: #7a6f5e; }
+.kn-ok.cs-join { position: absolute; left: calc(26 * var(--U)); right: calc(26 * var(--U)); width: auto; top: calc(334 * var(--U)); height: calc(58 * var(--U)); padding-left: 0; justify-content: center; }
+@media (prefers-reduced-motion: reduce) { .kn-card, .kn-door svg, .kn-btn.is-armed { animation: none !important; } }

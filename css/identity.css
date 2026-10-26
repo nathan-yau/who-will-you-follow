@@ -173,3 +173,7 @@
 }
 .id-sup__img img { position: absolute; left: 6%; top: 12%; width: 88%; height: 92%; object-fit: contain; }
 .id-sup b { font-family: "Fredoka", system-ui, sans-serif; font-weight: 700; font-size: calc(18 * var(--U)); }
+
+/* 私下敲門 (true leader only, after a vote closes) — under 「再看一次身份」 on the waiting screen */
+.id-knock { top: calc(806 * var(--U)); }
+#app:not([data-state="wait"]) .id-knock { display: none; }
