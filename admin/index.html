@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=25" />
+  <link rel="stylesheet" href="../css/admin.css?v=26" />
 </head>
 <body>
   <header class="top">
@@ -116,6 +116,16 @@
         </div>
         <div class="acc__body" id="accTvBody">
           <p class="tvnote" id="tvNote">等候中：玩家可在手機按「避開啊／衝過去」玩 TV 上的泡泡大戰。</p>
+          <!-- 即時連線 (Ably) for the lobby bubble battle: on = phones' taps go over Ably (if the server has ABLY_API_KEY and
+               the TV is connected), off = the polling path. Live: phones and the TV pick it up on their next poll. -->
+          <div class="seg rtseg" id="rtSeg" role="group" aria-label="即時連線 (Ably)">
+            <span class="seg__label">即時連線 (Ably)</span>
+            <div class="seg__btns">
+              <button type="button" class="seg__btn" data-rt="on" aria-pressed="true">開</button>
+              <button type="button" class="seg__btn" data-rt="off" aria-pressed="false">關</button>
+            </div>
+          </div>
+          <p class="tvnote rtnote" id="rtNote"><i class="dot" id="rtDot"></i> <b id="rtMode">輪詢 (後備)</b> <span id="rtWhy"></span></p>
           <!-- flow: 等候 → 身份揭曉 → Round 1 → 2 → 3. Shown after the reveal stage started, until a round is on the TV.
                All revealed -> one tap; otherwise locked (X / N 已揭曉) and a tap arms 「仍然開始」 (2nd tap within 3 s). -->
           <div class="r1go" id="r1go" hidden>
@@ -289,7 +299,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="../js/api.js?v=10"></script>
-  <script src="../js/admin.js?v=28"></script>
+  <script src="../js/api.js?v=11"></script>
+  <script src="../js/admin.js?v=29"></script>
 </body>
 </html>

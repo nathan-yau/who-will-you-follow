@@ -233,6 +233,8 @@ async function me(req, s, heartbeatOnly) {
   const [meta, info] = await Promise.all([getMeta(s), lobby(s)]);
   // everyone holds 平民 from the start, so "assigned" only becomes meaningful once the host reveals roles
   const out = { player: publicPlayer(p), assigned: false, revealed: !!meta.revealed, joined: info.joined, gameId: meta.gameId, phase: phaseOf(meta), screen: screenOf(meta) };
+  // 即時連線: phones publish taps over Ably only while the TV reports a live Ably connection for this game
+  if (out.phase === LOBBY && !meta.revealed && rtWanted(meta)) out.rt = { active: rtActive(meta, await rtTv(s)) };
   // a phone only ever gets its OWN role, and only once the host has started the 身份揭曉 stage
   if (meta.revealed) {
     out.seen = !!p.revealedAt;
@@ -377,7 +379,8 @@ async function adminState(s) {
   // 遊戲內容: which character currently holds 假領袖詞語 1–3 (null = not assigned yet -> admin labels it by slot)
   const fakeWords = fakeOrder(players.map(normalize)).slice(0, FAKE_WORDS).map((q) => q.characterId);
   const howto = { on: sc === HOWTO, allowed: !meta.revealed, page: sc === HOWTO ? (await howtoView(s, meta)).page : 0, pages: HOWTO_PAGES };
-  return { meta, votes, quiz, final, howto, fakeWords, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
+  const rt = rtStatus(meta, await rtTv(s, true));
+  return { meta, votes, quiz, final, howto, rt, fakeWords, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
 }
 
 async function setRole(req, s) {
@@ -466,6 +469,7 @@ async function reset(s) {
   const keys = [...await listKeys(s, 'players/'), ...await listKeys(s, 'claims/'), ...await listKeys(s, 'seen/'), ...await listKeys(s, 'mini/'), ...await listKeys(s, 'ballots/'), ...await listKeys(s, 'answers/')];
   await Promise.all(keys.map((k) => s.delete(k)));
   const next = { gameId: rid(6), startedAt: t, revealed: false, phase: LOBBY, phaseAt: t };
+  if (meta.rtOff) next.rtOff = true;               // the 即時連線 switch survives a new game
   await s.setJSON('meta', next);
   return { ok: true, archived: players.length, gameId: next.gameId };
 }
@@ -913,6 +917,77 @@ function activeMiniKeys() {
   for (const [k, c] of blobCache) if (k.startsWith('mini/') && c.data && t - (c.data.t || 0) < ACTIVE_MS) out.push([k, c.data.t]);
   return out.sort((a, b) => b[1] - a[1]).slice(0, ACTIVE_MAX).map((x) => x[0]);
 }
+/* ---------------- 即時連線 (Ably) for the lobby bubble battle ----------------
+   ABLY_API_KEY ("<appId>.<keyId>:<secret>") stays on the server: we only hand out signed Ably TokenRequests
+   (HMAC-SHA256, same format as the Ably SDK's createTokenRequest), each limited to this game's lobby channel:
+   a phone may only PUBLISH, as clientId = its player id; the TV may only SUBSCRIBE. The TV keeps the tally.
+   Admin switch: meta.rtOff (default on). Anything wrong -> everyone falls back to the polling path. */
+const RT_FRESH_MS = 25000;            // the TV re-reports 'ably' every 10 s; older than this = not connected
+const RT_TTL_MS = 60 * 60 * 1000;
+const RT_REASONS = ['off', 'started', 'token', 'connect', 'drop', 'quota', 'sdk'];
+function rtKey() {
+  const k = process.env.ABLY_API_KEY || '', i = k.indexOf(':');
+  return i > 0 && k.slice(0, i).includes('.') && i < k.length - 1 ? { name: k.slice(0, i), secret: k.slice(i + 1) } : null;
+}
+const rtWanted = (meta) => !meta.rtOff && !!rtKey();
+const rtChannel = (meta) => `wwyf:${meta.gameId}:lobby`;
+let rtTvCache = null;
+async function rtTv(s, fresh) {
+  if (!fresh && rtTvCache && now() - rtTvCache.t < 2000) return rtTvCache.data;
+  const data = await s.get('rt/tv', { type: 'json' }).catch(() => null);
+  rtTvCache = { t: now(), data };
+  return data;
+}
+const rtActive = (meta, tv) => rtWanted(meta) && phaseOf(meta) === LOBBY && !!tv && tv.state === 'ably' && tv.gameId === meta.gameId && now() - tv.at < RT_FRESH_MS;
+function rtStatus(meta, tv) {
+  const out = { on: !meta.rtOff, hasKey: !!rtKey(), active: rtActive(meta, tv), reason: '' };
+  if (!out.hasKey) out.reason = 'no_key';
+  else if (!out.on) out.reason = 'off';
+  else if (phaseOf(meta) !== LOBBY) out.reason = 'started';
+  else if (!out.active) out.reason = tv && tv.gameId === meta.gameId && tv.state === 'poll' && now() - tv.at < 10 * 60 * 1000 ? tv.reason : 'no_tv';
+  return out;
+}
+function tokenRequest(k, clientId, capability) {
+  const tr = { keyName: k.name, ttl: RT_TTL_MS, capability: JSON.stringify(capability), timestamp: now(), nonce: randomBytes(16).toString('hex') };
+  if (clientId) tr.clientId = clientId;
+  const text = [tr.keyName, tr.ttl, tr.capability, tr.clientId || '', tr.timestamp, tr.nonce, ''].join('\n');
+  tr.mac = createHmac('sha256', k.secret).update(text).digest('base64');
+  return tr;
+}
+/** GET /api/rt-token (phone: player headers) or /api/rt-token?as=tv -> { channel, tokenRequest } */
+async function rtToken(req, s) {
+  const k = rtKey();
+  if (!k) fail(503, 'rt_no_key', '未設定即時連線');
+  const meta = await getMeta(s);
+  if (meta.rtOff) fail(409, 'rt_off', '即時連線已關閉');
+  if (phaseOf(meta) !== LOBBY) fail(409, 'started', '遊戲已開始');
+  const channel = rtChannel(meta);
+  if (new URL(req.url).searchParams.get('as') === 'tv') return { channel, tokenRequest: tokenRequest(k, null, { [channel]: ['subscribe'] }) };
+  const p = await playerFrom(req, s);
+  if (!p) fail(404, 'not_joined', '尚未加入或已被移出遊戲');
+  return { channel, tokenRequest: tokenRequest(k, p.id, { [channel]: ['publish'] }) };
+}
+/** POST /api/rt-status { state: 'ably'|'poll', reason, gameId } — the TV says whether its Ably link is live */
+async function rtReport(req, s) {
+  const b = await body(req);
+  const state = b.state === 'ably' ? 'ably' : 'poll';
+  const reason = state === 'poll' && RT_REASONS.includes(b.reason) ? b.reason : '';
+  const meta = await getMeta(s);
+  if (b.gameId !== meta.gameId) return { ok: false };
+  const data = { state, reason, gameId: meta.gameId, at: now() };
+  await s.setJSON('rt/tv', data);
+  rtTvCache = { t: now(), data };
+  return { ok: true };
+}
+/** POST /api/admin/realtime { on } — the host's 即時連線 (Ably) switch */
+async function setRealtime(req, s) {
+  const b = await body(req);
+  const on = b.on !== false;
+  await update(s, 'meta', (m) => { if (!m.rtOff === on) return undefined; if (on) delete m.rtOff; else m.rtOff = true; return m; });
+  const meta = await getMeta(s);
+  return { ok: true, rt: rtStatus(meta, await rtTv(s, true)) };
+}
+
 async function miniState(s) {
   const spec = activeMiniKeys();
   const [pl, ml, ...sp] = await Promise.all([listWithEtags(s, 'players/'), listWithEtags(s, 'm'),
@@ -932,6 +1007,8 @@ async function miniState(s) {
   }).sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
   const screen = screenOf(meta);
   const out = { phase: phaseOf(meta), screen, gameId: meta.gameId, joined: list.length, players: list, t: now() };
+  // 即時連線 (Ably): the TV should try realtime for the lobby bubble battle (switch on + key set + still in the lobby)
+  if (phaseOf(meta) === LOBBY && rtWanted(meta)) out.rt = true;
   // 身份揭曉 screen: aggregate count ONLY (how many have looked) — never per-player flags, never roles
   if (screen === REVEAL) out.reveal = { revealed: players.filter((p) => p && p.revealedAt).length, total: list.length };
   // 玩法說明: the page + the configured numbers the slides quote (thresholds etc.) — general rules only, nothing per player
@@ -1559,6 +1636,9 @@ const ROUTES = {
   'POST knock': knock,
   'POST knock-ack': knockAck,
   'GET mini/state': (req, s) => miniState(s),
+  'GET rt-token': rtToken,
+  'POST rt-status': rtReport,
+  'POST admin/realtime': setRealtime,
   'POST admin/login': adminLogin,
   'GET admin/state': (req, s) => adminState(s),
   'GET admin/archive': async (req, s) => {

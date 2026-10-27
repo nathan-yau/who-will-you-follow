@@ -8,7 +8,7 @@
   var V = 6;                       // character asset version (same as lobby)
   var W = 1024, H = 576;
   var R0 = 54;                     // base bubble radius (design px) — shrinks when very crowded
-  var POLL_MS = 150, POLL_STARTED_MS = 1000, POLL_QUIZ_MS = 500, quizLive = false;   // lobby ~6.7 polls/s (one request in flight at most; a slow reply just delays the next)
+  var POLL_MS = 150, POLL_STARTED_MS = 1000, POLL_QUIZ_MS = 500, POLL_RT_MS = 1000, quizLive = false;   // lobby ~6.7 polls/s (one request in flight at most; a slow reply just delays the next)
   // rules
   var PUSH_PER_SEC = 2;            // taps beyond 2 in any rolling second are ignored
   var DODGE_CD = 900;              // ms
@@ -356,6 +356,57 @@
     renderQuiz(screen === 'r3' && $('tvVote').hidden && s.quiz && (s.quiz.q || (s.quiz.unlocked && s.quiz.clue)) ? s.quiz : null);
     renderSpeak(ROUNDS[screen] && $('tvVote').hidden && $('tvQuiz').hidden && s.speak && s.speak.round === screen && s.speak.state === 'live' ? s.speak : null);
     setPhase(started ? 'started' : 'lobby', list);
+    rtSync(!!s.rt && s.phase === 'lobby', s.gameId);
+  }
+
+  /* ---------- 即時連線 (Ably): lobby taps arrive over the realtime channel instead of via the server ----------
+     Only when mini/state says rt (admin switch on + key on the server + lobby). The TV subscribes, reports
+     'ably' to /api/rt-status (phones then publish instead of calling mini/act) and polls every 1 s for
+     joins / screen changes. Any failure (SDK, token, connect, drop > 4 s, quota) -> back to 150 ms polling,
+     reported with the reason; retried later. Taps that still come via mini/act are counted from the poll as before. */
+  var rt = null, rtState = 'off', rtGame = null, rtRetryAt = 0, rtLast = '', rtBeatT = 0, rtWant = false;
+  function rtReport(state, reason, force) {
+    var k = state + ':' + (reason || '') + ':' + rtGame;
+    if (!force && k === rtLast) return;
+    rtLast = k;
+    WWYF.request('POST', '/rt-status', { state: state, reason: reason || '', gameId: rtGame }).catch(function () { rtLast = ''; });
+  }
+  function rtStop(reason, drain) {
+    var h = rt; rt = null;
+    if (h) { if (drain) setTimeout(function () { h.close(); }, 5000); else h.close(); }   // drain: phones learn within ~3 s
+    var was = rtState; rtState = reason === 'off' || reason === 'started' ? 'off' : 'poll';
+    clearInterval(rtBeatT); rtBeatT = 0;
+    if (was !== 'off' || rtState === 'poll') rtReport('poll', reason);
+    if (was === 'ably') { clearTimeout(pollTimer); schedule(); }
+  }
+  function rtSync(want, gid) {
+    rtWant = want;
+    if (rt && gid !== rtGame) rtStop('off');               // new game = new channel
+    if (!want) { rtRetryAt = 0; if (rt || rtState !== 'off') rtStop(phase === 'started' ? 'started' : 'off', true); return; }   // host toggles off→on = retry now
+    if (rt || !window.WWYF_RT || now() < rtRetryAt) return;
+    rtGame = gid; rtState = 'connecting';
+    var h = rt = WWYF_RT.connect({ tv: true, onMessage: rtInput, onState: function (st, reason) {
+      if (rt !== h) return;
+      if (st === 'ready') {
+        rtState = 'ably'; rtReport('ably', '', true);
+        clearInterval(rtBeatT); rtBeatT = setInterval(function () { if (rtState === 'ably') rtReport('ably', '', true); }, 10000);
+      } else if (st === 'down') {
+        rtRetryAt = now() + (reason === 'quota' ? 120000 : 20000);
+        rtStop(reason || 'connect');
+      }
+    } });
+  }
+  function rtInput(id, d) {
+    var b = bubbles[id], t = now();
+    if (!b || !d || typeof d !== 'object' || phase !== 'lobby') return;
+    var p = Math.max(0, Math.min(1e6, d.p | 0)), dd = Math.max(0, Math.min(1e6, d.d | 0)), sid = String(d.s || '').slice(0, 16);
+    if (b.rtSid !== sid) { b.rtSid = sid; b.rtP = 0; b.rtD = 0; }   // new phone page load: its totals restart at 0
+    if (!b.popped) {
+      for (var k = p - b.rtP; k > 0 && b.pushQ.length < PUSH_PER_SEC; k--) b.pushQ.push(t);   // same caps as the poll path
+      if (dd > b.rtD) b.dodgeQ = t;
+    }
+    b.rtP = Math.max(b.rtP, p); b.rtD = Math.max(b.rtD, dd);
+    stats.rtMsgs = (stats.rtMsgs || 0) + 1;
   }
 
   /* ---------- round title screens + leader cards ---------- */
@@ -809,7 +860,7 @@
   // (or right after it finished if it took longer) — no 50 ms tick quantisation, one request in flight.
   var pollTimer = 0;
   // Round 3 with questions still to come / open: 500 ms, so a 5–10 s question appears and closes on time
-  function interval() { return phase === 'started' ? (quizLive ? POLL_QUIZ_MS : POLL_STARTED_MS) : POLL_MS; }
+  function interval() { return phase === 'started' ? (quizLive ? POLL_QUIZ_MS : POLL_STARTED_MS) : rtState === 'ably' ? POLL_RT_MS : POLL_MS; }
   function schedule() {
     clearTimeout(pollTimer);
     if (document.hidden) return;
@@ -921,5 +972,5 @@
   }
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get ending() { return lastEnding; }, get endingStage() { return enStage; }, get endingCounted() { return enCounted; }, get howto() { return screen === 'howto' ? { page: hwPage, title: $('hwTitle').textContent } : null; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get rt() { return rtState; }, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get ending() { return lastEnding; }, get endingStage() { return enStage; }, get endingCounted() { return enCounted; }, get howto() { return screen === 'howto' ? { page: hwPage, title: $('hwTitle').textContent } : null; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
 })();

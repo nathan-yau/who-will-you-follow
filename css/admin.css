@@ -356,3 +356,9 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 /* 玩法說明 controls */
 .hw-nav { align-items: center; }
 .hw-page { flex: 0 0 auto; min-width: 84px; text-align: center; font-size: 14px; font-weight: 700; color: #4b301d; white-space: nowrap; }
+
+/* 即時連線 (Ably) switch + status */
+.rtseg .seg__btns { flex: 0 0 auto; }
+.rtseg .seg__btn { min-width: 52px; }
+.rtnote { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rtnote b { color: var(--ink); }

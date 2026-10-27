@@ -93,7 +93,36 @@
     renderGrid();
     renderPhase();
     renderReveal();
+    renderRt();
   }
+
+  /* ---------- 即時連線 (Ably) switch + status ---------- */
+  var RT_WHY = {
+    no_key: '未設定 ABLY_API_KEY（Netlify 環境變數）', off: '主持人已關閉即時連線', started: '遊戲已開始（只用於等候大廳）',
+    no_tv: 'TV 未連上 Ably（未開 TV 或連線中）', token: '取得 Ably token 失敗', connect: '連唔到 Ably', drop: 'Ably 連線中斷',
+    quota: 'Ably 配額／速率已用盡', sdk: '載入唔到 Ably SDK'
+  };
+  function renderRt() {
+    var r = state && state.rt;
+    if (!r) return;
+    [].forEach.call(document.querySelectorAll('#rtSeg .seg__btn'), function (b) {
+      b.setAttribute('aria-pressed', String((b.getAttribute('data-rt') === 'on') === !!r.on));
+    });
+    $('rtMode').textContent = r.active ? '使用中 Ably' : '輪詢 (後備)';
+    $('rtWhy').textContent = r.active ? '' : '· ' + (RT_WHY[r.reason] || r.reason || '');
+    $('rtDot').className = 'dot' + (r.active ? ' on' : '');
+  }
+  $('rtSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('.seg__btn');
+    if (!b || b.getAttribute('aria-pressed') === 'true') return;
+    var on = b.getAttribute('data-rt') === 'on';
+    act(b, function () {
+      return WWYF.admin('POST', 'realtime', { on: on }).then(function (r) {
+        if (state) state.rt = r.rt;
+        toast(on ? '即時連線已開啟' : '已切換至輪詢');
+      });
+    });
+  });
 
   /* ---------- TV／遊戲 section ---------- */
   function renderPhase() {

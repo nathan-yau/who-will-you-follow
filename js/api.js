@@ -45,7 +45,7 @@
   window.WWYF = {
     base: BASE,
     getPlayer: getPlayer, setPlayer: setPlayer, clearPlayer: clearPlayer,
-    request: request,
+    request: request, playerHeaders: playerHeaders,
     lobby: function () { return request('GET', '/lobby'); },
     join: function (characterId, nickname) {
       var body = { characterId: characterId };

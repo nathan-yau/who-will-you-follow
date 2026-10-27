@@ -58,6 +58,7 @@
       if (r.player.characterId !== me.characterId) { me.characterId = r.player.characterId; WWYF.setPlayer(me); }
       setCount(r.joined);
       setStarted(r.phase === 'started', r.screen === 'howto');
+      rtSync(!!(r.rt && r.rt.active));
     }).catch(function (e) {
       if (e.status === 404 || e.status === 401) {
         WWYF.clearPlayer();
@@ -86,7 +87,19 @@
     ['dodge', 'dash'].forEach(function (id) { $(id).disabled = v; });
     $('wait').innerHTML = howto ? '請睇 TV 玩法說明' : v ? '遊戲已開始！' : '等待其他玩家加入<span class="lb-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>';
     $('hint').textContent = howto ? '主持人會逐頁講解玩法，請留意 TV！' : v ? '請看 TV，留意主持人的指示！' : '當所有人準備好後，遊戲就會開始！';
-    if (v) { pendPush = 0; pendDodge = 0; }
+    if (v) { pendPush = 0; pendDodge = 0; rtSync(false); }
+  }
+
+  // 即時連線 (Ably): while the server says the TV is live on Ably, taps are published to the lobby channel
+  // (no /api/mini/act requests). Running totals per page load (sid) let the TV count each tap once.
+  // Not ready / any error -> the same batch goes through /api/mini/act as before.
+  var rt = null, rtRetryAt = 0, rtSid = Math.random().toString(36).slice(2, 10), rtP = 0, rtD = 0;
+  function rtSync(want) {
+    if (want && !started && !rt && window.WWYF_RT && Date.now() >= rtRetryAt) {
+      var h = rt = WWYF_RT.connect({ tv: false, onMessage: function () {}, onState: function (st, reason) {
+        if (st === 'down' && rt === h) { rt = null; rtRetryAt = Date.now() + (reason === 'quota' ? 120000 : 15000); }
+      } });
+    } else if (!want) { rtRetryAt = 0; if (rt) { rt.close(); rt = null; } }
   }
   function scheduleSend() {
     if (sendT || inFlight || started || (!pendPush && !pendDodge)) return;
@@ -99,6 +112,14 @@
     pendPush = 0; pendDodge = 0;
     seq = Math.max(Date.now(), seq + 1);          // increasing across reloads; lets the server drop duplicates
     inFlight = true; lastSend = Date.now();
+    if (rt && rt.isReady()) {
+      rtP += push; rtD += dodge;
+      rt.publish({ s: rtSid, p: rtP, d: rtD }).catch(function () {
+        rtP -= push; rtD -= dodge;           // not delivered: send this batch the old way
+        return WWYF.miniAct(push, dodge, seq).catch(function () {});
+      }).then(function () { inFlight = false; scheduleSend(); });
+      return;
+    }
     WWYF.miniAct(push, dodge, seq).catch(function (e) {
       if (e.status === 409 && e.code === 'started') setStarted(true);
       else if (e.status === 404 || e.status === 401) { WWYF.clearPlayer(); window.location.replace('../characters/?removed=1'); }

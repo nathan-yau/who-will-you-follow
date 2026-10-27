@@ -47,7 +47,7 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | Round vote (phone) | `/vote/` |
 
 * `netlify/functions/api.mjs` – one Functions v2 handler mounted at `/api/*`, state in Netlify Blobs (store `wwyf-game`, strong consistency). One game at a time; characters are claimed with `onlyIfNew` so a character can never be taken twice.
-* Environment variables (set in Netlify, never in this repo): `ADMIN_PASSWORD` (host PIN), `SESSION_SECRET` (HMAC key for 12 h admin sessions).
+* Environment variables (set in Netlify, never in this repo): `ADMIN_PASSWORD` (host PIN), `SESSION_SECRET` (HMAC key for 12 h admin sessions), optional `ABLY_API_KEY` (即時連線, see below).
 * Failed admin logins are rate-limited: 5 per IP / 10 min → 10 min lockout; 30 overall / 10 min → 5 min lockout.
 
 ### API
@@ -71,7 +71,7 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | POST | `/api/admin/reveal` | host | `{revealed}` (legacy flag) |
 | POST | `/api/admin/reveal-stage` | host | `{on}` start/end the 身份揭曉 stage (start = phase started, `revealed`, TV screen `reveal`, fake pairs synced); `admin/screen {screen:'reveal'}` also starts it |
 | POST | `/api/mini/act` | player | `{push, dodge, seq}` batched TV mini-game input (≤ every 250 ms); stored in `mini/<playerId>`; `409 started` once the game has started |
-| GET | `/api/mini/state` | anyone | TV poll (every 150 ms in the lobby, 1 s once started; never two in flight): `{phase, gameId, joined, players:[{id, characterId, nickname, joinedAt, push, dodge}], leaders? (round screens), reveal?:{revealed, total} (身份揭曉 screen), howto?:{page, pages, threshold, quiz:{n, threshold, need}} (玩法說明 screen)}` |
+| GET | `/api/mini/state` | anyone | TV poll (every 150 ms in the lobby — 1 s while 即時連線 (Ably) is live — 1 s once started; never two in flight): `{phase, gameId, rt? (true = try Ably: switch on + key set + lobby), joined, players:[{id, characterId, nickname, joinedAt, push, dodge}], leaders? (round screens), reveal?:{revealed, total} (身份揭曉 screen), howto?:{page, pages, threshold, quiz:{n, threshold, need}} (玩法說明 screen)}` |
 | POST | `/api/vote` | player | `{characterId, round?}` cast / change own ballot in the open round → `{round, sealed, mine:{characterId, line}}`; `403 no_vote` (leaders), `400 bad_target`, `409 vote_closed` (closed / sealed / other round) |
 | POST | `/api/knock` | 真正領袖 | 私下敲門 for the latest closed round (once per round; server picks the targets) → `{round, count}` only |
 | POST | `/api/knock-ack` | player | `{round}` dismiss a received 叩叩 |
@@ -86,8 +86,19 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | POST | `/api/admin/quiz-reset` | host | clear all question results / answers |
 | POST | `/api/admin/final` | host | 最終揭曉: `{action:'enter'}` (TV → `final`; also `admin/screen {screen:'final'}`), `{action:'flip', playerId}`, `{action:'supporter', playerId}` (after flip; `409 no_supporter` / `not_flipped`), `{action:'all'}` (flip the rest, 700 ms stagger), `{action:'reset'}`, `{action:'votes', on}`, `{action:'ending'}` (TV → `ending`; also `admin/screen {screen:'ending'}`; `409 vote_not_closed` until the r3 vote exists and is closed; `enter` = 返回揭曉); flip / supporter / all need the TV on `final` (`409 not_final`) → `{ok, screen, final}` |
 | POST | `/api/admin/howto` | host | 玩法說明: `{action:'enter'\|'exit'\|'next'\|'prev'\|'go', page?}` (7 pages, 0–6, clamped; `go` needs an integer `page` else `400 bad_page`). `enter` = phase started + TV screen `howto` (also `admin/screen {screen:'howto'}`); `exit` returns to the previous phase (lobby / started). Only before 身份揭曉: `409 revealed` after; `409 not_howto` for next/prev/go when not on `howto` → admin state `howto:{on, allowed, page, pages}` |
+| GET | `/api/rt-token` | player / `?as=tv` anyone | 即時連線: `{channel, tokenRequest}` — an Ably TokenRequest signed on the server (HMAC-SHA256) from `ABLY_API_KEY`; phone = `{"wwyf:<gameId>:lobby":["publish"]}` with `clientId` = player id; TV = `{"wwyf:<gameId>:lobby":["subscribe"]}`; ttl 1 h. `503 rt_no_key`, `409 rt_off`, `409 started` |
+| POST | `/api/rt-status` | anyone (the TV) | `{state:'ably'\|'poll', reason, gameId}`: the TV's Ably link (re-sent every 10 s while live; fresh = < 25 s) → stored in `rt/tv`; `/api/me` adds `rt:{active}` in the lobby when the switch is on + key set |
+| POST | `/api/admin/realtime` | host | 即時連線 (Ably) switch `{on}` (default on; `meta.rtOff`, kept across 新一場) → admin state `rt:{on, hasKey, active, reason}` (reason: `no_key`, `off`, `started`, `no_tv`, `token`, `connect`, `drop`, `quota`, `sdk`) |
 | POST | `/api/admin/start` | host | phase → `started` (stops the mini-game) |
 | POST | `/api/admin/lobby` | host | phase → `lobby` (clears mini-game counters) |
+
+### 即時連線 (Ably) — lobby bubble battle
+
+* Optional. Without `ABLY_API_KEY`, or with the admin switch 「即時連線 (Ably)」 off, everything is exactly the polling path: phones send batched taps to `/api/mini/act`, the TV polls `/api/mini/state` every 150 ms.
+* With the key + switch on (default): the TV (`js/rt.js`, Ably SDK v2 from `cdn.ably.com`, loaded only then) gets a subscribe-only token, subscribes to `wwyf:<gameId>:lobby`, reports `ably` to `/api/rt-status`, and polls `mini/state` every 1 s (joins, screens). Phones see `/api/me` `rt.active` on their 3 s poll, get a publish-only token (clientId = player id) and publish `{s: page-load id, p: total pushes, d: total dodges}` instead of calling `mini/act`. The TV keeps the tally from those running totals with the same caps (2 pushes / s, 0.9 s dodge cooldown); `mini/act` taps (fallback phones) still count from the poll. No snapshot to the server (the tally is lobby fun only; a TV reload just restarts counting).
+* The key never leaves the server: only signed TokenRequests are returned. Each token can only narrow the key: phones cannot subscribe or publish elsewhere, the TV cannot publish, and a phone cannot pretend to be another player (clientId is signed).
+* Auto-fallback to polling (TV 150 ms, phones `mini/act`) when: no key; token rejected; SDK not loadable; no connection within 8 s; connection dropped > 4 s; Ably 429 / 429xx (quota / rate limit). The TV reports the reason; admin shows 「使用中 Ably」 or 「輪詢 (後備)」 + why. The TV retries after 20 s (quota: 2 min); switching 關 → 開 in admin retries at once. Phones whose own publish fails send that batch via `mini/act`. Switching 關 takes effect live: the TV goes back to 150 ms polling at once (stays subscribed 5 s so phones still on Ably for their next ≤ 3 s poll are not lost).
+* **Owner setup:** 1) create a free account at ably.com and an app (any name, e.g. `wwyf`); 2) in the app → **API Keys**, use the root key or create a key with capabilities **Publish** + **Subscribe** (resource/channels: `wwyf:*`, or all channels) — `{"wwyf:*":["publish","subscribe"]}`; copy the full key `<appId>.<keyId>:<secret>`; 3) Netlify → Site configuration → Environment variables → add `ABLY_API_KEY` = that key (scope: Functions) and redeploy. Never put the key in the repo or a page. Free plan limits (6 M messages / month, 200 connections, 500 msgs/s) are far above a party game (~2–4 msgs/s per tapping phone).
 
 ### 玩法說明 (TV screen `howto`, before 身份揭曉)
 
