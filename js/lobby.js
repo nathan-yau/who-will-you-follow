@@ -145,14 +145,44 @@
   }
   window.sendMiniGameAction = sendMiniGameAction;
 
+  // Instant local feedback (no waiting for the server / TV):
+  //  accepted tap -> button bounce + ripple at the finger + a little hop/burst on this player's own character (+ 15 ms buzz on Android)
+  //  rate-limited tap (push cap / dodge cooldown) -> a subtle 'cooldown' nudge instead, so the player sees why nothing happened
+  // prefers-reduced-motion: the CSS drops the motion (colour/opacity changes only).
+  function restart(el, cls, ms, timers) {
+    el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+    clearTimeout(timers[cls]); timers[cls] = setTimeout(function () { el.classList.remove(cls); }, ms);
+  }
+  var fxTimers = {};
+  function ripple(btn, e) {
+    var r = btn.getBoundingClientRect(), sp = document.createElement('span');
+    var x = e && e.clientX ? e.clientX - r.left : r.width / 2, y = e && e.clientY ? e.clientY - r.top : r.height / 2;
+    sp.className = 'lb-ripple';
+    sp.style.left = x + 'px'; sp.style.top = y + 'px';
+    btn.appendChild(sp);
+    setTimeout(function () { if (sp.parentNode) sp.parentNode.removeChild(sp); }, 600);
+  }
+  function burst(action) {
+    var fx = $('tapFx'), spr = $('sprite');
+    fx.setAttribute('data-a', action); spr.setAttribute('data-a', action);
+    restart(fx, 'go', 520, fxTimers);
+    restart(spr, 'is-hop', 360, fxTimers);
+  }
   ['dodge', 'dash'].forEach(function (id) {
-    var btn = $(id);
-    var t = null;
-    btn.addEventListener('click', function () {
+    var btn = $(id), timers = {};
+    btn.addEventListener('click', function (e) {
       if (started) return;
-      btn.classList.remove('is-pressed'); void btn.offsetWidth; btn.classList.add('is-pressed');
-      clearTimeout(t); t = setTimeout(function () { btn.classList.remove('is-pressed'); }, 380);
-      if (sendMiniGameAction(btn.getAttribute('data-action')) && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+      var action = btn.getAttribute('data-action');
+      if (sendMiniGameAction(action)) {
+        btn.classList.remove('is-limited');
+        restart(btn, 'is-pressed', 380, timers);
+        ripple(btn, e);
+        burst(action);
+        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (x) {} }
+      } else {
+        btn.classList.remove('is-pressed');
+        restart(btn, 'is-limited', 320, timers);
+      }
     });
   });
 

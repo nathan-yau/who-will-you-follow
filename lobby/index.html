@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/style.css?v=6" />
   <link rel="stylesheet" href="../css/characters.css?v=8" />
-  <link rel="stylesheet" href="../css/lobby.css?v=9" />
+  <link rel="stylesheet" href="../css/lobby.css?v=10" />
 </head>
 <body>
   <main class="cs-app">
@@ -51,6 +51,8 @@
         <img class="f1" id="f1" alt="" draggable="false" />
         <img class="f2" id="f2" alt="" draggable="false" />
       </div>
+      <!-- local tap feedback on the player's own bubble (phone only, never sent anywhere) -->
+      <div class="lb-fx abs" id="tapFx" aria-hidden="true"><b class="lb-fx__ring"></b><i></i><i></i><i></i><i></i><i></i><i></i></div>
 
       <section class="ready lb-info abs" aria-live="polite">
         <div class="lb-group abs" aria-hidden="true">
@@ -116,6 +118,6 @@
   </script>
   <script src="../js/api.js?v=11"></script>
   <script src="../js/rt.js?v=1"></script>
-  <script src="../js/lobby.js?v=15"></script>
+  <script src="../js/lobby.js?v=16"></script>
 </body>
 </html>

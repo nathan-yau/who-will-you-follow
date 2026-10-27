@@ -141,8 +141,40 @@
 @keyframes lbicon { 0% { transform: scale(0.7) rotate(-12deg); } 100% { transform: none; } }
 @keyframes lbdodge { 0% { transform: none; } 35% { transform: translateX(calc(-6 * var(--U))) rotate(-14deg); } 100% { transform: none; } }
 
+/* instant tap feedback: bounce (accepted) vs a soft "cooldown" nudge (rate-limited) */
+.lb-act.is-pressed { animation: lbpress 0.38s cubic-bezier(.3,1.6,.5,1); }
+@keyframes lbpress { 0% { transform: translateY(calc(3 * var(--U))) scale(0.92); } 55% { transform: translateY(calc(-1.5 * var(--U))) scale(1.04); } 100% { transform: none; } }
+.lb-act.is-limited { animation: lblimit 0.32s ease-out; opacity: 0.72; }
+.lb-act--dash.is-limited { background: #8aa383; }
+@keyframes lblimit { 0%, 100% { transform: none; } 30% { transform: translateX(calc(-3 * var(--U))); } 65% { transform: translateX(calc(2 * var(--U))); } }
+.lb-ripple { position: absolute; width: calc(24 * var(--U)); height: calc(24 * var(--U)); margin: calc(-12 * var(--U)) 0 0 calc(-12 * var(--U)); border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55); pointer-events: none; transform: scale(0); animation: lbripple 0.55s ease-out forwards; }
+.lb-act--dodge .lb-ripple { background: rgba(141, 176, 124, 0.45); }
+@keyframes lbripple { 0% { transform: scale(0); opacity: 1; } 100% { transform: scale(9); opacity: 0; } }
+/* the player's own character: a little hop (push) / side-step (dodge) + a sparkle burst */
+.lb-sprite.is-hop { animation: lbhop 0.36s cubic-bezier(.3,1.5,.5,1), bob 1s ease-in-out 0.36s infinite; }
+.lb-sprite.is-hop[data-a="dodge"] { animation-name: lbside, bob; }
+@keyframes lbhop { 0% { transform: scale(1.06, 0.92); } 45% { transform: translateY(calc(-14 * var(--U))) scale(0.97, 1.05); } 100% { transform: none; } }
+@keyframes lbside { 0% { transform: none; } 40% { transform: translateX(calc(-16 * var(--U))) rotate(-7deg); } 100% { transform: none; } }
+.lb-fx { left: calc(152 * var(--U)); top: calc(392 * var(--U)); width: calc(170 * var(--U)); height: calc(150 * var(--U)); pointer-events: none; }
+.lb-fx > * { position: absolute; left: 50%; top: 55%; opacity: 0; }
+.lb-fx__ring { width: calc(120 * var(--U)); height: calc(120 * var(--U)); margin: calc(-60 * var(--U)) 0 0 calc(-60 * var(--U)); border-radius: 50%;
+  border: calc(4 * var(--U)) solid #eab64a; box-sizing: border-box; }
+.lb-fx[data-a="dodge"] .lb-fx__ring { border-color: #7fae6a; }
+.lb-fx i { width: calc(11 * var(--U)); height: calc(11 * var(--U)); margin: calc(-5.5 * var(--U)) 0 0 calc(-5.5 * var(--U)); border-radius: 50%; background: #f0b43c; }
+.lb-fx[data-a="dodge"] i { background: #7fae6a; }
+.lb-fx i:nth-of-type(1) { --a: 0deg; } .lb-fx i:nth-of-type(2) { --a: 60deg; } .lb-fx i:nth-of-type(3) { --a: 120deg; }
+.lb-fx i:nth-of-type(4) { --a: 180deg; } .lb-fx i:nth-of-type(5) { --a: 240deg; } .lb-fx i:nth-of-type(6) { --a: 300deg; }
+.lb-fx.go .lb-fx__ring { animation: lbring 0.5s ease-out; }
+.lb-fx.go i { animation: lbspark 0.5s cubic-bezier(.2,.8,.4,1); }
+@keyframes lbring { 0% { opacity: 0.9; transform: scale(0.45); } 100% { opacity: 0; transform: scale(1.15); } }
+@keyframes lbspark { 0% { opacity: 1; transform: rotate(var(--a)) translateY(calc(-30 * var(--U))) scale(1); } 100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(-78 * var(--U))) scale(0.4); } }
+
 @media (prefers-reduced-motion: reduce) {
   .lb-chick, .lb-dots i, .lb-row i.new::before, .lb-count b.bump, .lb-act .lb-act__icon { animation: none !important; }
+  .lb-act.is-pressed, .lb-act.is-limited, .lb-sprite.is-hop { animation: none !important; }
+  .lb-ripple, .lb-fx { display: none; }
+  .lb-act.is-pressed { filter: brightness(1.08); }
 }
 
 /* mini game: dodge cooldown sweep (0.9 s) + disabled once the host starts the game */

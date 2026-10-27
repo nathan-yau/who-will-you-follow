@@ -24,6 +24,10 @@
   var MIN_POP = 200;               // a bubble needs at least this strength to pop another one
   var DODGE_SIDE = 380, DODGE_AWAY = 150;
   var VMAX = 900, RESTITUTION = 0.9, RUN_SPEED = 105;
+  // motion smoothing (visual only — same rules, same totals, no extra network traffic)
+  var STEP = 1 / 120;              // fixed physics timestep (s); rendering interpolates between the last two steps
+  var KICK = 0.08;                 // a push / dodge velocity change is eased in over 80 ms (drag-compensated: same speed afterwards)
+  var SPREAD_MS = 80;              // several inputs arriving in one network batch are spaced 80 ms apart
   // where bubbles start: a staggered grid below the banner (6/5/6/5 = 22 slots)
   var SLOTS = [];
   [[195, 100, 6], [300, 182, 5], [405, 100, 6], [505, 182, 5]].forEach(function (r) {
@@ -121,31 +125,42 @@
   }
   function strength(b, t) { return Math.hypot(b.vx, b.vy) + TAP_POWER * recentTaps(b, t); }
 
+  // eased impulse: the bubble reaches the same velocity as an instant kick (drag included) but over KICK seconds
+  function flushKick(b) { var k = b.kick; if (k) { var w = k.left * Math.exp(-DRAG * k.age); b.vx += k.x * w; b.vy += k.y * w; b.kick = null; } }
+  function kick(b, nvx, nvy) { b.kick = { x: nvx - b.vx, y: nvy - b.vy, left: 1, age: 0 }; }
+  function applyKick(b, dt) {
+    var k = b.kick; if (!k) return;
+    var f = Math.min(1, dt / KICK, k.left), w = f * Math.exp(-DRAG * k.age);
+    // w < f: the share added later has had less time to decay, so scale it down to match an instant kick
+    b.vx += k.x * w; b.vy += k.y * w;
+    k.left -= f; k.age += dt;
+    if (k.left <= 1e-6) b.kick = null;
+  }
   function doPush(b, t) {
     var lastSec = 0;
     for (var i = 0; i < b.taps.length; i++) if (t - b.taps[i] < 1000) lastSec++;
     if (lastSec >= PUSH_PER_SEC) return false;                 // rate cap (also enforced on the phone)
+    flushKick(b);
     b.taps.push(t);
     var mom = recentTaps(b, t) - 1;
     var o = nearest(b), dx, dy;
     if (o) { dx = o.x - b.x; dy = o.y - b.y; }
     else { dx = W / 2 - b.x + Math.cos(b.phase) * 120; dy = H * 0.6 - b.y + Math.sin(b.phase) * 80; }
     var d = Math.hypot(dx, dy) || 1, sp = PUSH_V + PUSH_MOM * Math.min(mom, 4);
-    b.vx = b.vx * 0.3 + dx / d * sp;
-    b.vy = b.vy * 0.3 + dy / d * sp;
+    kick(b, b.vx * 0.3 + dx / d * sp, b.vy * 0.3 + dy / d * sp);
     b.target = o ? o.id : null;
     return true;
   }
   function doDodge(b, t) {
     if (t - b.dodgeAt < DODGE_CD) return false;                 // cooldown (also enforced on the phone)
     b.dodgeAt = t;
+    flushKick(b);
     var o = nearest(b), ax, ay;
     if (o) { ax = b.x - o.x; ay = b.y - o.y; } else { ax = Math.cos(b.phase); ay = Math.sin(b.phase); }
     var d = Math.hypot(ax, ay) || 1; ax /= d; ay /= d;
     var px = -ay, py = ax;                                       // perpendicular; pick the side facing the open field
     if (px * (W / 2 - b.x) + py * (H * 0.6 - b.y) < 0) { px = -px; py = -py; }
-    b.vx = b.vx * 0.4 + px * DODGE_SIDE + ax * DODGE_AWAY;
-    b.vy = b.vy * 0.4 + py * DODGE_SIDE + ay * DODGE_AWAY;
+    kick(b, b.vx * 0.4 + px * DODGE_SIDE + ax * DODGE_AWAY, b.vy * 0.4 + py * DODGE_SIDE + ay * DODGE_AWAY);
     return true;
   }
 
@@ -154,7 +169,7 @@
     burst(loser.x, loser.y, r);
     loser.popped = true; loser.popUntil = t + POP_MS;
     loser.el.style.display = 'none'; loser.sh.style.display = 'none';
-    loser.vx = loser.vy = 0; loser.pops = 0; loser.scale = 1; loser.taps = []; loser.pushQ = []; loser.dodgeQ = 0;
+    loser.vx = loser.vy = 0; loser.kick = null; loser.pops = 0; loser.scale = 1; loser.taps = []; loser.pushQ = []; loser.dodgeQ = 0;
     var h = el('div', 'bb-hit', fxLayer);
     h.style.transform = 'translate3d(' + loser.x.toFixed(1) + 'px,' + (loser.y + r * 0.35).toFixed(1) + 'px,0)';
     var hi = el('img', '', h);
@@ -170,7 +185,7 @@
   }
   function respawn(b) {
     var st = startPos(b.id);
-    b.popped = false; b.x = st.x; b.y = st.y; b.respawned = { x: st.x, y: st.y, at: now() }; b.vx = b.vy = 0; b.scale = 1; b.shown = 1; b.pops = 0;
+    b.popped = false; b.x = st.x; b.y = st.y; b.respawned = { x: st.x, y: st.y, at: now() }; b.vx = b.vy = 0; b.kick = null; b.px = st.x; b.py = st.y; b.scale = 1; b.shown = 1; b.pops = 0;
     if (b.hitEl) { b.hitEl.remove(); b.hitEl = null; }
     b.el.style.display = ''; b.sh.style.display = '';
     b.el.classList.remove('spawn'); void b.el.offsetWidth; b.el.classList.add('spawn');
@@ -210,8 +225,8 @@
       if (b.popped) { if (t >= b.popUntil) respawn(b); else continue; }
       // queued inputs from the network
       while (b.pushQ.length && t - b.pushQ[0] > 1000) b.pushQ.shift();   // too old: ignored
-      if (b.pushQ.length) { b.pushQ.shift(); doPush(b, t); }               // one launch per frame; rate cap inside
-      if (b.dodgeQ) {
+      if (b.pushQ.length && t >= b.pushQ[0]) { b.pushQ.shift(); doPush(b, t); }   // due (batches are spread); rate cap inside
+      if (b.dodgeQ && t >= b.dodgeQ) {                                     // dodgeQ = due time
         if (t - b.dodgeAt >= DODGE_CD) { doDodge(b, t); b.dodgeQ = 0; }
         else if (t - b.dodgeQ > 300) b.dodgeQ = 0;                        // still cooling down: ignored
       }
@@ -219,6 +234,7 @@
       b.phase += dt * 0.35 * b.spin;
       b.vx = b.vx * drag + Math.cos(b.phase) * DRIFT * DRAG * dt;
       b.vy = b.vy * drag + Math.sin(b.phase) * DRIFT * DRAG * dt * 0.7;
+      applyKick(b, dt);
       var sp = Math.hypot(b.vx, b.vy);
       if (sp > VMAX) { b.vx *= VMAX / sp; b.vy *= VMAX / sp; }
       b.x += b.vx * dt; b.y += b.vy * dt;
@@ -270,12 +286,18 @@
       var b = bubbles[ids[i]];
       if (b.popped) continue;
       var sp = Math.hypot(b.vx, b.vy), k = baseR * b.shown / 50;
-      var bob = Math.sin(t / 1000 * 1.7 + b.phase * 3) * 4 * Math.max(0, 1 - sp / 200);
-      var y = b.y + bob;
-      b.el.style.transform = 'translate3d(' + b.x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) scale(' + k.toFixed(3) + ')';
-      b.el.style.zIndex = String(Math.round(b.y + baseR * b.shown));
+      // idle bob fades in/out smoothly (~150 ms) instead of popping in when a fast bubble slows / reverses
+      var bobT = Math.max(0, 1 - sp / 200);
+      b.bobA = b.bobA === undefined ? bobT : b.bobA + (bobT - b.bobA) * Math.min(1, frameDt * 7);
+      var bob = Math.sin(t / 1000 * 1.7 + b.phase * 3) * 4 * b.bobA;
+      // interpolate between the previous and the current physics step (a teleport — respawn / reset — snaps)
+      var rx = b.x, ry = b.y;
+      if (b.px !== undefined && Math.abs(b.x - b.px) + Math.abs(b.y - b.py) < 60) { rx = b.px + (b.x - b.px) * alpha; ry = b.py + (b.y - b.py) * alpha; }
+      var y = ry + bob;
+      b.el.style.transform = 'translate3d(' + rx.toFixed(2) + 'px,' + y.toFixed(2) + 'px,0) scale(' + k.toFixed(3) + ')';
+      b.el.style.zIndex = String(Math.round(ry + baseR * b.shown));
       var shk = k * (1 - bob / 40);
-      b.sh.style.transform = 'translate3d(' + b.x.toFixed(1) + 'px,' + (b.y + baseR * b.shown * 1.08).toFixed(1) + 'px,0) scale(' + shk.toFixed(3) + ')';
+      b.sh.style.transform = 'translate3d(' + rx.toFixed(2) + 'px,' + (ry + baseR * b.shown * 1.08).toFixed(2) + 'px,0) scale(' + shk.toFixed(3) + ')';
       // sprite: idle stale1/stale2, fast running1/running2 facing the travel direction
       var f;
       if (sp > RUN_SPEED) {
@@ -294,14 +316,23 @@
     }
   }
 
+  // fixed-timestep physics (1/120 s) + render interpolation: identical motion whatever the display's frame pacing
+  var acc = 0, alpha = 0, frameDt = 0;
   function frame(ts) {
     if (!running) return;
     var t = now();
-    var dt = Math.min(0.05, Math.max(0, (t - (lastT || t)) / 1000));
+    frameDt = Math.min(0.1, Math.max(0, (t - (lastT || t)) / 1000));
+    acc += frameDt;
     lastT = t;
-    // fixed sub-steps keep fast bubbles from tunnelling
-    var n = Math.max(1, Math.ceil(dt / 0.008));
-    for (var i = 0; i < n; i++) step(dt / n, t);
+    if (acc > 0.1) acc = 0.1;                                   // long stall (tab hidden): don't fast-forward
+    var st = t - acc * 1000, ids, i;                             // simulated clock stays in sync with now()
+    while (acc >= STEP) {
+      ids = Object.keys(bubbles);
+      for (i = 0; i < ids.length; i++) { var bb = bubbles[ids[i]]; bb.px = bb.x; bb.py = bb.y; }
+      st += STEP * 1000; acc -= STEP;
+      step(STEP, st);
+    }
+    alpha = acc / STEP;
     render(t);
     stats.frames++;
     requestAnimationFrame(frame);
@@ -313,6 +344,16 @@
   /* ---------- network: GET /api/mini/state every 150 ms (1 s once the game has started) ---------- */
   var phase = 'lobby', inflight = false, lastPoll = 0, failures = 0, joined = -1, gameId = null;
 
+  // inputs that arrive together (one poll / one realtime batch) are spaced SPREAD_MS apart instead of firing on
+  // consecutive frames; the first one is applied at once, so the added lag is ≤ SPREAD_MS. Caps unchanged.
+  function queueInput(b, push, dodge, t) {
+    for (var k = push; k > 0 && b.pushQ.length < PUSH_PER_SEC; k--) {
+      var last = b.pushQ.length ? b.pushQ[b.pushQ.length - 1] : -1e9;
+      b.pushQ.push(Math.min(t + SPREAD_MS, Math.max(t, last + SPREAD_MS)));
+    }
+    // a dodge arriving with pushes still queued goes right after the last of them
+    if (dodge) b.dodgeQ = b.pushQ.length ? Math.min(t + 2 * SPREAD_MS, Math.max(t, b.pushQ[b.pushQ.length - 1] + SPREAD_MS)) : t;
+  }
   function applyState(s) {
     var t = now();
     if (s.gameId !== gameId) { gameId = s.gameId; }
@@ -331,10 +372,7 @@
       if (p.characterId !== b.cid) setChar(b, p.characterId);   // profile edit: keep position
       var push = p.push || 0, dodge = p.dodge || 0;
       if (push < b.lastPush || dodge < b.lastDodge) { b.lastPush = push; b.lastDodge = dodge; return; } // counters reset
-      if (phase === 'lobby' && !b.popped) {
-        for (var k = push - b.lastPush; k > 0 && b.pushQ.length < PUSH_PER_SEC; k--) b.pushQ.push(t);
-        if (dodge > b.lastDodge) b.dodgeQ = t;
-      }
+      if (phase === 'lobby' && !b.popped) queueInput(b, push - b.lastPush, dodge > b.lastDodge ? 1 : 0, t);
       b.lastPush = push; b.lastDodge = dodge;
     });
     if (s.joined !== joined) {
@@ -401,10 +439,7 @@
     if (!b || !d || typeof d !== 'object' || phase !== 'lobby') return;
     var p = Math.max(0, Math.min(1e6, d.p | 0)), dd = Math.max(0, Math.min(1e6, d.d | 0)), sid = String(d.s || '').slice(0, 16);
     if (b.rtSid !== sid) { b.rtSid = sid; b.rtP = 0; b.rtD = 0; }   // new phone page load: its totals restart at 0
-    if (!b.popped) {
-      for (var k = p - b.rtP; k > 0 && b.pushQ.length < PUSH_PER_SEC; k--) b.pushQ.push(t);   // same caps as the poll path
-      if (dd > b.rtD) b.dodgeQ = t;
-    }
+    if (!b.popped) queueInput(b, p - b.rtP, dd > b.rtD ? 1 : 0, t);   // same caps as the poll path
     b.rtP = Math.max(b.rtP, p); b.rtD = Math.max(b.rtD, dd);
     stats.rtMsgs = (stats.rtMsgs || 0) + 1;
   }
@@ -972,5 +1007,5 @@
   }
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get rt() { return rtState; }, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get ending() { return lastEnding; }, get endingStage() { return enStage; }, get endingCounted() { return enCounted; }, get howto() { return screen === 'howto' ? { page: hwPage, title: $('hwTitle').textContent } : null; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get rt() { return rtState; }, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get ending() { return lastEnding; }, get endingStage() { return enStage; }, get endingCounted() { return enCounted; }, get howto() { return screen === 'howto' ? { page: hwPage, title: $('hwTitle').textContent } : null; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos, queueInput: queueInput };
 })();
