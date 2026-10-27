@@ -36,6 +36,7 @@
     '平民': { icon: 'leaf', color: '#8db07c', desc: '' }
   };
   var LEADERS = ['真正領袖', '假領袖'];
+  var SUPPORTERS = ['假領袖支持者', '真領袖支持者'];
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function img(id, f) { return '../assets/characters/' + encodeURIComponent(id) + '/' + f + '.webp?v=' + V; }
@@ -62,11 +63,11 @@
     } else { lb.hidden = true; lb.textContent = ''; }
     // 假領袖: the helper line only when the server paired a 假領袖支持者 with this fake leader
     $('descText').textContent = (r.desc || '') + (role === '假領袖' && helped && r.helperLine ? r.helperLine : '');
-    // 假領袖支持者: the one fake leader they back
+    // 假領袖支持者 / 真領袖支持者: the one leader they back — identical line + art for both, so the layouts can't be told apart
     var sp = $('sup');
-    if (role === '假領袖支持者' && supports) {
-      var nm = nameOf(supports.characterId), lab = nm ? '<b lang="en">' + esc(nm) + '</b>' : '一位假領袖';
-      $('supText').innerHTML = esc(r.supportsLabel || '你支持：{name}').replace('{name}', lab);
+    if (SUPPORTERS.indexOf(role) >= 0 && supports) {
+      var nm = nameOf(supports.characterId), lab = nm ? '<b lang="en">' + esc(nm) + '</b>' : '一位領袖';
+      $('supText').innerHTML = esc(r.supportsLabel || (roles['假領袖支持者'] || {}).supportsLabel || '你支持：{name}').replace('{name}', lab);
       $('supImg').src = img(supports.characterId, 'stale1');
       sp.style.setProperty('--rc', r.color || '#8fb3d9');
       sp.hidden = false;
@@ -173,7 +174,7 @@
   fetch('../data/characters.json', { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) { ((d && d.characters) || []).forEach(function (c) { names[c.id] = c; }); if (state === 'shown') fillRole(); })
     .catch(function () {});
-  fetch('../data/roles.json?v=2', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+  fetch('../data/roles.json?v=3', { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) { roles = (d && d.roles) || {}; if (d && d.leaderLabel) leaderLabel = d.leaderLabel; if (state === 'shown') fillRole(); })
     .catch(function () {});
   window.addEventListener('resize', fitDesc);

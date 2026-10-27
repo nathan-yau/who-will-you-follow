@@ -292,12 +292,16 @@ async function me(req, s, heartbeatOnly) {
 /** What a phone may know about its OWN role (never a leader letter — the slot letter is internal only;
     phones/TV show character names from data/characters.json):
     - 假領袖支持者: the one 假領袖 they back (character only), from syncPairs()
+    - 真領袖支持者: the 真正領袖 they back (character only) — same shape as a fake supporter's, so the cards look alike
     - 假領袖: only a yes/no "someone secretly helps you" (never who) */
 async function roleView(s, p) {
   const out = { role: p.role };
-  if (p.role === FAKE_SUPPORTER || p.role === FAKE_LEADER) {
+  if (p.role === FAKE_SUPPORTER || p.role === FAKE_LEADER || p.role === TRUE_SUPPORTER) {
     const players = (await allPlayers(s)).map(normalize);
-    if (p.role === FAKE_SUPPORTER) {
+    if (p.role === TRUE_SUPPORTER) {
+      const l = players.find((q) => q.role === TRUE_LEADER);
+      out.supports = l ? { characterId: l.characterId } : null;
+    } else if (p.role === FAKE_SUPPORTER) {
       const l = players.find((q) => q.id === p.supports && q.role === FAKE_LEADER);
       out.supports = l ? { characterId: l.characterId } : null;
     } else {
