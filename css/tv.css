@@ -390,7 +390,7 @@ body {
 .fc.is-true .fs__c { box-shadow: 0 0 0 3px #f0c24f, 0 4px 10px rgba(120, 80, 20, 0.25); }
 .fs__c img { position: absolute; left: calc(-10px + var(--dx, 0) * 88px); top: 2px; width: 88px; height: 82px; object-fit: contain; }
 .fs b { display: inline-block; margin-top: 2px; padding: 0 7px; border-radius: 9px; background: #fdfaf1; font-family: "Fredoka", system-ui, sans-serif; font-size: 13px; line-height: 18px; font-weight: 600; color: #4b301d; white-space: nowrap; max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
-.fc__votes { position: absolute; left: 0; right: 0; top: 344px; margin: 0 auto; width: max-content; padding: 4px 14px; border-radius: 14px;
+.fc__votes { position: absolute; left: 0; right: 0; top: 268px; margin: 0 auto; width: max-content; padding: 4px 14px; border-radius: 14px;
   background: rgba(253, 250, 241, 0.92); box-shadow: 0 3px 10px rgba(90, 110, 70, 0.16); font-size: 16px; line-height: 22px; font-weight: 700; letter-spacing: 1px; color: #4b301d; }
 .fc__votes:empty { display: none; }
 /* live animations (class .anim / .anim-supp only for changes seen while the TV is open) */

@@ -649,7 +649,7 @@
 
   /* ---------- Round 3 問答: live control (admin/quiz-open · quiz-close · quiz-reset) ---------- */
   var QDURS = [0, 5, 8, 10, 20, 30, 45, 60, 90];   // per-question answer time (0 = 不限時); default 10 s
-  var QDUR_KEY = 'wwyf.admin.quizDur', qzCloseArm = false, qzCloseT = 0, quizDur = 10, qzPick = null, qzBusy = false, qzResetArm = false, qzResetT = 0;
+  var QDUR_KEY = 'wwyf.admin.quizDur', qzCloseArm = false, qzCloseT = 0, quizDur = 10, qzPick = null, qzWasOpen = null, qzNext = false, qzBusy = false, qzResetArm = false, qzResetT = 0;
   try { var qd = localStorage.getItem(QDUR_KEY); if (qd != null && QDURS.indexOf(+qd) >= 0) quizDur = +qd; } catch (e) {}
   var ABCD = 'ABCD';
   function quizOpenNow() {
@@ -663,10 +663,16 @@
     var i = (z.states || []).indexOf('none');
     return i >= 0 ? i : (z.q ? z.q.index : 0);
   }
+  // after a question closes by itself (everyone answered / timer ran out) keep its result on screen,
+  // but aim 開始 at the next unplayed question so a tap never silently becomes 重新開始 (which wipes that result)
+  function qzGoIdx(z) { return qzNext && qzPick != null && z.states && z.states[qzPick] !== 'none' ? qzDefaultPick(z) : qzPick; }
   function renderQuiz() {
     var z = state && state.quiz;
     if (!z) return;
     var on = curScreen() === 'r3', open = quizOpenNow(), N = z.total || 5;
+    if (!open && qzWasOpen != null && qzPick === qzWasOpen) qzNext = true;
+    if (open) qzNext = false;
+    qzWasOpen = open ? open.q.index : null;
     if (open) qzPick = open.q.index;
     if (qzPick == null || qzPick >= N) qzPick = qzDefaultPick(z);
     var st = z.states || [], res = z.results || {};
@@ -703,10 +709,10 @@
     dur.disabled = !!open || qzBusy;
     var go = $('qzGo');
     go.disabled = qzBusy || (!on && !open);
-    var redo = !open && st[qzPick] && st[qzPick] !== 'none';
+    var gi = qzGoIdx(z), redo = !open && st[gi] && st[gi] !== 'none';
     if (!open) qzCloseArm = false;
     var nMiss = open && open.q.missing ? open.q.missing.length : 0;
-    go.textContent = open ? (qzCloseArm ? '再按一次結束（' + nMiss + ' 人未作答）' : '結束作答') : (redo ? '重新開始第 ' : '開始第 ') + (qzPick + 1) + ' 題';
+    go.textContent = open ? (qzCloseArm ? '再按一次結束（' + nMiss + ' 人未作答）' : '結束作答') : (redo ? '重新開始第 ' : '開始第 ') + (gi + 1) + ' 題';
     go.classList.toggle('is-armed', !!open && qzCloseArm);
     go.classList.toggle('btn--primary', !open); go.classList.toggle('btn--danger', !!open);
     var t, dot = '';
@@ -723,7 +729,7 @@
   }
   $('qzSegBtns').addEventListener('click', function (e) {
     var b = e.target.closest('.seg__btn'); if (!b || b.disabled) return;
-    qzPick = +b.dataset.i; renderQuiz();
+    qzPick = +b.dataset.i; qzNext = false; renderQuiz();
   });
   $('qzDur').addEventListener('click', function () {
     var L = (state && state.quiz && state.quiz.durations) || QDURS;
@@ -733,7 +739,7 @@
   });
   $('qzGo').addEventListener('click', function () {
     if (!state || this.disabled) return;
-    var open = quizOpenNow(), st = (state.quiz && state.quiz.states) || [], i = qzPick;
+    var open = quizOpenNow(), st = (state.quiz && state.quiz.states) || [], i = qzGoIdx(state.quiz || {});
     // 結束作答 = two taps while someone still has to answer (the question closes by itself once everyone answered)
     if (open && open.q.missing && open.q.missing.length && !qzCloseArm) {
       qzCloseArm = true; clearTimeout(qzCloseT); qzCloseT = setTimeout(function () { qzCloseArm = false; renderQuiz(); }, 3000); renderQuiz(); return;
