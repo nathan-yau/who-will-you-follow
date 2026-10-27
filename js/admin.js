@@ -619,8 +619,9 @@
 
 
   /* ---------- Round 3 問答: live control (admin/quiz-open · quiz-close · quiz-reset) ---------- */
-  var QDUR_KEY = 'wwyf.admin.quizDur', qzCloseArm = false, qzCloseT = 0, quizDur = 0, qzPick = null, qzBusy = false, qzResetArm = false, qzResetT = 0;
-  try { var qd = localStorage.getItem(QDUR_KEY); if (qd != null && [0, 20, 30, 45, 60, 90].indexOf(+qd) >= 0) quizDur = +qd; } catch (e) {}
+  var QDURS = [0, 5, 8, 10, 20, 30, 45, 60, 90];   // per-question answer time (0 = 不限時); default 10 s
+  var QDUR_KEY = 'wwyf.admin.quizDur', qzCloseArm = false, qzCloseT = 0, quizDur = 10, qzPick = null, qzBusy = false, qzResetArm = false, qzResetT = 0;
+  try { var qd = localStorage.getItem(QDUR_KEY); if (qd != null && QDURS.indexOf(+qd) >= 0) quizDur = +qd; } catch (e) {}
   var ABCD = 'ABCD';
   function quizOpenNow() {
     var z = state && state.quiz, q = z && z.q;
@@ -696,7 +697,7 @@
     qzPick = +b.dataset.i; renderQuiz();
   });
   $('qzDur').addEventListener('click', function () {
-    var L = (state && state.quiz && state.quiz.durations) || [0, 20, 30, 45, 60, 90];
+    var L = (state && state.quiz && state.quiz.durations) || QDURS;
     quizDur = L[(L.indexOf(quizDur) + 1) % L.length];
     try { localStorage.setItem(QDUR_KEY, String(quizDur)); } catch (e) {}
     renderQuiz();

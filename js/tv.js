@@ -1,6 +1,6 @@
 /* TV page — waiting-room "bubble battle".
    The TV is the only place the physics runs (requestAnimationFrame). Phones only send counters
-   (push / dodge totals) via POST /api/mini/act; the TV polls GET /api/mini/state every 250 ms
+   (push / dodge totals) via POST /api/mini/act; the TV polls GET /api/mini/state every 150 ms
    (never overlapping, paused while the tab is hidden), diffs the counters and turns each new tap
    into an impulse. Nothing is scored or persisted. Design units: the 1024 x 576 stage. */
 (function () {
@@ -8,7 +8,7 @@
   var V = 6;                       // character asset version (same as lobby)
   var W = 1024, H = 576;
   var R0 = 54;                     // base bubble radius (design px) — shrinks when very crowded
-  var POLL_MS = 250, POLL_STARTED_MS = 1000;
+  var POLL_MS = 150, POLL_STARTED_MS = 1000, POLL_QUIZ_MS = 500, quizLive = false;   // lobby ~6.7 polls/s (one request in flight at most; a slow reply just delays the next)
   // rules
   var PUSH_PER_SEC = 2;            // taps beyond 2 in any rolling second are ignored
   var DODGE_CD = 900;              // ms
@@ -310,7 +310,7 @@
   function stopLoop() { running = false; }
   requestAnimationFrame(frame);
 
-  /* ---------- network: GET /api/mini/state every 250 ms (1 s once the game has started) ---------- */
+  /* ---------- network: GET /api/mini/state every 150 ms (1 s once the game has started) ---------- */
   var phase = 'lobby', inflight = false, lastPoll = 0, failures = 0, joined = -1, gameId = null;
 
   function applyState(s) {
@@ -352,6 +352,7 @@
     if (screen === 'reveal') renderRevealCount(s.reveal);
     // an open vote shows on any round screen; a just-sealed one only on its own round's screen
     renderVote(ROUNDS[screen] && s.vote && (!s.vote.sealed || s.vote.round === screen) ? s.vote : null);
+    quizLive = screen === 'r3' && !!s.quiz && !s.quiz.unlocked && !s.quiz.lost;
     renderQuiz(screen === 'r3' && $('tvVote').hidden && s.quiz && (s.quiz.q || (s.quiz.unlocked && s.quiz.clue)) ? s.quiz : null);
     renderSpeak(ROUNDS[screen] && $('tvVote').hidden && $('tvQuiz').hidden && s.speak && s.speak.round === screen && s.speak.state === 'live' ? s.speak : null);
     setPhase(started ? 'started' : 'lobby', list);
@@ -687,7 +688,7 @@
   }
 
   /* ---------- Round 3 破解密碼: question + 解鎖進度 + 已作答 X / N (aggregate); answer + result only after close ---------- */
-  var quizEnd = null, quizTick = 0, quizKey = '';
+  var quizEnd = null, quizTick = 0, quizKey = '', quizDue = false, quizDueId = '', quizShort = false;
   function renderQuiz(z) {
     var el = $('tvQuiz'), rnd = $('round');
     if (!z) { if (!el.hidden) { el.hidden = true; rnd.classList.remove('has-quiz'); clearInterval(quizTick); quizTick = 0; quizKey = ''; } return; }
@@ -709,11 +710,13 @@
     var r = q.result;
     if (mode === 'open') {
       quizEnd = q.remain == null ? null : now() + q.remain;
+      if (q.id !== quizDueId) { quizDueId = q.id; quizDue = false; }
+      quizShort = !!q.duration && q.duration <= 10;
       $('tqSt').innerHTML = '<em>作答中</em><b id="tqTime" lang="en"></b>';
       var tot = z.answerTotal || (r && r.total) || 0;
       $('tqFoot').innerHTML = '已作答 <b>' + (q.answered | 0) + '</b>' + (q.eligible ? ' / <b>' + q.eligible + '</b>' : '') + '<span class="tq-bar"><i style="width:' + (q.eligible ? Math.min(100, Math.round(q.answered / q.eligible * 100)) : 0) + '%"></i></span>每題需 ' + z.threshold + '% 答對';
       quizClock();
-      if (!quizTick) quizTick = setInterval(quizClock, 250);
+      if (!quizTick) quizTick = setInterval(quizClock, 100);
     } else {
       clearInterval(quizTick); quizTick = 0;
       $('tqSt').innerHTML = r ? '<em class="' + (r.success ? 'ok">成功！' : 'fail">未達標') + '</em>' : '<em>作答結束</em>';
@@ -727,7 +730,9 @@
     if (quizEnd == null) { t.textContent = '不限時'; t.classList.remove('is-low'); return; }
     var x = Math.max(0, Math.ceil((quizEnd - now()) / 1000));
     t.textContent = ('0' + Math.floor(x / 60)).slice(-2) + ':' + ('0' + (x % 60)).slice(-2);
-    t.classList.toggle('is-low', x <= 10);
+    t.classList.toggle('is-low', x <= (quizShort ? 3 : 10));
+    // time up: ask for the result at once (the server closes the question on that read) instead of waiting for the next poll
+    if (!quizDue && now() - quizEnd > 100) { quizDue = true; clearTimeout(pollTimer); if (!inflight) poll(); }
   }
 
   /* ---------- 發言中 pill (round screens, while no vote is shown): the speaking countdown only ---------- */
@@ -803,7 +808,8 @@
   // Self-scheduling poll: the next request goes out exactly POLL_MS after the previous one started
   // (or right after it finished if it took longer) — no 50 ms tick quantisation, one request in flight.
   var pollTimer = 0;
-  function interval() { return phase === 'started' ? POLL_STARTED_MS : POLL_MS; }
+  // Round 3 with questions still to come / open: 500 ms, so a 5–10 s question appears and closes on time
+  function interval() { return phase === 'started' ? (quizLive ? POLL_QUIZ_MS : POLL_STARTED_MS) : POLL_MS; }
   function schedule() {
     clearTimeout(pollTimer);
     if (document.hidden) return;

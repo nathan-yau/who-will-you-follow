@@ -71,7 +71,7 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | POST | `/api/admin/reveal` | host | `{revealed}` (legacy flag) |
 | POST | `/api/admin/reveal-stage` | host | `{on}` start/end the 身份揭曉 stage (start = phase started, `revealed`, TV screen `reveal`, fake pairs synced); `admin/screen {screen:'reveal'}` also starts it |
 | POST | `/api/mini/act` | player | `{push, dodge, seq}` batched TV mini-game input (≤ every 250 ms); stored in `mini/<playerId>`; `409 started` once the game has started |
-| GET | `/api/mini/state` | anyone | TV poll (every 250 ms): `{phase, gameId, joined, players:[{id, characterId, nickname, joinedAt, push, dodge}], leaders? (round screens), reveal?:{revealed, total} (身份揭曉 screen), howto?:{page, pages, threshold, quiz:{n, threshold, need}} (玩法說明 screen)}` |
+| GET | `/api/mini/state` | anyone | TV poll (every 150 ms in the lobby, 1 s once started; never two in flight): `{phase, gameId, joined, players:[{id, characterId, nickname, joinedAt, push, dodge}], leaders? (round screens), reveal?:{revealed, total} (身份揭曉 screen), howto?:{page, pages, threshold, quiz:{n, threshold, need}} (玩法說明 screen)}` |
 | POST | `/api/vote` | player | `{characterId, round?}` cast / change own ballot in the open round → `{round, sealed, mine:{characterId, line}}`; `403 no_vote` (leaders), `400 bad_target`, `409 vote_closed` (closed / sealed / other round) |
 | POST | `/api/knock` | 真正領袖 | 私下敲門 for the latest closed round (once per round; server picks the targets) → `{round, count}` only |
 | POST | `/api/knock-ack` | player | `{round}` dismiss a received 叩叩 |
@@ -81,7 +81,7 @@ The real app runs on **https://who-will-you-follow.netlify.app/** (GitHub Pages 
 | POST | `/api/admin/speak-end` | host | `{round}` end the 發言 now (→ 提問時間); opening a vote also ends it |
 | POST | `/api/quiz/answer` | player | `{index, choice:0-3}` answer / change the open Round 3 question → `{index, mine}`; `403 no_answer` (leaders), `409 quiz_closed` |
 | GET / POST | `/api/admin/content` | host | game content (persists across games): `{r2:{mystery:{all, true, fake}}, r3:{threshold, need, clue, questions:[5 × {q, options[4], answer}]}, end:{threshold}}` (`end.threshold` 1–100, default 70; `400 bad_end_threshold`) → `{ok, content}` |
-| POST | `/api/admin/quiz-open` | host | `{index:0-4, duration:0\|20\|30\|45\|60\|90}` open a question (snapshotted; reopening clears its result); needs started + revealed |
+| POST | `/api/admin/quiz-open` | host | `{index:0-4, duration:0\|5\|8\|10\|20\|30\|45\|60\|90}` open a question (one at a time: an open one is closed first; the admin default is 10 s) (snapshotted; reopening clears its result); needs started + revealed |
 | POST | `/api/admin/quiz-close` | host | close the open question now (the timer also closes it) → result |
 | POST | `/api/admin/quiz-reset` | host | clear all question results / answers |
 | POST | `/api/admin/final` | host | 最終揭曉: `{action:'enter'}` (TV → `final`; also `admin/screen {screen:'final'}`), `{action:'flip', playerId}`, `{action:'supporter', playerId}` (after flip; `409 no_supporter` / `not_flipped`), `{action:'all'}` (flip the rest, 700 ms stagger), `{action:'reset'}`, `{action:'votes', on}`, `{action:'ending'}` (TV → `ending`; also `admin/screen {screen:'ending'}`; `409 vote_not_closed` until the r3 vote exists and is closed; `enter` = 返回揭曉); flip / supporter / all need the TV on `final` (`409 not_final`) → `{ok, screen, final}` |

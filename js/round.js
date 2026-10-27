@@ -20,7 +20,7 @@
 
   var app = $('app'), names = {}, T = null;
   var NUM = ['零', '一', '兩', '三', '四', '五', '六'];
-  var POLL_FAST = 2000, POLL_IDLE = 3000;
+  var POLL_FAST = 2000, POLL_IDLE = 3000, POLL_QUIZ = 1000;
   var DEF = {
     round: { speak: { ready: '準備中', live: '發言中', done: '提問時間', left: '剩餘時間', waitLabel: '等待開始', doneLabel: '發言結束', unlimited: '不限時' },
       vote: { wait: '等待投票開始', go: '前往投票', closed: '本輪投票已結束' },
@@ -267,8 +267,8 @@
       set('pillText', Q('open'));
       $('clock').classList.toggle('is-text', qr == null);
       set('clock', qr == null ? Q('unlimited') : mmss(qr)); set('clockLabel', Q('left'));
-      document.querySelector('.rd-clock').classList.toggle('is-low', qr != null && qr <= 10000);
-      if (qr != null && qr <= -1500) { quizEnd = null; poll(); }
+      document.querySelector('.rd-clock').classList.toggle('is-low', qr != null && qr <= (qq.duration && qq.duration <= 10 ? 3000 : 10000));
+      if (qr != null && qr <= -150) { quizEnd = null; poll(); }   // time up: fetch the result right away (the server closes it on that read)
       return;
     }
     var st = sp ? sp.state : 'ready', remain = null;
@@ -319,7 +319,10 @@
   poll();
   (function loop() {
     var fast = speakState === 'live' || !!(last && last.vote && last.vote.open) || !!(last && last.round && last.round.quiz && last.round.quiz.q && last.round.quiz.q.open);
-    setTimeout(function () { if (!document.hidden) poll(); loop(); }, fast ? POLL_FAST : POLL_IDLE);
+    // Round 3 while questions are still to come / open: 1 s, so a 5–10 s question shows up (and closes) without lag
+    var qz = last && last.round && last.round.screen === 'r3' && last.round.quiz;
+    var quizLive = !!(qz && !qz.unlocked && !qz.lost && !(last.vote && last.vote.open));
+    setTimeout(function () { if (!document.hidden) poll(); loop(); }, quizLive ? POLL_QUIZ : fast ? POLL_FAST : POLL_IDLE);
   })();
   setInterval(tick, 250);
   setInterval(function () { if (document.hidden) WWYF.heartbeat().catch(function () {}); }, 5000);

@@ -884,7 +884,7 @@ async function miniAct(req, s) {
   return { ok: true, phase: LOBBY, push: r.push, dodge: r.dodge };
 }
 
-/* TV poll (4x/s): list players/ and m* (meta + mini/*) once each, then fetch only the blobs whose
+/* TV poll (~6-7x/s): list players/ and m* (meta + mini/*) once each, then fetch only the blobs whose
    etag changed since this warm function instance last saw them. */
 const blobCache = new Map();   // key -> { etag, data }
 async function listWithEtags(s, prefix) {
@@ -904,9 +904,12 @@ async function cachedGet(s, blobs) {
 }
 // Players who tapped recently: their mini/<id> blob is fetched speculatively IN PARALLEL with the
 // list calls, so a tap usually reaches the TV in one blob round trip instead of two (list -> get).
-const ACTIVE_MS = 20000, ACTIVE_MAX = 12;
+// Only while the cached meta says LOBBY (taps only change mini/* there) and only for taps in the last 3 s:
+// after a player stops tapping the TV stops re-reading their blob almost at once (was 20 s of wasted gets).
+const ACTIVE_MS = 3000, ACTIVE_MAX = 8;
 function activeMiniKeys() {
-  const t = now(), out = [];
+  const t = now(), out = [], mc = blobCache.get('meta');
+  if (mc && mc.data && phaseOf(mc.data) !== LOBBY) return out;
   for (const [k, c] of blobCache) if (k.startsWith('mini/') && c.data && t - (c.data.t || 0) < ACTIVE_MS) out.push([k, c.data.t]);
   return out.sort((a, b) => b[1] - a[1]).slice(0, ACTIVE_MAX).map((x) => x[0]);
 }
@@ -960,7 +963,7 @@ async function miniState(s) {
   }
   return out;
 }
-// open vote count for the TV: list ballots/<round>/ at most once a second per warm instance (the TV polls 4x/s)
+// open vote count for the TV: list ballots/<round>/ at most once a second per warm instance (the TV polls up to ~7x/s)
 const ballotListCache = new Map();   // round -> { t, keys }
 async function cachedBallotKeys(s, r) {
   const c = ballotListCache.get(r);
@@ -1085,7 +1088,7 @@ async function adminLogin(req, s, context) {
        end: { threshold (%) } }                                       結局: the group wins if >= threshold % of the final-vote
                                                                      voters chose the 真正領袖 */
 const QUIZ_N = 5;
-const QUIZ_DURATIONS = [0, 20, 30, 45, 60, 90];
+const QUIZ_DURATIONS = [0, 5, 8, 10, 20, 30, 45, 60, 90];   // seconds per question (0 = 不限時); the host taps through these
 const DEFAULT_CONTENT = {
   r2: { mystery: {   // 例子 (admin shows 「例子」 until edited)
     all: '我係香港一間連鎖米線店，以雲南風味米線為主打，可以自由選擇配料同辣度。我同另一間名字相似嘅米線店有歷史淵源，但我哋係兩個唔同品牌。',   // 神秘描述 (平民 + both supporter roles)
