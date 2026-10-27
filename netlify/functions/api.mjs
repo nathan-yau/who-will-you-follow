@@ -247,7 +247,13 @@ async function me(req, s, heartbeatOnly) {
     const ps = (await cachedGet(s, pl)).filter(Boolean).map(normalize);
     out.round = { screen: out.screen, leaders: leaderCards(ps), speak: speakView(meta, out.screen) };
     const me1 = normalize(p);
-    if (out.screen === 'r2') out.round.mystery = mysteryFor(await getContent(s), me1);
+    if (out.screen === 'r2') {
+      // Round 2 (誰是真領袖？, undercover style): leaders get ONLY their own word (never the description / another word);
+      // everyone else (平民 + both supporter roles) gets ONLY the 神秘描述 (never a word)
+      const c2 = await getContent(s);
+      if (LEADER_ROLES.includes(me1.role)) out.round.word = wordFor(c2, me1, ps);
+      else out.round.mystery = c2.r2.mystery.all;
+    }
     if (out.screen === 'r3') out.round.quiz = await quizForPhone(s, await quizSettle(s, meta), await getContent(s), me1);
     if (LEADER_ROLES.includes(me1.role)) {
       // leaders only, about themselves only: their instructions (by role; the copy never reaches other phones) and,
@@ -368,8 +374,10 @@ async function adminState(s) {
   const sc = screenOf(meta), speak = ROUND_SCREENS.includes(sc) ? speakView(meta, sc) : null;
   const quiz = await adminQuiz(s, await quizSettle(s, meta), players, await getContent(s));
   const final = await adminFinal(s, meta, players.map(normalize));
+  // 遊戲內容: which character currently holds 假領袖詞語 1–3 (null = not assigned yet -> admin labels it by slot)
+  const fakeWords = fakeOrder(players.map(normalize)).slice(0, FAKE_WORDS).map((q) => q.characterId);
   const howto = { on: sc === HOWTO, allowed: !meta.revealed, page: sc === HOWTO ? (await howtoView(s, meta)).page : 0, pages: HOWTO_PAGES };
-  return { meta, votes, quiz, final, howto, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
+  return { meta, votes, quiz, final, howto, fakeWords, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
 }
 
 async function setRole(req, s) {
@@ -643,10 +651,10 @@ const LEADER_TEXT = {
     '真正領袖': { desc: '輪到你時，分享三句關於自己的說話——三句都必須是真的。', tip: '小心！你的另一半最了解你，別讓對方輕易猜中。' },
     '假領袖': { desc: '輪到你時，分享三句關於自己的說話——兩句真、一句假。', tip: '另一半最清楚你，假的那句要編得巧妙，別讓對方一聽就拆穿！' },
   },
-  // placeholder (same for true and fake): the host explains this round's speaking rules
+  // Round 2: true and fake read EXACTLY the same copy (only the word in the 「你的詞語」 card differs)
   r2: {
-    '真正領袖': { desc: '輪到你時，按主持人指示發言。', tip: '留意神秘描述，想清楚你要怎樣說服大家。', placeholder: true },
-    '假領袖': { desc: '輪到你時，按主持人指示發言。', tip: '留意神秘描述，想清楚你要怎樣說服大家。', placeholder: true },
+    '真正領袖': { desc: '輪到你時，描述你的詞語，但不可以直接說出來，盡力說服大家你就是真領袖。', tip: '描述要貼近你的詞語，但別說得太白；也留意其他領袖怎樣說。' },
+    '假領袖': { desc: '輪到你時，描述你的詞語，但不可以直接說出來，盡力說服大家你就是真領袖。', tip: '描述要貼近你的詞語，但別說得太白；也留意其他領袖怎樣說。' },
   },
   r3: {
     '真正領袖': { desc: '領袖不參與作答。輪到你時，按主持人指示發言。', tip: '留意討論，想好怎樣說服大家跟隨你！', placeholder: true },
@@ -1069,18 +1077,20 @@ async function adminLogin(req, s, context) {
 
 /* ---------------- game content (admin 「遊戲內容」; editable without code) ----------------
    blob `content` (kept across games, NOT cleared by 新一場):
-     { r2: { mystery: { all, true, fake } },                         Round 2 神秘描述 per role group: all = 平民版 (平民 + both
-                                                                     supporter roles), true = 真領袖版, fake = 假領袖版 ('' = 平民版).
+     { r2: { mystery: { all, true, fakes: [3] } },                   Round 2 (undercover style): all = 神秘描述 (平民 + both supporter
+                                                                     roles only); true = 真領袖詞語 (fully matches it); fakes = 假領袖詞語
+                                                                     1–3 (each mostly matches it), one per fake leader in TV slot order
+                                                                     ('' -> 詞語 1). Leaders never see the description.
        r3: { threshold (%), need (successes to unlock), clue, questions: [{ q, options: [4], answer: 0-3 }] x 5 },
        end: { threshold (%) } }                                       結局: the group wins if >= threshold % of the final-vote
                                                                      voters chose the 真正領袖 */
 const QUIZ_N = 5;
 const QUIZ_DURATIONS = [0, 20, 30, 45, 60, 90];
 const DEFAULT_CONTENT = {
-  r2: { mystery: {
-    all: '我係香港一間連鎖米線店，以雲南風味米線為主打，可以自由選擇配料同辣度。我同另一間名字相似嘅米線店有歷史淵源，但我哋係兩個唔同品牌。',   // 平民版 (also both supporter roles)
-    true: '我係香港一間連鎖米線店，以雲南風味米線為主打，可以自由選擇配料同辣度。我同另一間名字相似嘅米線店有歷史淵源，但我哋係兩個唔同品牌。',  // 真領袖版
-    fake: '我係香港一間連鎖車仔麵店，可以自由揀配料、湯底同辣度。我喺香港有好多分店，好多上班族都會嚟食午餐。',                                   // 假領袖版 (placeholder)
+  r2: { mystery: {   // 例子 (admin shows 「例子」 until edited)
+    all: '我係香港一間連鎖米線店，以雲南風味米線為主打，可以自由選擇配料同辣度。我同另一間名字相似嘅米線店有歷史淵源，但我哋係兩個唔同品牌。',   // 神秘描述 (平民 + both supporter roles)
+    true: '譚仔雲南米線',                                  // 真領袖詞語: fully matches the description
+    fakes: ['譚仔三哥米線', '雲南過橋米線', '車仔麵'],     // 假領袖詞語 1–3: each mostly matches it
   } },
   r3: { threshold: 60, need: 3, clue: '（最後的線索：請在管理頁「遊戲內容」填寫）', questions: [
     { q: '以下哪個數字最接近一小時的秒數？', options: ['360', '600', '3600', '6000'], answer: 2 },
@@ -1096,15 +1106,20 @@ function cleanContent(b, base) {
   const out = structuredClone(base);
   if (b.r2 && b.r2.mystery != null) {
     const m = b.r2.mystery, o = out.r2.mystery;
-    // string = the 平民版 only; object = { all (平民版), true (真領袖版), fake (假領袖版) } — '' for a leader version = same as 平民版
+    // string = the 神秘描述 only; object = { all (神秘描述), true (真領袖詞語), fakes: [假領袖詞語 1–3] } (legacy `fake` = 詞語 1)
     if (typeof m === 'string') o.all = str(m, 400, o.all);
     else if (m && typeof m === 'object') {
       if (m.all != null) o.all = str(m.all, 400, o.all);
-      if (m.true != null) o.true = str(m.true, 400, '');
-      if (m.fake != null) o.fake = str(m.fake, 400, '');
+      if (m.true != null) o.true = str(m.true, WORD_MAX, '');
+      const fk = [...o.fakes];
+      if (Array.isArray(m.fakes)) for (let i = 0; i < FAKE_WORDS; i++) fk[i] = str(m.fakes[i], WORD_MAX, '');
+      else if (m.fake != null) fk[0] = str(m.fake, WORD_MAX, '');
+      o.fakes = fk;
     }
-    if (!o.all) fail(400, 'bad_mystery', '平民版神秘描述不可留空');
-    delete o.byRole;
+    if (!o.all) fail(400, 'bad_mystery', '神秘描述不可留空');
+    if (!o.true) fail(400, 'bad_word', '真領袖詞語不可留空');
+    if (!o.fakes[0]) fail(400, 'bad_word', '假領袖詞語 1 不可留空');
+    delete o.byRole; delete o.fake;
   }
   if (b.r3) {
     const z = b.r3, o = out.r3;
@@ -1134,7 +1149,7 @@ let contentCache = null;   // { t, data } — 3 s in the warm instance (phones p
 async function getContent(s, fresh) {
   if (!fresh && contentCache && now() - contentCache.t < 3000) return contentCache.data;
   const c = (await s.get('content', { type: 'json' })) || {};
-  const data = { r2: { mystery: { ...DEFAULT_CONTENT.r2.mystery, ...((c.r2 && c.r2.mystery) || {}) } }, r3: { ...DEFAULT_CONTENT.r3, ...(c.r3 || {}) }, end: { ...DEFAULT_CONTENT.end, ...(c.end || {}) } };
+  const data = { r2: { mystery: migrateR2((c.r2 && c.r2.mystery) || {}) }, r3: { ...DEFAULT_CONTENT.r3, ...(c.r3 || {}) }, end: { ...DEFAULT_CONTENT.end, ...(c.end || {}) } };
   contentCache = { t: now(), data };
   return data;
 }
@@ -1143,15 +1158,29 @@ async function saveContent(req, s) {
   const next = cleanContent(b, await getContent(s, true));
   await s.setJSON('content', next);
   contentCache = { t: now(), data: next };
-  return { ok: true, content: next };
+  return { ok: true, content: next, examples: { r2: DEFAULT_CONTENT.r2.mystery } };
 }
-/** Round 2 神秘描述 for one phone (undercover style): 真正領袖 -> 真領袖版, 假領袖 -> 假領袖版, everyone else
-    (平民 and BOTH supporter roles, so a supporter's card looks like any civilian's) -> 平民版. Empty leader version = 平民版.
-    Served by /api/me only — never by mini/state (TV). */
-const mysteryFor = (c, p) => {
-  const m = c.r2.mystery, r = p && p.role;
-  return (r === TRUE_LEADER && m.true) || (r === FAKE_LEADER && m.fake) || m.all;
-};
+const WORD_MAX = 20, FAKE_WORDS = 3;
+/** stored Round 2 content -> { all, true, fakes[3] }. The old shape { all, true, fake } held DESCRIPTIONS per role group
+    (真領袖版 / 假領袖版): `all` stays the 神秘描述; an old leader version is kept as a word only if it is word-sized
+    (<= WORD_MAX) and not just the description, otherwise the 例子 default word is used. */
+function migrateR2(m) {
+  const D = DEFAULT_CONTENT.r2.mystery;
+  const all = typeof m.all === 'string' && m.all.trim() ? m.all : D.all;
+  const w = (x, d) => (typeof x === 'string' && x.trim() && x.trim().length <= WORD_MAX && x.trim() !== all.trim() ? x.trim() : d);
+  if (Array.isArray(m.fakes)) return { all, true: w(m.true, D.true), fakes: D.fakes.map((d, i) => (typeof m.fakes[i] === 'string' ? m.fakes[i].trim().slice(0, WORD_MAX) : d)) };
+  return { all, true: w(m.true, D.true), fakes: [w(m.fake, D.fakes[0]), D.fakes[1], D.fakes[2]] };
+}
+/** the fake leaders in TV slot order -> 假領袖詞語 1, 2, 3 (a 4th+ fake leader, or an empty word -> 詞語 1) */
+const fakeOrder = (players) => leaderSlots(players).filter((q) => q && q.role === FAKE_LEADER);
+/** Round 2: a leader's OWN word (true -> 真領袖詞語; fake -> its own 假領袖詞語). Served by /api/me to that leader only —
+    never the description, never another leader's word, never to civilians / supporters / the TV. */
+function wordFor(c, p, players) {
+  const m = c.r2.mystery;
+  if (p.role === TRUE_LEADER) return m.true;
+  const i = fakeOrder(players).findIndex((q) => q.id === p.id);
+  return (i >= 0 && i < FAKE_WORDS && m.fakes[i]) || m.fakes[0];
+}
 
 /* ---------------- Round 3 問答 (破解密碼) ----------------
    meta.quiz = { cur: index | null, qs: { <index>: { id, openedAt, duration, deadline, closedAt, snap: { q, options, answer },
@@ -1550,7 +1579,7 @@ const ROUTES = {
   'POST admin/speak': startSpeak,
   'POST admin/speak-end': endSpeak,
   'POST quiz/answer': answerQuiz,
-  'GET admin/content': async (req, s) => ({ content: await getContent(s, true), quizN: QUIZ_N }),
+  'GET admin/content': async (req, s) => ({ content: await getContent(s, true), quizN: QUIZ_N, examples: { r2: DEFAULT_CONTENT.r2.mystery } }),
   'POST admin/content': saveContent,
   'POST admin/quiz-open': openQuestion,
   'POST admin/quiz-close': closeQuestionReq,

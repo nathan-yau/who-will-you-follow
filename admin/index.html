@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=24" />
+  <link rel="stylesheet" href="../css/admin.css?v=25" />
 </head>
 <body>
   <header class="top">
@@ -239,14 +239,19 @@
         </div>
         <div class="acc__body" id="accContentBody">
           <form id="ctForm" class="ct" autocomplete="off">
-            <!-- Round 2 神秘描述 per role group (undercover style); each phone gets only its own version via /api/me, the TV none -->
-            <p class="ct__lbl">Round 2 「神秘描述」<small>（每部手機只會看到自己那一版；TV 不會顯示）</small></p>
-            <label class="ct__lbl ct__lbl--sub" for="ctMyst">平民版<small>（平民、真領袖支持者、假領袖支持者）</small></label>
+            <!-- Round 2 (undercover style): civilians get the 神秘描述, each leader only their own word, via /api/me; the TV none -->
+            <p class="ct__lbl">Round 2 「誰是真領袖？」<small>（每部手機只會看到自己那一份；TV 不會顯示）</small></p>
+            <label class="ct__lbl ct__lbl--sub" for="ctMyst">神秘描述（平民）<em class="ct__ex" data-ex="all" hidden>例子</em><small>（平民、真領袖支持者、假領袖支持者；領袖看不到）</small></label>
             <textarea class="ct__ta" id="ctMyst" maxlength="400" rows="3"></textarea>
-            <label class="ct__lbl ct__lbl--sub" for="ctMystT">真領袖版<small>（留空 = 與平民版相同）</small></label>
-            <textarea class="ct__ta" id="ctMystT" maxlength="400" rows="3"></textarea>
-            <label class="ct__lbl ct__lbl--sub" for="ctMystF">假領袖版<small>（留空 = 與平民版相同）</small></label>
-            <textarea class="ct__ta" id="ctMystF" maxlength="400" rows="3"></textarea>
+            <label class="ct__lbl ct__lbl--sub" for="ctMystT">真領袖詞語<em class="ct__ex" data-ex="true" hidden>例子</em><small>（完全符合神秘描述）</small></label>
+            <input class="ct__in" id="ctMystT" maxlength="20" />
+            <label class="ct__lbl ct__lbl--sub" for="ctMystF1"><span id="ctFakeL1">假領袖詞語 1</span><em class="ct__ex" data-ex="f0" hidden>例子</em><small>（大致符合神秘描述）</small></label>
+            <input class="ct__in" id="ctMystF1" maxlength="20" />
+            <label class="ct__lbl ct__lbl--sub" for="ctMystF2"><span id="ctFakeL2">假領袖詞語 2</span><em class="ct__ex" data-ex="f1" hidden>例子</em><small>（留空 = 用詞語 1）</small></label>
+            <input class="ct__in" id="ctMystF2" maxlength="20" />
+            <label class="ct__lbl ct__lbl--sub" for="ctMystF3"><span id="ctFakeL3">假領袖詞語 3</span><em class="ct__ex" data-ex="f2" hidden>例子</em><small>（留空 = 用詞語 1）</small></label>
+            <input class="ct__in" id="ctMystF3" maxlength="20" />
+            <p class="ct__note" id="ctFakeNote">每位假領袖只會看到自己那個詞語（按 TV 領袖卡次序：第 1、2、3 位假領袖）。</p>
             <div class="ct__row">
               <label class="ct__lbl ct__lbl--in" for="ctPct">每題門檻</label><input class="ct__num" id="ctPct" type="number" min="1" max="100" inputmode="numeric" /><span class="ct__unit">% 答對</span>
               <label class="ct__lbl ct__lbl--in" for="ctNeed">成功</label><input class="ct__num" id="ctNeed" type="number" min="1" max="5" inputmode="numeric" /><span class="ct__unit">題解鎖</span>
@@ -285,6 +290,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/admin.js?v=26"></script>
+  <script src="../js/admin.js?v=27"></script>
 </body>
 </html>

@@ -73,6 +73,7 @@
   function render() {
     if (!state) return;
     var s = state;
+    renderFakeLabels();
     $('joined').textContent = s.players.length;
     $('online').textContent = s.players.filter(function (p) { return p.online; }).length;
 
@@ -854,7 +855,10 @@
   }
   function ctFill(c) {
     content = c;
-    $('ctMyst').value = c.r2.mystery.all || ''; $('ctMystT').value = c.r2.mystery.true || ''; $('ctMystF').value = c.r2.mystery.fake || '';
+    var m2 = c.r2.mystery, fk = m2.fakes || [];
+    $('ctMyst').value = m2.all || ''; $('ctMystT').value = m2.true || '';
+    $('ctMystF1').value = fk[0] || ''; $('ctMystF2').value = fk[1] || ''; $('ctMystF3').value = fk[2] || '';
+    ctMarkEx(); renderFakeLabels();
     $('ctPct').value = c.r3.threshold; $('ctNeed').value = c.r3.need; $('ctClue').value = c.r3.clue || '';
     $('ctEnd').value = (c.end && c.end.threshold) || 70;
     c.r3.questions.forEach(function (q, i) {
@@ -866,30 +870,50 @@
     ctMarkAns(); ctSetDirty(false); $('ctErr').textContent = '';
     $('ctSum').textContent = 'Round 3：門檻 ' + c.r3.threshold + '% · 成功 ' + c.r3.need + ' 題 · 結局 ' + ((c.end && c.end.threshold) || 70) + '%';
   }
+  // 「例子」 tags: a Round 2 field still holding the built-in example text
+  var ctExamples = null;
+  function ctMarkEx() {
+    var e = ctExamples, v = { all: $('ctMyst').value.trim(), true: $('ctMystT').value.trim(), f0: $('ctMystF1').value.trim(), f1: $('ctMystF2').value.trim(), f2: $('ctMystF3').value.trim() };
+    [].forEach.call(document.querySelectorAll('.ct__ex'), function (el) {
+      var k = el.getAttribute('data-ex'), d = !e ? null : k.charAt(0) === 'f' ? (e.fakes || [])[+k.slice(1)] : e[k];
+      el.hidden = !(d && v[k] === d);
+    });
+  }
+  // 假領袖詞語 1–3: labelled with the character holding it once roles are assigned (state.fakeWords), else by slot
+  function renderFakeLabels() {
+    var fw = (state && state.fakeWords) || [];
+    for (var i = 0; i < 3; i++) {
+      var el = $('ctFakeL' + (i + 1)); if (!el) continue;
+      var t = '假領袖詞語 ' + (i + 1) + (fw[i] ? '（' + charName(fw[i]) + '）' : '');
+      if (el.textContent !== t) el.textContent = t;
+    }
+  }
   function ctSetDirty(d) { ctDirty = d; $('ctForm').classList.toggle('is-dirty', d); $('ctSave').textContent = d ? '儲存內容 *' : '儲存內容'; }
   function ctRead() {
     var qs = [].map.call(document.querySelectorAll('.ct-q'), function (qe) {
       var r = qe.querySelector('input[type=radio]:checked');
       return { q: qe.querySelector('[data-f=q]').value.trim(), options: [0, 1, 2, 3].map(function (j) { return qe.querySelector('[data-o="' + j + '"]').value.trim(); }), answer: r ? +r.value : -1 };
     });
-    return { r2: { mystery: { all: $('ctMyst').value.trim(), true: $('ctMystT').value.trim(), fake: $('ctMystF').value.trim() } }, r3: { threshold: +$('ctPct').value, need: +$('ctNeed').value, clue: $('ctClue').value.trim(), questions: qs }, end: { threshold: +$('ctEnd').value } };
+    return { r2: { mystery: { all: $('ctMyst').value.trim(), true: $('ctMystT').value.trim(), fakes: [$('ctMystF1').value.trim(), $('ctMystF2').value.trim(), $('ctMystF3').value.trim()] } }, r3: { threshold: +$('ctPct').value, need: +$('ctNeed').value, clue: $('ctClue').value.trim(), questions: qs }, end: { threshold: +$('ctEnd').value } };
   }
   function loadContent() {
-    return WWYF.admin('GET', 'content').then(function (r) { if (!ctDirty) ctFill(r.content); else content = r.content; renderQuiz(); }).catch(function (e) { if (e.status === 401) fail(e); });
+    return WWYF.admin('GET', 'content').then(function (r) { if (r.examples) ctExamples = r.examples.r2; if (!ctDirty) ctFill(r.content); else content = r.content; renderQuiz(); }).catch(function (e) { if (e.status === 401) fail(e); });
   }
   ctQs();
-  $('ctForm').addEventListener('input', function () { ctSetDirty(true); ctMarkAns(); });
+  $('ctForm').addEventListener('input', function () { ctSetDirty(true); ctMarkAns(); ctMarkEx(); });
   $('ctForm').addEventListener('change', ctMarkAns);
   $('ctUndo').addEventListener('click', function () { if (content) ctFill(content); });
   $('ctForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var b = $('ctSave'), body = ctRead(), bad = '';
     body.r3.questions.forEach(function (q, i) { if (!bad && (!q.q || q.options.some(function (o) { return !o; }))) bad = '第 ' + (i + 1) + ' 題的題目或選項未填'; if (!bad && q.answer < 0) bad = '第 ' + (i + 1) + ' 題未選正確答案'; });
-    if (!bad && !body.r2.mystery.all) bad = '平民版神秘描述不可留空';
+    if (!bad && !body.r2.mystery.all) bad = '神秘描述不可留空';
+    if (!bad && !body.r2.mystery.true) bad = '真領袖詞語不可留空';
+    if (!bad && !body.r2.mystery.fakes[0]) bad = '假領袖詞語 1 不可留空';
     if (!bad && !(body.end.threshold >= 1 && body.end.threshold <= 100)) bad = '結局門檻需為 1–100%';
     if (bad) { $('ctErr').textContent = bad; return; }
     b.disabled = true;
-    WWYF.admin('POST', 'content', body).then(function (r) { ctFill(r.content); toast('遊戲內容已儲存'); renderQuiz(); })
+    WWYF.admin('POST', 'content', body).then(function (r) { if (r.examples) ctExamples = r.examples.r2; ctFill(r.content); toast('遊戲內容已儲存'); renderQuiz(); })
       .catch(function (err) { $('ctErr').textContent = err.message || '儲存失敗'; fail(err); }).then(function () { b.disabled = false; });
   });
 

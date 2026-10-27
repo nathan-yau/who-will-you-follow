@@ -151,6 +151,10 @@
   font-size: calc(14.4 * var(--U)); line-height: calc(23 * var(--U)); font-weight: 500; letter-spacing: calc(0.7 * var(--U)); color: #3f362b;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; white-space: pre-line;
 }
+/* leaders: 「你的詞語」 — the word large, then how to play it (same box, same size for true and fake) */
+.rd-myst__word { position: absolute; left: calc(20 * var(--U)); right: calc(18 * var(--U)); top: calc(54 * var(--U)); margin: 0; font-size: calc(25 * var(--U)); line-height: calc(34 * var(--U)); font-weight: 800; letter-spacing: calc(2 * var(--U)); color: #3b2a1b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rd-myst__word[hidden] { display: none; }
+.rd-myst.is-word .rd-myst__text { top: calc(92 * var(--U)); font-size: calc(12.4 * var(--U)); line-height: calc(17.5 * var(--U)); letter-spacing: calc(0.3 * var(--U)); -webkit-line-clamp: 2; color: #5d5245; }
 .rd-myst.is-long .rd-myst__text { font-size: calc(12.6 * var(--U)); line-height: calc(17.5 * var(--U)); -webkit-line-clamp: 4; top: calc(56 * var(--U)); letter-spacing: calc(0.3 * var(--U)); }
 .rd-app[data-r="r2"] .rd-scene { top: calc(504 * var(--U)); }
 .rd-app[data-r="r2"] .rd-tip, .rd-app[data-r="r2"] .rd-knock { top: calc(732 * var(--U)); height: calc(114 * var(--U)); }

@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/style.css?v=6" />
   <link rel="stylesheet" href="../css/characters.css?v=8" />
-  <link rel="stylesheet" href="../css/round.css?v=7" />
+  <link rel="stylesheet" href="../css/round.css?v=8" />
 </head>
 <body>
   <!-- 回合頁 (phone, while the TV shows Round 1 / 2 / 3). One page for all rounds: copy from data/texts.json (rounds.<r>).
@@ -45,11 +45,12 @@
       <div class="rd-clock abs" aria-live="off"><b id="clock" lang="en">--:--</b><span id="clockLabel">剩餘時間</span></div>
       <p class="rd-desc abs" id="desc"></p>
 
-      <!-- Round 2: 神秘描述 (admin 「遊戲內容」; one shared text) -->
+      <!-- Round 2: 平民 / supporters -> 神秘描述; leaders -> 「你的詞語」 (only their own word; true and fake identical layout) -->
       <div class="rd-myst abs" id="myst" data-r="r2">
         <span class="rd-myst__ic" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 4.5h10l6 6v16a1.5 1.5 0 0 1-1.5 1.5h-14.5a1.5 1.5 0 0 1-1.5-1.5v-20.5a1.5 1.5 0 0 1 1.5-1.5Z" fill="#fff" stroke="#4f6e48" stroke-width="2.2" stroke-linejoin="round"/><path d="M19 4.5v6h6" fill="none" stroke="#4f6e48" stroke-width="2.2" stroke-linejoin="round"/><path d="M11.5 15.5h9M11.5 19.5h9M11.5 23.5h6" stroke="#4f6e48" stroke-width="2.2" stroke-linecap="round"/></svg></span>
         <p class="rd-myst__title" id="mystTitle">神秘描述</p>
         <svg class="rd-myst__leaf" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-7 5-12 14-13-1 8-6 13-14 13Z" fill="#9cc08a"/><path d="M5 19l8-8" stroke="#6f9a5e" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <p class="rd-myst__word" id="mystWord" hidden></p>
         <p class="rd-myst__text" id="mystText"></p>
       </div>
 
@@ -134,6 +135,6 @@
   </script>
   <script src="../js/api.js?v=10"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
-  <script src="../js/round.js?v=9"></script>
+  <script src="../js/round.js?v=10"></script>
 </body>
 </html>

@@ -542,7 +542,7 @@
   var EDEF = { tvTitle: '結局', tvSub: '最後投票：有幾多人跟隨了真正的領袖？', meterLabel: '跟隨真正領袖', target: '目標 {t}%', count: '{x} / {n} 人（約 {p}%）',
     winTitle: '勝利！', winLine: '大家成功跟隨了真正的領袖！', loseTitle: '差一點點…', loseLine: '假領袖勝出…', votes: '{n} 票', trueTag: '真正領袖', fakeTag: '假領袖', waiting: '結局計算中…' };
   var ET = null;
-  fetch('../data/texts.json?v=9', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+  fetch('../data/texts.json?v=10', { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) {
       if (d && d.ending) { ET = d.ending; endKey = ''; if (screen === 'ending') renderEnding(lastEnding); }
       if (d && d.howto) { HT = d.howto; hwKey = ''; if (screen === 'howto') renderHowto(lastHowto, lastHowtoList); }
@@ -831,7 +831,7 @@
     { title: '遊戲目標', sub: '4 位領袖，只有 1 位是真的', l1: '4 位領袖：1 位真正領袖、3 位假領袖。', l2: '最後投票有 {t}% 或以上的人選中真正領袖，全體勝利！' },
     { title: '角色', sub: '領袖 · 平民', l1: '每位玩家的身份是「領袖」或「平民」。', l2: '身份只會顯示在你自己的手機上，請保密！' },
     { title: 'Round 1 聽佢講', sub: '每位領袖講 3 件關於自己的事', l1: '真正領袖 3 句全真；假領袖 2 真 1 假。', l2: '聽完之後，投票選出你相信的領袖！' },
-    { title: 'Round 2 誰是真領袖？', sub: '神秘描述', l1: '每個人的手機都會看到一段神秘描述。', l2: '大家一起討論，然後投票！' },
+    { title: 'Round 2 誰是真領袖？', sub: '神秘描述 · 領袖詞語', l1: '平民看神秘描述，領袖各有一個詞語。', l2: '聽領袖描述，猜猜誰是真領袖！' },
     { title: 'Round 3 破解密碼', sub: '{n} 條選擇題', l1: '每題有 {q}% 或以上的人答對，就算成功。', l2: '成功 {need} 題就解鎖最後的線索，然後最後投票！' },
     { title: '最終揭曉', sub: '誰才是真正領袖？', l1: '逐張翻開領袖卡，揭曉誰是真正領袖！', l2: '然後就是結局：大家能一起勝利嗎？' }
   ];

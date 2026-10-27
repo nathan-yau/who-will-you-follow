@@ -6,7 +6,8 @@
      The page never jumps to the vote by itself; the player taps.
    - leaders (真 / 假): their own instructions (desc + tip) come from the server for that leader only, and instead of the
      button a 「跟隨你的人數」 box: a count only (never names), once this round's vote has closed.
-   - Round 2 adds the 「神秘描述」 card (round.mystery, edited in admin 「遊戲內容」).
+   - Round 2 adds a card: 平民 / supporters get the 「神秘描述」 (round.mystery); leaders get 「你的詞語」 (round.word — only
+     their own word + how to play it; true and fake look identical). Both edited in admin 「遊戲內容」.
    - Round 3 (破解密碼) swaps the pots for 解鎖進度 + the current question (round.quiz): players tap A–D and can change
      until the host closes it; leaders see it read-only. The answer + 成功 / 未達標 only arrive after close; once enough
      questions succeed the final clue replaces the question card (while no question is open). */
@@ -97,10 +98,14 @@
       $('desc').innerHTML = esc(dtx).replace(/\{(pct|need)\}/g, function (m, k) { return '<b lang="en">' + (qz ? (k === 'pct' ? qz.threshold + '%' : qz.need) : '') + '</b>'; });
     }
     if (rd.screen === 'r2') {
-      set('mystTitle', c.mysteryTitle || '神秘描述');
-      var mt = String(rd.mystery || '');
+      var isWord = rd.word != null;
+      set('mystTitle', isWord ? (c.wordTitle || '你的詞語') : (c.mysteryTitle || '神秘描述'));
+      var mt = isWord ? String(dtx || '') : String(rd.mystery || '');
       set('mystText', mt);
-      $('myst').classList.toggle('is-long', mt.length > 66);
+      set('mystWord', isWord ? String(rd.word) : '');
+      $('mystWord').hidden = !isWord;
+      $('myst').classList.toggle('is-word', isWord);
+      $('myst').classList.toggle('is-long', !isWord && mt.length > 66);
     }
     if (qz) renderQuiz(qz, leader);
     set('tip', leader && lt.tip ? lt.tip : leader && c.leaderTip ? c.leaderTip : c.tip);
@@ -304,7 +309,7 @@
     window.location.href = '../vote/';
   });
 
-  fetch('../data/texts.json?v=9', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+  fetch('../data/texts.json?v=10', { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) { if (d && (d.rounds || d.round)) { T = { rounds: d.rounds || {}, round: {}, quiz: d.quiz || {}, final: d.final || {}, ending: d.ending || {} }; for (var k in DEF.round) T.round[k] = (d.round && d.round[k]) || DEF.round[k]; } render(); })
     .catch(function () {});
   fetch('../data/characters.json?v=' + V, { cache: 'no-cache' }).then(function (r) { return r.json(); })
