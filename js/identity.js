@@ -127,8 +127,9 @@
       setChar(r.player.characterId);
       if (r.player.characterId !== me.characterId) { me.characterId = r.player.characterId; WWYF.setPlayer(me); }
       if (!r.revealed) { window.location.replace('../lobby/'); return; }
-      if (window.WWYF_KNOCK) WWYF_KNOCK.update(r);
       onRound = !!r.round;
+      // 私下敲門 / 叩叩 live only on that round's vote page
+      if (r.seen && state !== 'shown' && ((r.knock && r.knock.available) || (r.knocked && r.knocked.length))) { window.location.replace('../vote/'); return; }
       // the TV is on a round screen: the round page (it has the 「前往投票」 button; nothing auto-jumps to the vote).
       // Re-viewing from the round page (#card) shows the card and 知道了 goes back.
       if (r.seen && r.round && state !== 'shown' && !(review && (state === 'loading'))) { window.location.replace('../round/'); return; }
@@ -177,7 +178,6 @@
     .catch(function () {});
   window.addEventListener('resize', fitDesc);
 
-  if (window.WWYF_KNOCK) WWYF_KNOCK.init($('knockSlot'));
   setChar(me.characterId);
   poll();
   setInterval(function () { if (!document.hidden) poll(); }, 3000);

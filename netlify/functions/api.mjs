@@ -780,11 +780,16 @@ function pickKnock(players, ballots, trueId) {
   const [fake, one] = shuffle(all)[0];
   return { fake, targets: [one] };
 }
+/** the knock UI (真正領袖's 私下敲門 / 已敲門, the knocked player's 叩叩) lives only while the game is still on the round it
+    happened in: once the TV moves on to another round (or 最終揭曉 / 結局) it is no longer shown to anyone. Each round's knock is
+    independent; meta.knocks keeps the record (for the admin / final reveal) — only the phone view is scoped. */
+const KNOCK_GONE = [...ROUND_SCREENS, FINAL, ENDING];
+const knockLive = (meta, round) => { const sc = screenOf(meta); return !(KNOCK_GONE.includes(sc) && sc !== round); };
 /** the true leader's own knock status for the latest closed vote (no other player's info unless KNOCK_SHOW_TARGETS) */
 function knockView(meta, p) {
   if (!p || p.role !== TRUE_LEADER) return undefined;
   const v = knockRound(meta);
-  if (!v) return undefined;
+  if (!v || !knockLive(meta, v.round)) return undefined;
   const k = meta.knocks && meta.knocks[v.round];
   if (k && k.vid !== v.id) return { round: v.round, available: false, done: false };   // an older run of this round
   const out = { round: v.round, available: !k, done: !!k, count: k ? k.targets.length : 0 };
@@ -794,7 +799,9 @@ function knockView(meta, p) {
 /** knocks addressed to this player that they haven't dismissed yet (round + time only — never who knocked) */
 function knocksFor(meta, p) {
   const out = [];
+  const v = knockRound(meta);   // only the round still in play (its vote closed, TV not yet on another round)
   for (const r of ROUND_SCREENS) {
+    if (!v || v.round !== r || !knockLive(meta, r)) continue;
     const k = meta.knocks && meta.knocks[r];
     if (k && k.targets.includes(p.id) && !(k.seen && k.seen[p.id])) out.push({ round: r, at: k.at });
   }

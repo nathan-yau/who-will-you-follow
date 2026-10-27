@@ -33,7 +33,13 @@
     return false;
   }
   var onRound = false;   // the TV is on a round screen -> back to the round page, else the identity page
-  function toIdentity() { window.location.replace(onRound ? '../round/' : '../identity/'); }
+  // a pending 私下敲門 / 叩叩 lives only here (the vote page of its round): stay until it's used / dismissed, then leave
+  var knockHold = false;
+  function knockPending() { return !!(window.WWYF_KNOCK && WWYF_KNOCK.pending); }
+  function toIdentity() {
+    if (knockPending()) { knockHold = true; return; }
+    window.location.replace(onRound ? '../round/' : '../identity/');
+  }
 
   function setState(s) {
     state = s;
@@ -161,7 +167,7 @@
     // closed (timer / host / 封票)
     changing = false;
     if (v.eligible) mine = v.mine || null;
-    if (state === 'loading' && v.endedAgo != null && v.endedAgo > ENDED_MS) return toIdentity();   // an old vote: nothing to show
+    if (state === 'loading' && v.endedAgo != null && v.endedAgo > ENDED_MS && !knockPending()) return toIdentity();   // an old vote: nothing to show
     if (!endedAt) {
       endedAt = Date.now();
       clearTimeout(endT);
@@ -180,6 +186,7 @@
       onRound = !!r.round;
       if (!r.seen) { window.location.replace('../identity/'); return; }   // identity not revealed yet (or the host changed this player's role)
       if (window.WWYF_KNOCK) WWYF_KNOCK.update(r);
+      if (knockHold && !knockPending()) { knockHold = false; clearTimeout(endT); endT = setTimeout(toIdentity, 4000); }
       if (!r.vote) { if (state !== 'ended') toIdentity(); return; }
       if (busy) return;
       apply(r.vote);

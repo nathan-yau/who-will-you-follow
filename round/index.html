@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="../css/style.css?v=6" />
   <link rel="stylesheet" href="../css/characters.css?v=8" />
   <link rel="stylesheet" href="../css/round.css?v=7" />
-  <link rel="stylesheet" href="../css/knock.css?v=1" />
 </head>
 <body>
   <!-- 回合頁 (phone, while the TV shows Round 1 / 2 / 3). One page for all rounds: copy from data/texts.json (rounds.<r>).
@@ -105,7 +104,6 @@
         <svg class="rd-q" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3C10.6 3 4 9.4 4 17.4c0 4.6 2.2 8.6 5.8 11.2L8 36l8-4.6c1.3.3 2.6.4 4 .4 9.4 0 16-6.4 16-14.4S29.4 3 20 3Z" fill="#fff" stroke="#5e4a36" stroke-width="2.2" stroke-linejoin="round"/><path d="M15.6 13.6c.4-2.4 2.2-3.8 4.6-3.8 2.6 0 4.4 1.6 4.4 3.8 0 3.2-4.4 3.2-4.4 6.4" fill="none" stroke="#5e4a36" stroke-width="2.4" stroke-linecap="round"/><circle cx="20.2" cy="24.6" r="1.7" fill="#5e4a36"/></svg>
         <svg class="rd-dash" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9l6 3M3 18l8-1.5" stroke="#7fa36f" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>
       </div>
-      <div class="kn-slot rd-knock abs" id="knockSlot" hidden></div>
 
       <!-- players: 前往投票 (enabled only while this round's vote is open; never auto-jumps) -->
       <button class="btn cs-join rd-btn abs" id="go" type="button" data-for="player" disabled>
@@ -135,8 +133,7 @@
     })();
   </script>
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/knock.js?v=9"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
-  <script src="../js/round.js?v=8"></script>
+  <script src="../js/round.js?v=9"></script>
 </body>
 </html>

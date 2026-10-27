@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="../css/style.css?v=6" />
   <link rel="stylesheet" href="../css/characters.css?v=8" />
   <link rel="stylesheet" href="../css/identity.css?v=6" />
-  <link rel="stylesheet" href="../css/knock.css?v=1" />
 </head>
 <body>
   <!-- 身份揭曉: data-state = loading | pre (silhouette + 揭曉) | shown (role card) | wait (calm, 再看一次) -->
@@ -85,7 +84,6 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg>
         <span class="btn__label">再看一次身份</span>
       </button>
-      <div class="kn-slot id-knock abs" id="knockSlot" hidden></div>
       <p class="id-err abs" id="err" role="alert"></p>
     </div>
   </main>
@@ -102,8 +100,7 @@
     })();
   </script>
   <script src="../js/api.js?v=10"></script>
-  <script src="../js/knock.js?v=9"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
-  <script src="../js/identity.js?v=7"></script>
+  <script src="../js/identity.js?v=8"></script>
 </body>
 </html>

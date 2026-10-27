@@ -1,4 +1,4 @@
-/* 私下敲門 (private knock) — shared by the identity and vote pages. Copy comes from data/texts.json.
+/* 私下敲門 (private knock) — vote page only (the round of the knock; gone once the TV moves on to the next round). Copy comes from data/texts.json.
    update(meResponse) after every /api/me poll:
    - r.knock   (真正領袖 only): { round, available, done, count } -> a 「私下敲門」 button (2-tap) or 「已敲門」 in the page's slot
    - r.knocked (knocked players only): [{ round, at }] -> a private 叩叩 card over the page until dismissed
@@ -93,6 +93,15 @@
       inbox = (r && r.knocked) || [];
       render(); renderModal();
     },
-    get state() { return { leader: kn, inbox: inbox, modal: !!(modal && !modal.hidden) }; }
+    get state() { return { leader: kn, inbox: inbox, modal: !!(modal && !modal.hidden) }; },
+    // something still waiting on THIS phone: an unused 私下敲門, or a 叩叩 not yet dismissed (keeps the vote page open)
+    get pending() { return pendingOf({ knock: kn, knocked: inbox }); },
+    pendingOf: pendingOf
   };
+  function pendingOf(r) {
+    if (r && r.knock && r.knock.available) return true;
+    var ks = (r && r.knocked) || [];
+    for (var i = 0; i < ks.length; i++) if (!dismissed[ks[i].round + ':' + ks[i].at]) return true;
+    return false;
+  }
 })();

@@ -121,7 +121,6 @@
       $('follow').classList.toggle('is-closed', f.state === 'closed');
       if (f.state === 'closed') { var fe = $('follow'); fe.classList.remove('is-in'); void fe.offsetWidth; fe.classList.add('is-in'); }
     }
-    app.classList.toggle('has-knock', !$('knockSlot').hidden);
     app.setAttribute('data-state', leader ? 'leader' : 'player');
     tick();
   }
@@ -280,13 +279,15 @@
     document.querySelector('.rd-clock').classList.toggle('is-low', st === 'live' && remain != null && remain <= 10000);
   }
 
+  // the true leader's unused 私下敲門, or a 叩叩 for this phone: shown only on that round's vote page (the server scopes it)
+  function knockWaiting(r) { return !!((r.knock && r.knock.available) || (r.knocked && r.knocked.length)); }
   function poll() {
     if (inflight) return Promise.resolve();
     inflight = true;
     return WWYF.me().then(function (r) {
       if (!r.revealed) { window.location.replace('../lobby/'); return; }
       if (!r.seen || !r.round) { window.location.replace('../identity/'); return; }   // identity not seen yet, or the TV left the round screens
-      if (window.WWYF_KNOCK) WWYF_KNOCK.update(r);
+      if (knockWaiting(r)) { window.location.replace('../vote/'); return; }   // 私下敲門 / 叩叩 live only on the vote page
       var sp = r.round.speak;
       speakEnd = sp && sp.state === 'live' && sp.remain != null ? Date.now() + sp.remain : null;
       last = r;
@@ -309,7 +310,6 @@
   fetch('../data/characters.json?v=' + V, { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) { ((d && d.characters) || []).forEach(function (c) { names[c.id] = c.name; }); rowKey = ''; finKey = ''; endKey = ''; render(); })
     .catch(function () {});
-  if (window.WWYF_KNOCK) WWYF_KNOCK.init($('knockSlot'));
 
   poll();
   (function loop() {
