@@ -355,6 +355,13 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 
 /* 玩法說明 controls */
 .hw-nav { align-items: center; }
+.hw-auto { margin: 8px 0 0; gap: 6px; }
+.hw-auto .seg__btns { flex: 0 0 auto; }
+.hw-auto .seg__btn { min-width: 40px; padding: 0 8px; }
+.hw-auto__sec { margin-left: auto; }
+.hw-bar { display: block; height: 3px; margin: 6px 2px 0; border-radius: 2px; background: #e4ecdc; overflow: hidden; }
+.hw-bar i { display: block; height: 100%; width: 0; background: var(--green); }
+.hw-bar[hidden] { display: none; }
 .hw-page { flex: 0 0 auto; min-width: 84px; text-align: center; font-size: 14px; font-weight: 700; color: #4b301d; white-space: nowrap; }
 
 /* 即時連線 (Ably) switch + status */

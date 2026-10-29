@@ -2,7 +2,7 @@
 // One game at a time. State lives in the "wwyf-game" blob store:
 //   meta                 { gameId, startedAt, revealed, phase: 'lobby'|'started', phaseAt,
 //                          tvScreen: 'lobby'|'howto'|'r1'|'r2'|'r3'|'reveal'|'final'|'ending' }   (what the TV shows; set by POST admin/screen)
-//                        howto = { page, from: 'lobby'|'started' }   玩法說明 slideshow (POST admin/howto), only before 身份揭曉
+//                        howto = { page, from: 'lobby'|'started', auto: {on, sec 6|10|15, at} }   玩法說明 slideshow (POST admin/howto), only before 身份揭曉
 //                        revealed = phones may see their own role (turned on by the 身份揭曉 stage, stays on until 新一場);
 //                        tvScreen 'reveal' = the 身份揭曉 stage itself (POST admin/reveal-stage)
 //   config               { roles: { <special role>: max } }   (平民 has no limit)
@@ -46,7 +46,7 @@ const REVEAL = 'reveal';   // 身份揭曉 stage
 const FINAL = 'final';     // 最終揭曉 (host flips the leader cards in any order)
 const ENDING = 'ending';   // 結局 (after 最終揭曉: did the group follow the true leader in the final vote?)
 const HOWTO = 'howto';    // 玩法說明 slideshow (before 身份揭曉; the host pages through it)
-const HOWTO_PAGES = 7;    // 0 封面 (約 15 分鐘) · 1 遊戲目標 · 2 角色 · 3 Round 1 · 4 Round 2 · 5 Round 3 · 6 最終揭曉 — the copy lives in js/tv.js
+const HOWTO_PAGES = 8;    // 0 標題頁 (Who Will You Follow? · 遊戲玩法) · 1 玩法說明 (約 15 分鐘) · 2 遊戲目標 · 3 角色 · 4 Round 1 · 5 Round 2 · 6 Round 3 · 7 最終揭曉 — the copy lives in js/tv.js
 const SCREENS = [...ROUND_SCREENS, REVEAL, FINAL, ENDING, HOWTO];
 // round / reveal screens only make sense once the game has started (lobby -> always the bubble battle)
 const screenOf = (m) => (phaseOf(m) === STARTED && SCREENS.includes(m.tvScreen) ? m.tvScreen : LOBBY);
@@ -382,7 +382,8 @@ async function adminState(s) {
   const final = await adminFinal(s, meta, players.map(normalize));
   // 遊戲內容: which character currently holds 假領袖詞語 1–3 (null = not assigned yet -> admin labels it by slot)
   const fakeWords = fakeOrder(players.map(normalize)).slice(0, FAKE_WORDS).map((q) => q.characterId);
-  const howto = { on: sc === HOWTO, allowed: !meta.revealed, page: sc === HOWTO ? (await howtoView(s, meta)).page : 0, pages: HOWTO_PAGES };
+  const hv = sc === HOWTO ? await howtoView(s, meta) : null;
+  const howto = { on: sc === HOWTO, allowed: !meta.revealed, page: hv ? hv.page : 0, pages: HOWTO_PAGES, auto: hv ? hv.auto : howtoAuto({ auto: { sec: meta.howto && meta.howto.auto && meta.howto.auto.sec } }, t) };
   const rt = rtStatus(meta, await rtTv(s, true));
   return { meta, votes, quiz, final, howto, rt, fakeWords, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
 }
@@ -1590,16 +1591,30 @@ async function finalAction(s, b) {
 }
 
 /* ---------------- 玩法說明 (TV slideshow, before 身份揭曉) ----------------
-   admin/howto {action: 'enter'|'exit'|'next'|'prev'|'go', page}. enter: TV -> screen 'howto' at page 0 (the game counts as
+   admin/howto {action: 'enter'|'exit'|'next'|'prev'|'go'|'auto', page, on, sec}. enter: TV -> screen 'howto' at page 0 (the game counts as
    started so the lobby mini game stops; phones show 「請睇 TV 玩法說明」); exit: back to where it came from (等候 / 遊戲開始).
    Only before 身份揭曉 (meta.revealed) — the slides never say who the leaders are or mention any secret role. */
+// 自動播放: meta.howto.auto = {on, sec, at}. While on, `page` is the slide the run started from and `at` its start time; the
+// current slide = (page + whole intervals since at) mod HOWTO_PAGES (loops back to slide 1, so it can run while people join).
+// Clients get the derived page + `left` (ms until the next slide) — relative, so the TV needs no clock sync.
+const HOWTO_AUTO_SECS = [6, 10, 15], HOWTO_AUTO_DEF = 10;
+function howtoNow(h, t) {
+  const page = Math.max(0, Math.min(HOWTO_PAGES - 1, (h && h.page) | 0)), a = h && h.auto;
+  if (!a || !a.on) return { page, left: 0 };
+  const ms = (HOWTO_AUTO_SECS.includes(a.sec) ? a.sec : HOWTO_AUTO_DEF) * 1000, el = Math.max(0, t - (a.at || t));
+  return { page: (page + Math.floor(el / ms)) % HOWTO_PAGES, left: ms - (el % ms) };
+}
+function howtoAuto(h, t) {
+  const a = (h && h.auto) || {}, sec = HOWTO_AUTO_SECS.includes(a.sec) ? a.sec : HOWTO_AUTO_DEF;
+  return { on: !!a.on, sec, left: a.on ? howtoNow(h, t).left : 0, secs: HOWTO_AUTO_SECS };
+}
 async function howtoView(s, meta) {
-  const c = await getContent(s), h = meta.howto || {};
-  return { page: Math.max(0, Math.min(HOWTO_PAGES - 1, h.page | 0)), pages: HOWTO_PAGES, threshold: c.end.threshold, quiz: { n: QUIZ_N, threshold: c.r3.threshold, need: c.r3.need } };
+  const c = await getContent(s), h = meta.howto || {}, t = now();
+  return { page: howtoNow(h, t).page, pages: HOWTO_PAGES, auto: howtoAuto(h, t), threshold: c.end.threshold, quiz: { n: QUIZ_N, threshold: c.r3.threshold, need: c.r3.need } };
 }
 async function howtoAction(s, b) {
   const a = b && b.action;
-  if (!['enter', 'exit', 'next', 'prev', 'go'].includes(a)) fail(400, 'bad_action', '未知的操作');
+  if (!['enter', 'exit', 'next', 'prev', 'go', 'auto'].includes(a)) fail(400, 'bad_action', '未知的操作');
   const meta = await getMeta(s);
   if (a === 'exit') {
     if (meta.tvScreen !== HOWTO) return { ok: true, screen: screenOf(meta), howto: null };
@@ -1610,19 +1625,31 @@ async function howtoAction(s, b) {
   if (meta.revealed) fail(409, 'revealed', '身份已揭曉：玩法說明只可在身份揭曉之前顯示');
   if (a !== 'enter' && screenOf(meta) !== HOWTO) fail(409, 'not_howto', '請先開始玩法說明');
   if (a === 'go' && !(Number.isInteger(b.page) && b.page >= 0 && b.page < HOWTO_PAGES)) fail(400, 'bad_page', '頁數無效');
+  if (a === 'auto' && b.sec != null && !HOWTO_AUTO_SECS.includes(b.sec)) fail(400, 'bad_sec', '自動播放間隔無效');
   const t = now();
   const m = await update(s, 'meta', (m) => {
     if (a === 'enter') {
       const from = phaseOf(m) === STARTED ? STARTED : LOBBY;
       if (m.tvScreen === HOWTO) return undefined;   // already on: keep the page
       if (m.phase !== STARTED) m.phaseAt = t;
-      m.phase = STARTED; m.tvScreen = HOWTO; m.howto = { page: 0, from };
+      // a fresh run always starts with 自動播放 off (the interval choice is remembered)
+      const sec = m.howto && m.howto.auto && HOWTO_AUTO_SECS.includes(m.howto.auto.sec) ? m.howto.auto.sec : HOWTO_AUTO_DEF;
+      m.phase = STARTED; m.tvScreen = HOWTO; m.howto = { page: 0, from, auto: { on: false, sec } };
       return m;
     }
-    const h = m.howto || { page: 0, from: LOBBY };
-    const page = a === 'go' ? b.page : Math.max(0, Math.min(HOWTO_PAGES - 1, (h.page | 0) + (a === 'next' ? 1 : -1)));
-    if (page === h.page) return undefined;
-    m.howto = { ...h, page };
+    const h = m.howto || { page: 0, from: LOBBY }, cur = howtoNow(h, t).page, au = howtoAuto(h, t);
+    if (a === 'auto') {
+      // on: start from the current slide now · off: stay on the current slide · sec only: change the interval (restarts the timer)
+      const on = b.on == null ? au.on : !!b.on, sec = b.sec != null ? b.sec : au.sec;
+      if (on === au.on && sec === au.sec) return undefined;
+      m.howto = { ...h, page: cur, auto: { on, sec, at: on ? t : 0 } };
+      return m;
+    }
+    // (自動播放 loops, so 下一頁 on the last slide goes back to slide 1 while it is on)
+    const page = a === 'go' ? b.page : au.on && a === 'next' && cur === HOWTO_PAGES - 1 ? 0 : Math.max(0, Math.min(HOWTO_PAGES - 1, cur + (a === 'next' ? 1 : -1)));
+    // manual paging while 自動播放 is on: jump there and restart the timer from that slide
+    if (page === cur && !au.on) return undefined;
+    m.howto = { ...h, page, auto: { on: au.on, sec: au.sec, at: au.on ? t : 0 } };
     return m;
   });
   const mm = m || (await getMeta(s));

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
-  <link rel="stylesheet" href="../css/tv.css?v=20" />
+  <link rel="stylesheet" href="../css/tv.css?v=21" />
 </head>
 <body>
   <main class="tv" id="tv">
@@ -124,11 +124,23 @@
            General rules only — leader cards are mystery "?" cards (nobody is shown as a leader before Round 1). Copy: js/tv.js HDEF / data/texts.json "howto". -->
       <section class="tv-round tv-howto" id="howto" hidden>
         <div class="fn-title"><h1 id="hwTitle">玩法說明</h1><p id="hwSub"></p></div>
+        <!-- page 0 = cover (the 自動播放 loop starts and ends here): the landing-page title art + 遊戲玩法 -->
+        <div class="hw-cover" id="hwCover" hidden>
+          <img class="hw-cover__spark hw-cover__spark--l" src="../assets/img/spark-l.png?v=5" alt="" draggable="false" />
+          <img class="hw-cover__spark hw-cover__spark--r" src="../assets/img/spark-r.png?v=5" alt="" draggable="false" />
+          <h2 class="hw-cover__title" lang="en" aria-label="Who Will You Follow?">
+            <span class="hw-cover__line hw-cover__line--1" aria-hidden="true"><span class="ch" style="--r:-10.9;--dy:17.6">W</span><span class="ch" style="--r:-7.6;--dy:8.5">h</span><span class="ch" style="--r:-5.3;--dy:4.1">o</span><span class="sp"> </span><span class="ch" style="--r:-1.2;--dy:0.2">W</span><span class="ch" style="--r:1.5;--dy:0.3">i</span><span class="ch" style="--r:2.7;--dy:1.1">l</span><span class="ch" style="--r:4.0;--dy:2.4">l</span><span class="sp"> </span><span class="ch" style="--r:6.9;--dy:7.0">Y</span><span class="ch" style="--r:9.4;--dy:13.1">o</span><span class="ch" style="--r:11.7;--dy:20.1">u</span></span>
+            <span class="hw-cover__line hw-cover__line--2" aria-hidden="true"><span class="ch" style="--r:-2;--dy:0">F</span><span class="ch" style="--r:0;--dy:-1">o</span><span class="ch">l</span><span class="ch">l</span><span class="ch" style="--r:0;--dy:-1">o</span><span class="ch" style="--r:2;--dy:1">w</span><span class="ch" style="--r:8;--dy:3">?</span></span>
+          </h2>
+          <p class="hw-cover__sub">你會跟隨誰？</p>
+          <p class="hw-cover__pill">遊戲玩法</p>
+        </div>
         <div class="hw-card" id="hwCard">
           <div class="hw-art" id="hwArt" aria-hidden="true"></div>
           <div class="hw-text"><p class="hw-l1" id="hwL1"></p><p class="hw-l2" id="hwL2"></p></div>
         </div>
         <div class="hw-dots" id="hwDots" aria-hidden="true"></div>
+        <div class="hw-prog" id="hwProg" hidden aria-hidden="true"><i id="hwProgFill"></i></div>
       </section>
       <!-- 結局 (screen 'ending'): meter -> 勝利！ / 差一點點… ; aggregate counts only (no voter names) -->
       <section class="tv-round tv-ending" id="ending" hidden>
@@ -162,6 +174,6 @@
   <script src="../js/api.js?v=11"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
   <script src="../js/rt.js?v=1"></script>
-  <script src="../js/tv.js?v=21"></script>
+  <script src="../js/tv.js?v=22"></script>
 </body>
 </html>

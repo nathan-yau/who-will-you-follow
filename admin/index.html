@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=26" />
+  <link rel="stylesheet" href="../css/admin.css?v=27" />
 </head>
 <body>
   <header class="top">
@@ -81,9 +81,23 @@
           </div>
           <div class="fn-row hw-nav">
             <button class="btn btn--ghost" id="hwPrev" type="button">上一頁</button>
-            <span class="hw-page" id="hwPage" aria-live="polite">— / 7</span>
+            <span class="hw-page" id="hwPage" aria-live="polite">— / 8</span>
             <button class="btn btn--primary" id="hwNext" type="button">下一頁</button>
           </div>
+          <!-- 自動播放: TV advances every N 秒 and loops back to slide 1 (server-timed: meta.howto.auto) -->
+          <div class="seg hw-auto" id="hwAuto" role="group" aria-label="自動播放">
+            <span class="seg__label">自動播放</span>
+            <div class="seg__btns hw-auto__on">
+              <button type="button" class="seg__btn" data-auto="on" aria-pressed="false">開</button>
+              <button type="button" class="seg__btn" data-auto="off" aria-pressed="true">關</button>
+            </div>
+            <div class="seg__btns hw-auto__sec" aria-label="每頁秒數">
+              <button type="button" class="seg__btn" data-sec="6" aria-pressed="false">6 秒</button>
+              <button type="button" class="seg__btn" data-sec="10" aria-pressed="true">10 秒</button>
+              <button type="button" class="seg__btn" data-sec="15" aria-pressed="false">15 秒</button>
+            </div>
+          </div>
+          <span class="hw-bar" id="hwBar" hidden aria-hidden="true"><i id="hwBarFill"></i></span>
         </div>
       </section>
 
@@ -300,6 +314,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=11"></script>
-  <script src="../js/admin.js?v=30"></script>
+  <script src="../js/admin.js?v=31"></script>
 </body>
 </html>

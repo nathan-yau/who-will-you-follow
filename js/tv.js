@@ -981,31 +981,59 @@
     for (k = 0; k < 4; k++) h += hwCard(k, k === 2 ? ' hw-lc--flip' : '');
     return '<div class="hw-row hw-row--final">' + h + '</div>';
   }
+  /* 自動播放: h.auto = {on, sec, left (ms to the next slide)} — relative to the reply, so no clock sync is needed. The TV keeps a
+     local anchor and advances on its own between the 1 s polls (re-anchoring only on a page change / >300 ms drift), loops
+     back to slide 1 after the last one, and draws a thin progress bar. Manual paging / off just arrive as a new page/anchor. */
+  var hwA = null, hwTick = 0;
+  function hwProj() {
+    var el = hwA.el0 + (now() - hwA.t0);
+    return { page: (hwA.page + Math.floor(el / hwA.ms)) % hwA.pages, frac: (el % hwA.ms) / hwA.ms };
+  }
+  function hwAnchor(h) {
+    var a = h && h.auto, pages = (h && h.pages) || HDEF.length;
+    if (!a || !a.on || !(a.sec > 0)) { hwA = null; clearInterval(hwTick); hwTick = 0; return; }
+    var ms = a.sec * 1000, el0 = Math.max(0, Math.min(ms, ms - (a.left || ms))), p = Math.max(0, Math.min(pages - 1, h.page | 0));
+    var pr = hwA && hwA.ms === ms && hwA.pages === pages ? hwProj() : null;
+    if (!pr || pr.page !== p || Math.abs(pr.frac * ms - el0) > 300) hwA = { page: p, el0: el0, t0: now(), ms: ms, pages: pages };
+    if (!hwTick) hwTick = setInterval(function () { if (screen === 'howto' && hwA && lastHowto) drawHowto(); }, 100);
+  }
   function renderHowto(h, list) {
     lastHowto = h; lastHowtoList = list || [];
+    hwAnchor(h);
     if (!h) { hwPage = -1; return; }
-    var pages = h.pages || HDEF.length, p = Math.max(0, Math.min(pages - 1, h.page | 0)), q = h.quiz || {};
+    drawHowto();
+  }
+  // page 0 = the cover (landing title art + 遊戲玩法; the 自動播放 loop starts and ends here); pages 1.. = HDEF / texts.json slides
+  function drawHowto() {
+    var h = lastHowto, pr = hwA ? hwProj() : null, bar = $('hwProg');
+    bar.hidden = !pr;
+    if (pr) $('hwProgFill').style.transform = 'scaleX(' + pr.frac.toFixed(3) + ')';
+    var pages = h.pages || HDEF.length + 1, p = Math.max(0, Math.min(pages - 1, pr ? pr.page : h.page | 0)), q = h.quiz || {}, c = p - 1;
     var o = { t: h.threshold != null ? h.threshold : 70, n: q.n || 5, q: q.threshold != null ? q.threshold : 60, need: q.need || 3 };
-    var chars = p === 0 ? lastHowtoList.map(function (x) { return x.characterId; }).join(',') : '';
+    var chars = c === 0 ? lastHowtoList.map(function (x) { return x.characterId; }).join(',') : '';
     var k = [p, pages, o.t, o.n, o.q, o.need, chars, HT ? 1 : 0].join('|');
     if (k === hwKey) return;
     var turn = hwPage !== p;
     hwKey = k; hwPage = p;
-    var f = function (t) { return fillT(t, o); };
-    $('hwTitle').textContent = f(HX(p, 'title'));
-    $('hwTitle').classList.toggle('is-latin', /[A-Za-z]/.test($('hwTitle').textContent));
-    $('hwSub').textContent = f(HX(p, 'sub'));
-    $('hwL1').textContent = f(HX(p, 'l1'));
-    $('hwL2').textContent = f(HX(p, 'l2'));
-    $('hwArt').innerHTML = hwArt(p, lastHowtoList, o);
+    var sec = $('howto'), cover = p === 0;
+    sec.classList.toggle('is-cover', cover);
+    $('hwCover').hidden = !cover;
+    if (!cover) {
+      var f = function (t) { return fillT(t, o); };
+      $('hwTitle').textContent = f(HX(c, 'title'));
+      $('hwTitle').classList.toggle('is-latin', /[A-Za-z]/.test($('hwTitle').textContent));
+      $('hwSub').textContent = f(HX(c, 'sub'));
+      $('hwL1').textContent = f(HX(c, 'l1'));
+      $('hwL2').textContent = f(HX(c, 'l2'));
+      $('hwArt').innerHTML = hwArt(c, lastHowtoList, o);
+    }
     var d = '';
     for (var i = 0; i < pages; i++) d += '<i' + (i === p ? ' class="is-on"' : '') + '></i>';
     $('hwDots').innerHTML = d;
-    var sec = $('howto');
     sec.dataset.page = String(p);
     if (turn && !RM) { sec.classList.remove('is-turn'); void sec.offsetWidth; sec.classList.add('is-turn'); }
   }
 
   // read-only hook for automated checks
-  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get rt() { return rtState; }, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get ending() { return lastEnding; }, get endingStage() { return enStage; }, get endingCounted() { return enCounted; }, get howto() { return screen === 'howto' ? { page: hwPage, title: $('hwTitle').textContent } : null; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos, queueInput: queueInput };
+  window.WWYF_TV = { bubbles: bubbles, slots: SLOTS, slotOf: slotOf, stats: stats, get rt() { return rtState; }, get phase() { return phase; }, get screen() { return screen; }, get cards() { return cardsKey; }, get intro() { return intro; }, get final() { return lastFinal; }, get ending() { return lastEnding; }, get endingStage() { return enStage; }, get endingCounted() { return enCounted; }, get howto() { return screen === 'howto' ? { page: hwPage, cover: hwPage === 0, title: hwPage === 0 ? $('hwCover').querySelector('h2').getAttribute('aria-label') : $('hwTitle').textContent, auto: !!hwA, prog: hwA ? +hwProj().frac.toFixed(3) : null } : null; }, get lambs() { return lambCount < 0 ? 0 : lambCount; }, get vote() { var e = $('tvVote'); return e.hidden ? null : { tag: $('tvVoteTag').textContent, time: $('tvVoteTime').textContent, voted: +$('tvVoted').textContent, total: +$('tvTotal').textContent, sealed: e.classList.contains('is-sealed') }; }, get speak() { var e = $('tvSpeak'); return e.hidden ? null : { time: $('tvSpeakTime').textContent }; }, renderLambs: renderLambs, get baseR() { return baseR; }, get running() { return running; }, startPos: startPos, queueInput: queueInput };
 })();

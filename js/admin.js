@@ -760,30 +760,54 @@
   });
   setInterval(function () { if (state && !document.hidden && quizOpenNow()) renderQuiz(); }, 500);
 
-  /* ---------- 玩法說明 (POST admin/howto {action: enter | exit | next | prev}) — only before 身份揭曉 ---------- */
+  /* ---------- 玩法說明 (POST admin/howto {action: enter | exit | next | prev | auto {on, sec}}) — only before 身份揭曉 ---------- */
   var hwBusy = false;
+  // 自動播放 (server-timed): state.howto.auto = {on, sec, left}; between 2 s refreshes the slide is projected locally from fetchedAt
+  function hwLive(h) {
+    var a = h.auto || {}, n = h.pages || 8;
+    if (!h.on || !a.on || !a.sec) return { page: h.page | 0, frac: 0 };
+    var ms = a.sec * 1000, el = (ms - (a.left || ms)) + Math.max(0, Date.now() - (h._at || fetchedAt));
+    return { page: ((h.page | 0) + Math.floor(el / ms)) % n, frac: (el % ms) / ms };
+  }
   function renderHowto() {
     var h = state && state.howto;
     if (!h) return;
-    var on = !!h.on, n = h.pages || 7;
+    var on = !!h.on, n = h.pages || 8, a = h.auto || {}, auto = on && !!a.on, lv = hwLive(h), pg = lv.page;
     $('hwEnter').disabled = hwBusy || on || !h.allowed;
     $('hwEnter').textContent = on ? 'TV 顯示玩法說明中' : '開始玩法說明';
     $('hwExit').disabled = hwBusy || !on;
-    $('hwPrev').disabled = hwBusy || !on || h.page <= 0;
-    $('hwNext').disabled = hwBusy || !on || h.page >= n - 1;
-    $('hwPage').textContent = on ? '第 ' + (h.page + 1) + ' / ' + n + ' 頁' : '— / ' + n;
-    $('hwSum').textContent = on ? '第 ' + (h.page + 1) + ' / ' + n + ' 頁' : h.allowed ? '未開始' : '身份已揭曉';
+    $('hwPrev').disabled = hwBusy || !on || pg <= 0;
+    $('hwNext').disabled = hwBusy || !on || (pg >= n - 1 && !auto);
+    $('hwPage').textContent = on ? '第 ' + (pg + 1) + ' / ' + n + ' 頁' : '— / ' + n;
+    $('hwSum').textContent = on ? '第 ' + (pg + 1) + ' / ' + n + ' 頁' + (auto ? ' · 自動' : '') : h.allowed ? '未開始' : '身份已揭曉';
     $('hwDot').className = 'dot' + (on ? ' v-live' : '');
+    [].forEach.call(document.querySelectorAll('#hwAuto [data-auto]'), function (b) { b.setAttribute('aria-pressed', String((b.dataset.auto === 'on') === auto)); b.disabled = hwBusy || !on; });
+    [].forEach.call(document.querySelectorAll('#hwAuto [data-sec]'), function (b) { b.setAttribute('aria-pressed', String(+b.dataset.sec === (a.sec || 10))); b.disabled = hwBusy || !on; });
+    $('hwBar').hidden = !auto;
+    $('hwBarFill').style.width = auto ? (lv.frac * 100).toFixed(1) + '%' : '0';
     $('hwNote').textContent = !h.allowed ? '身份已揭曉：玩法說明只可在身份揭曉之前顯示。'
+      : auto ? 'TV 自動播放中：每 ' + a.sec + ' 秒換頁，播完最後一頁會返回第 1 頁（標題頁）。按上一頁／下一頁會由該頁重新計時。'
       : on ? 'TV 正顯示玩法說明，手機顯示「請睇 TV 玩法說明」。按「結束」返回之前的畫面。' : '身份揭曉之前，可在 TV 逐頁講解玩法（約 15 分鐘的遊戲流程）。';
   }
-  function hwDo(action, msg) {
+  function hwDo(action, msg, extra) {
     hwBusy = true; renderHowto();
-    return WWYF.admin('POST', 'howto', { action: action }).then(function (r) {
-      if (state && state.howto) { state.howto.on = r.screen === 'howto'; if (r.howto) state.howto.page = r.howto.page; }
+    var body = { action: action };
+    for (var k in extra || {}) body[k] = extra[k];
+    return WWYF.admin('POST', 'howto', body).then(function (r) {
+      if (state && state.howto) {
+        state.howto.on = r.screen === 'howto'; state.howto._at = Date.now();
+        if (r.howto) { state.howto.page = r.howto.page; state.howto.auto = r.howto.auto; }
+      }
       if (msg) toast(msg);
     }).catch(fail).then(function () { hwBusy = false; renderPhase(); return refresh(); });
   }
+  [].forEach.call(document.querySelectorAll('#hwAuto [data-auto]'), function (b) {
+    b.addEventListener('click', function () { if (!this.disabled && this.getAttribute('aria-pressed') !== 'true') hwDo('auto', this.dataset.auto === 'on' ? '自動播放已開始' : '自動播放已停止', { on: this.dataset.auto === 'on' }); });
+  });
+  [].forEach.call(document.querySelectorAll('#hwAuto [data-sec]'), function (b) {
+    b.addEventListener('click', function () { if (!this.disabled && this.getAttribute('aria-pressed') !== 'true') hwDo('auto', '', { sec: +this.dataset.sec }); });
+  });
+  setInterval(function () { var h = state && state.howto; if (h && h.on && h.auto && h.auto.on && !document.hidden && !hwBusy) renderHowto(); }, 250);
   $('hwEnter').addEventListener('click', function () { if (!this.disabled) hwDo('enter', 'TV 已顯示玩法說明'); });
   $('hwExit').addEventListener('click', function () { if (!this.disabled) hwDo('exit', '玩法說明已結束'); });
   $('hwPrev').addEventListener('click', function () { if (!this.disabled) hwDo('prev'); });
