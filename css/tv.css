@@ -52,6 +52,15 @@ body {
 .tv-count b { display: inline-block; font-weight: 600; }
 .tv-count b.bump { animation: tvbump 0.4s cubic-bezier(.3, 1.6, .5, 1); }
 @keyframes tvbump { 0% { transform: scale(0.7); } 100% { transform: none; } }
+/* 泡泡大戰 join QR: top right, in the gap between the banner and the signpost (bubbles pass behind it, like the banner) */
+.tv-qr {
+  position: absolute; left: 778px; top: 12px; width: 120px; margin: 0; box-sizing: border-box; z-index: 5; pointer-events: none;
+  padding: 4px 4px 0; background: #fff; border: 3px solid #e8d8c1; border-radius: 14px;
+  box-shadow: 0 3px 0 rgba(150, 125, 90, 0.14), 0 8px 18px rgba(90, 110, 70, 0.14); text-align: center;
+}
+.tv-qr__img { display: block; width: 106px; height: 106px; object-fit: contain; image-rendering: pixelated; }
+.tv-qr__cap { margin: 0; height: 24px; font-size: 15px; line-height: 22px; font-weight: 700; letter-spacing: 3px; text-indent: 3px; color: #4b301d; white-space: nowrap; }
+.is-started .tv-qr, .is-round .tv-qr { display: none; }
 .tv-conn { position: absolute; right: 12px; top: 10px; width: 7px; height: 7px; border-radius: 50%; background: #e0896f; animation: tvblink 1s steps(2) infinite; }
 @keyframes tvblink { 50% { opacity: 0.2; } }
 

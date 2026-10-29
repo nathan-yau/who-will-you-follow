@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/img/tv-meadow.webp?v=1" />
-  <link rel="stylesheet" href="../css/tv.css?v=21" />
+  <link rel="stylesheet" href="../css/tv.css?v=22" />
 </head>
 <body>
   <main class="tv" id="tv">
@@ -26,6 +26,11 @@
       </div>
       <p class="tv-empty" id="empty">用手機選好角色，就會在這裡出現喔！</p>
 
+      <!-- 泡泡大戰 (lobby) only: join QR -> https://who-will-you-follow.netlify.app/ (pre-generated SVG, 4-module white quiet zone; no external API) -->
+      <figure class="tv-qr" id="joinQr">
+        <img class="tv-qr__img" src="../assets/img/join-qr.svg?v=1" alt="加入遊戲 QR code：who-will-you-follow.netlify.app" draggable="false" />
+        <figcaption class="tv-qr__cap">掃碼加入</figcaption>
+      </figure>
       <section class="tv-banner" aria-live="polite">
         <div class="tv-banner__l">
           <p class="tv-title" id="title" lang="en">Waiting for everyone...</p>
