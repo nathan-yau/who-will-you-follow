@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/style.css?v=6" />
   <link rel="stylesheet" href="../css/characters.css?v=8" />
-  <link rel="stylesheet" href="../css/identity.css?v=6" />
+  <link rel="stylesheet" href="../css/identity.css?v=7" />
 </head>
 <body>
   <!-- 身份揭曉: data-state = loading | pre (silhouette + 揭曉) | shown (role card) | wait (calm, 再看一次) -->
@@ -64,7 +64,7 @@
       <!-- role (filled in by identity.js only after 揭曉) -->
       <div class="id-role abs" data-for="shown" aria-live="polite">
         <p class="id-pill" id="pill"><span class="id-pill__icon" id="pillIcon" aria-hidden="true"></span><span class="id-pill__name" id="roleName"></span><span class="id-pill__leader" id="roleLeader" hidden></span></p>
-        <div class="id-desc" id="desc"><p class="id-sup" id="sup" hidden><span class="id-sup__img"><img id="supImg" alt="" draggable="false" /></span><span id="supText"></span></p><p id="descText"></p></div>
+        <div class="id-desc" id="desc"><p class="id-sup" id="sup" hidden><span class="id-sup__img"><img id="supImg" alt="" draggable="false" /></span><span id="supText"></span></p><p id="descText"></p><p class="id-rule" id="ruleText" hidden></p></div>
       </div>
 
       <div class="id-waitbox abs" data-for="wait">
@@ -101,6 +101,6 @@
   </script>
   <script src="../js/api.js?v=11"></script>
   <script src="../js/sprite-fit.js?v=2"></script>
-  <script src="../js/identity.js?v=9"></script>
+  <script src="../js/identity.js?v=10"></script>
 </body>
 </html>

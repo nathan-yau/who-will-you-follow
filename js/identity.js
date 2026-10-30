@@ -31,7 +31,7 @@
   var DEFAULT = {
     '真正領袖': { icon: 'crown', color: '#f2c14e', desc: '你是真正的領袖！想辦法邀請其他玩家跟隨你。遊戲中有一個人知道你的身份，會暗中幫你。' },
     '假領袖': { icon: 'mask', color: '#b99ad6', desc: '' },
-    '真領袖支持者': { icon: 'heart', color: '#ef9a8a', desc: '' },
+    '真領袖支持者': { icon: 'heart', color: '#ef9a8a', desc: '', ruleLine: '⚠️ 你可以幫佢拉票、暗示，但唔可以直接講出邊個係真領袖，亦唔可以俾人睇手機。' },
     '假領袖支持者': { icon: 'shield', color: '#8fb3d9', desc: '' },
     '平民': { icon: 'leaf', color: '#8db07c', desc: '' }
   };
@@ -72,9 +72,12 @@
       sp.style.setProperty('--rc', r.color || '#8fb3d9');
       sp.hidden = false;
     } else { sp.hidden = true; $('supText').textContent = ''; $('supImg').removeAttribute('src'); }
+    // 真領袖支持者 only: a one-line reminder of the rules (under the description)
+    var rl = $('ruleText'), rule = role === '真領袖支持者' ? (r.ruleLine || DEFAULT['真領袖支持者'].ruleLine) : '';
+    rl.textContent = rule; rl.hidden = !rule;
     fitDesc();
   }
-  function clearRole() { $('pillIcon').innerHTML = ''; $('roleName').textContent = ''; $('roleLeader').hidden = true; $('descText').textContent = ''; $('sup').hidden = true; $('supText').textContent = ''; $('supImg').removeAttribute('src'); }
+  function clearRole() { $('pillIcon').innerHTML = ''; $('roleName').textContent = ''; $('roleLeader').hidden = true; $('descText').textContent = ''; $('sup').hidden = true; $('supText').textContent = ''; $('supImg').removeAttribute('src'); $('ruleText').hidden = true; $('ruleText').textContent = ''; }
   function take(r) {
     var key = JSON.stringify([r.role, r.supports || null, !!r.helped]);
     role = r.role || '平民'; supports = r.supports || null; helped = !!r.helped;
@@ -174,7 +177,7 @@
   fetch('../data/characters.json', { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) { ((d && d.characters) || []).forEach(function (c) { names[c.id] = c; }); if (state === 'shown') fillRole(); })
     .catch(function () {});
-  fetch('../data/roles.json?v=3', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+  fetch('../data/roles.json?v=4', { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) { roles = (d && d.roles) || {}; if (d && d.leaderLabel) leaderLabel = d.leaderLabel; if (state === 'shown') fillRole(); })
     .catch(function () {});
   window.addEventListener('resize', fitDesc);

@@ -177,3 +177,10 @@
 /* 私下敲門 (true leader only, after a vote closes) — under 「再看一次身份」 on the waiting screen */
 .id-knock { top: calc(806 * var(--U)); }
 #app:not([data-state="wait"]) .id-knock { display: none; }
+
+/* 真領袖支持者 only: small rules reminder under the description (same box, smaller muted text) */
+.id-desc p.id-rule {
+  flex: none; font-size: calc(12.6 * var(--U)); line-height: 1.45; font-weight: 600; letter-spacing: calc(0.3 * var(--U));
+  color: #8a5a3c;
+}
+.id-desc p.id-rule[hidden] { display: none; }
