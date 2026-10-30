@@ -319,7 +319,7 @@ async function roleView(s, p) {
 }
 
 /** Pair every 假領袖支持者 with exactly one 假領袖 (server-side, deterministic, stable).
-    - an existing pairing is kept as long as that player is still a 假領袖
+    - an existing pairing (automatic, or picked by the host via admin/supports) is kept as long as that player is still a 假領袖
     - unpaired supporters (oldest join first) take the 假領袖 with the fewest supporters; ties -> letter A–D,
       then join order. So with ≤ as many supporters as fake leaders everyone backs a DIFFERENT fake leader;
       extra supporters double up only once every fake leader has one.
@@ -424,6 +424,30 @@ async function setRole(req, s) {
   });
   await syncPairs(s);
   return { ok: true, role, leader };
+}
+
+/** POST /api/admin/supports {playerId, leaderId} — the host picks which 假領袖 a 假領袖支持者 backs (admin-only).
+    syncPairs() keeps an existing pairing while that player is still a 假領袖, so the pick survives later role edits
+    elsewhere; the automatic pairing is just the starting value. Locked after 身份揭曉 (like 身份人數). Every view
+    that uses the link (phone card 你支持, 假領袖 helped flag, final 揭曉支持者, admin, archive) reads player.supports. */
+async function setSupports(req, s) {
+  const b = await body(req);
+  if ((await getMeta(s)).revealed) fail(409, 'revealed', '身份已揭曉：不可再更改支持對象');
+  const players = (await allPlayers(s)).map(normalize);
+  const sp = players.find((p) => p.id === b.playerId);
+  if (!sp) fail(404, 'no_player', '找不到此玩家');
+  if (sp.role !== FAKE_SUPPORTER) fail(409, 'not_fake_supporter', '這位玩家不是假領袖支持者');
+  const l = players.find((p) => p.id === b.leaderId);
+  if (!l || l.role !== FAKE_LEADER) fail(400, 'bad_leader', '只可選擇假領袖');
+  if (sp.supports === l.id) return { ok: true, playerId: sp.id, supports: l.id };
+  const helped = (list) => new Set(list.filter((p) => p.role === FAKE_SUPPORTER && p.supports).map((p) => p.supports));
+  const before = helped(players);
+  const after = helped(players.map((p) => (p.id === sp.id ? { ...p, supports: l.id } : p)));
+  await update(s, 'players/' + sp.id, (q) => { q.supports = l.id; q.revealedAt = null; return q; });
+  // a 假領袖 gaining / losing their only helper: their card changes -> the phone shows 揭曉 again
+  await Promise.all(players.filter((p) => p.role === FAKE_LEADER && before.has(p.id) !== after.has(p.id))
+    .map((p) => update(s, 'players/' + p.id, (q) => { q.revealedAt = null; return q; })));
+  return { ok: true, playerId: sp.id, supports: l.id };
 }
 
 async function randomAssign(s) {
@@ -1697,6 +1721,7 @@ const ROUTES = {
     return (await s.get(key, { type: 'json' })) || fail(404, 'not_found');
   },
   'POST admin/role': setRole,
+  'POST admin/supports': setSupports,
   'POST admin/random': (req, s) => randomAssign(s),
   'POST admin/clear-roles': (req, s) => clearRoles(s),
   'POST admin/kick': kick,

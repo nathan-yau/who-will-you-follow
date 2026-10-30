@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=28" />
+  <link rel="stylesheet" href="../css/admin.css?v=29" />
 </head>
 <body>
   <header class="top">
@@ -56,6 +56,10 @@
           <div class="rc" id="roleCfg" aria-label="身份人數"></div>
           <ul class="warnings" id="warnings"></ul>
           <div class="grid is-locked" id="grid"></div>
+          <div class="fsp" id="fsPick" hidden>
+            <div class="fsp__head"><span class="fsp__title">假領袖支持者 · 支持對象</span><span class="fsp__note" id="fsNote"></span></div>
+            <div class="fsp__list" id="fsList"></div>
+          </div>
           <p class="empty" id="empty" hidden>目前還沒有玩家加入</p>
           <div class="acc__foot">
             <button class="btn btn--primary" id="random" type="button">隨機分配</button>
@@ -315,6 +319,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=11"></script>
-  <script src="../js/admin.js?v=33"></script>
+  <script src="../js/admin.js?v=34"></script>
 </body>
 </html>

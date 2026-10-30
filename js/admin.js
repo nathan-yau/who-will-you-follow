@@ -92,6 +92,7 @@
 
     renderRoleCfg();
     renderGrid();
+    renderFsPick();
     renderPhase();
     renderReveal();
     renderRt();
@@ -504,6 +505,43 @@
     });
     $('grid').innerHTML = html;
   }
+
+  /* ---------- 假領袖支持者 → 假領袖: the host picks who each fake supporter backs (server default = automatic pairing) ---------- */
+  var fsSig = '';
+  function renderFsPick() {
+    var s = state, box = $('fsPick');
+    var fakes = s.players.filter(function (p) { return p.role === '假領袖'; });
+    var sups = s.players.filter(function (p) { return p.role === '假領袖支持者'; });
+    var revealed = !!(s.meta && s.meta.revealed);
+    box.hidden = !sups.length || !fakes.length;
+    var sig = JSON.stringify([fakes.map(function (p) { return [p.id, p.characterId, p.leader]; }), sups.map(function (p) { return [p.id, p.characterId, p.supports]; }), revealed, !!chars.__ok]);
+    if (box.hidden || sig === fsSig) return;
+    fsSig = sig;
+    box.classList.toggle('is-done', revealed);
+    $('fsNote').textContent = revealed ? '身份已揭曉，已鎖定' : '點選更改（預設為自動配對）';
+    $('fsList').innerHTML = sups.map(function (sp) {
+      var n = esc(charName(sp.characterId));
+      return '<div class="fsp__row" data-id="' + esc(sp.id) + '"><span class="fsp__who" title="' + n + '"><img src="' + img(sp.characterId) + '" alt="" loading="lazy" /><b lang="en">' + n + '</b></span>' +
+        '<span class="fsp__arrow" aria-hidden="true">支持</span><span class="fsp__opts" role="radiogroup" aria-label="' + n + ' 支持的假領袖">' +
+        fakes.map(function (l) {
+          var ln = esc(charName(l.characterId)), on = sp.supports === l.id;
+          return '<button class="fsp__opt' + (on ? ' is-on' : '') + '" type="button" role="radio" aria-checked="' + on + '" data-leader="' + esc(l.id) + '"' + (revealed ? ' disabled' : '') +
+            ' style="--c:' + (SLOT_COLORS[l.leader] || '#d8d2c0') + '" title="' + ln + '"><img src="' + img(l.characterId) + '" alt="" loading="lazy" /><span lang="en">' + ln + '</span></button>';
+        }).join('') + '</span></div>';
+    }).join('');
+  }
+  $('fsList').addEventListener('click', function (e) {
+    var b = e.target.closest('.fsp__opt'); if (!b || b.disabled || !state) return;
+    if (locked) { nudge(b); return; }
+    if (b.classList.contains('is-on')) return;
+    touchLock();
+    var row = b.closest('.fsp__row'), id = row.getAttribute('data-id'), lid = b.getAttribute('data-leader');
+    var sp = state.players.find(function (q) { return q.id === id; }), l = state.players.find(function (q) { return q.id === lid; });
+    row.querySelectorAll('.fsp__opt').forEach(function (x) { x.classList.toggle('is-on', x === b); x.setAttribute('aria-checked', String(x === b)); });
+    WWYF.admin('POST', 'supports', { playerId: id, leaderId: lid }).then(function () {
+      toast((sp ? charName(sp.characterId) : '') + ' 改為支持 ' + (l ? charName(l.characterId) : ''));
+    }).catch(fail).then(function () { fsSig = ''; lastSig = ''; return refresh(); });
+  });
 
   /* ---------- actions ---------- */
   function act(btn, fn) {
