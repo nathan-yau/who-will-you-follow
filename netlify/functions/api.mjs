@@ -112,13 +112,20 @@ async function getMeta(s) {
   }
   return m;
 }
-async function getRoleCounts(s) {
+let roleCache = null;   // { t, data } — the configured role counts, 3 s in the warm instance (fresh for role edits)
+async function getRoleCounts(s, cached) {
+  if (cached && roleCache && now() - roleCache.t < 3000) return roleCache.data;
   const c = await s.get('config', { type: 'json' });
   const saved = (c && c.roles) || {};
   const out = {};
   for (const r of SPECIAL_ROLES) out[r] = Number.isInteger(saved[r]) ? saved[r] : DEFAULT_ROLES[r];
+  roleCache = { t: now(), data: out };
+  SLOT_N = slotCount(out);
   return out;
 }
+/** how many leader cards the TV / phones show = configured 真正領袖 + 假領袖 (1–4, max = LEADER_LABELS) */
+const slotCount = (c) => Math.max(1, Math.min(LEADER_LABELS.length, (c[TRUE_LEADER] || 0) + (c[FAKE_LEADER] || 0)));
+let SLOT_N = LEADER_LABELS.length;   // refreshed (cached) at the start of every request
 /** migrate on read: players stored before "everyone starts as 平民" (role null/unknown) become 平民 */
 function normalize(p) {
   if (p && !isRole(p.role)) { p.role = CIVILIAN; p.leader = null; }
@@ -385,7 +392,7 @@ async function adminState(s) {
   const hv = sc === HOWTO ? await howtoView(s, meta) : null;
   const howto = { on: sc === HOWTO, allowed: !meta.revealed, page: hv ? hv.page : 0, pages: HOWTO_PAGES, auto: hv ? hv.auto : howtoAuto({ auto: { sec: meta.howto && meta.howto.auto && meta.howto.auto.sec } }, t) };
   const rt = rtStatus(meta, await rtTv(s, true));
-  return { meta, votes, quiz, final, howto, rt, fakeWords, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS, assigned, players: list, reveal, archive, serverTime: t };
+  return { meta, votes, quiz, final, howto, rt, fakeWords, voteDurations: VOTE_DURATIONS, speak, speakDurations: SPEAK_DURATIONS, roles: counts, civilian: CIVILIAN, roleOrder: ROLE_ORDER, leaderRoles: LEADER_ROLES, leaderLabels: LEADER_LABELS.slice(0, slotCount(counts)), leaderSlots: slotCount(counts), maxLeaders: LEADER_LABELS.length, fakeWordSlots: FAKE_WORDS, assigned, players: list, reveal, archive, serverTime: t };
 }
 
 async function setRole(req, s) {
@@ -428,7 +435,7 @@ async function randomAssign(s) {
   for (const r of SPECIAL_ROLES) for (let i = 0; i < (counts[r] || 0); i++) pool.push(r);
   const special = pool.slice(0, players.length);
   const roles = shuffle([...special, ...Array(Math.max(0, players.length - special.length)).fill(CIVILIAN)]);
-  const labels = shuffle([...LEADER_LABELS]);
+  const labels = shuffle(LEADER_LABELS.slice(0, Math.max(slotCount(counts), special.filter((r) => LEADER_ROLES.includes(r)).length)));
   let li = 0;
   await Promise.all(players.map((pl, i) => {
     const role = roles[i];
@@ -481,13 +488,17 @@ async function reset(s) {
 
 async function setConfig(req, s) {
   const b = await body(req);
+  if ((await getMeta(s)).revealed) fail(409, 'revealed', '身份已揭曉：新一場才可更改身份人數');
   const roles = {};
   for (const r of SPECIAL_ROLES) {
     const n = b.roles && Number.isInteger(b.roles[r]) ? b.roles[r] : DEFAULT_ROLES[r];
     if (n < 0 || n > 20) fail(400, 'bad_count', '人數需介於 0–20');
     roles[r] = n;
   }
+  if (roles[TRUE_LEADER] + roles[FAKE_LEADER] > LEADER_LABELS.length) fail(400, 'bad_count', `領袖（真正領袖 + 假領袖）最多 ${LEADER_LABELS.length} 位`);
+  if (roles[TRUE_LEADER] + roles[FAKE_LEADER] < 1) fail(400, 'bad_count', '最少要有 1 位領袖');
   await s.setJSON('config', { roles });
+  roleCache = { t: now(), data: roles }; SLOT_N = slotCount(roles);
   return { ok: true, roles };
 }
 
@@ -1069,12 +1080,12 @@ async function trueVotes(s, meta, r, players) {
   tallyCache.set(key, n);
   return n;
 }
-/** leader cards for the TV: 4 slots in the order of the host-assigned internal slot (player.leader, A–D —
+/** leader cards for the TV: N slots (N = configured 真正領袖 + 假領袖, max 4) in the order of the host-assigned internal slot (player.leader, A–D —
     never displayed), so the same leader keeps the same position/colour on every round screen. The TV
     labels each card with the character name. Leaders without a slot fill free ones in join order;
     empty slots are null (the TV shows a '?' card). */
 function leaderSlots(players) {
-  const slots = [null, null, null, null];
+  const slots = LEADER_LABELS.map(() => null);
   const leaders = players.filter((p) => LEADER_ROLES.includes(p.role)).sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
   const rest = [];
   for (const p of leaders) {
@@ -1082,6 +1093,9 @@ function leaderSlots(players) {
     if (i >= 0 && !slots[i]) slots[i] = p; else rest.push(p);
   }
   for (const p of rest) { const i = slots.indexOf(null); if (i < 0) break; slots[i] = p; }
+  // only as many cards as configured leaders (or assigned ones, if more): drop empty slots from the end first
+  const n = Math.max(SLOT_N, leaders.length);
+  for (let i = slots.length - 1; slots.length > n && i >= 0; i--) if (!slots[i]) slots.splice(i, 1);
   return slots;
 }
 const leaderCards = (players) => leaderSlots(players).map((p) => (p ? { characterId: p.characterId } : null));
@@ -1610,7 +1624,10 @@ function howtoAuto(h, t) {
 }
 async function howtoView(s, meta) {
   const c = await getContent(s), h = meta.howto || {}, t = now();
-  return { page: howtoNow(h, t).page, pages: HOWTO_PAGES, auto: howtoAuto(h, t), threshold: c.end.threshold, quiz: { n: QUIZ_N, threshold: c.r3.threshold, need: c.r3.need } };
+  const rc = await getRoleCounts(s, true), L = slotCount(rc);
+  // leader counts for 遊戲目標 (leaders only — supporters are never mentioned on the slides)
+  const leaders = { total: L, true: Math.min(rc[TRUE_LEADER] || 0, L), fake: Math.max(0, L - Math.min(rc[TRUE_LEADER] || 0, L)) };
+  return { page: howtoNow(h, t).page, pages: HOWTO_PAGES, auto: howtoAuto(h, t), threshold: c.end.threshold, quiz: { n: QUIZ_N, threshold: c.r3.threshold, need: c.r3.need }, leaders };
 }
 async function howtoAction(s, b) {
   const a = b && b.action;
@@ -1709,7 +1726,9 @@ export default async (req, context) => {
   if (!route) return json(req, 404, { error: 'not_found', message: '找不到此 API' });
   try {
     if (path.startsWith('admin/') && path !== 'admin/login') verifyAdmin(req);
-    return json(req, 200, await route(req, store(), context));
+    const st = store();
+    await getRoleCounts(st, true);   // keeps SLOT_N (number of leader cards) current — one cached read per 3 s
+    return json(req, 200, await route(req, st, context));
   } catch (e) {
     if (e instanceof HttpError) return json(req, e.status, { error: e.code, message: e.message });
     console.error(e);

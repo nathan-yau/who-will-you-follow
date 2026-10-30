@@ -130,7 +130,7 @@
     "phoneWaitTitle": "點票中…",
     "phoneWait": "請看 TV，正在點票…"
   },
-  "_comment_howto": "玩法說明 (TV, before 身份揭曉): one entry per page {title, sub, l1, l2}; {t} = 結局門檻 %, {n} = Round 3 題數, {q} = Round 3 每題門檻 %, {need} = 解鎖所需成功題數 (all from 遊戲內容). General rules only.",
+  "_comment_howto": "玩法說明 (TV, before 身份揭曉): one entry per page {title, sub, l1, l2}; {t} = 結局門檻 %, {n} = Round 3 題數, {q} = Round 3 每題門檻 %, {need} = 解鎖所需成功題數 (all from 遊戲內容); {L} = 領袖人數, {T} = 真正領袖人數, {F} = 假領袖人數 (from the role counts in 玩家管理). General rules only.",
   "howto": [
     {
       "title": "玩法說明",
@@ -140,8 +140,8 @@
     },
     {
       "title": "遊戲目標",
-      "sub": "4 位領袖，只有 1 位是真的",
-      "l1": "4 位領袖：1 位真正領袖、3 位假領袖。",
+      "sub": "{L} 位領袖，只有 {T} 位是真的",
+      "l1": "{L} 位領袖：{T} 位真正領袖、{F} 位假領袖。",
       "l2": "最後投票有 {t}% 或以上的人選中真正領袖，全體勝利！"
     },
     {

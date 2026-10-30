@@ -534,7 +534,8 @@
     return '<svg class="lc__st lc__st--' + n + '" viewBox="0 0 20 20"><path d="M10 0l2.4 7.6L20 10l-7.6 2.4L10 20l-2.4-7.6L0 10l7.6-2.4z"/></svg>';
   }).join('') + '</i>';
   function renderCards(leaders) {
-    var L = [0, 1, 2, 3].map(function (i) { var c = leaders && leaders[i]; return c && c.characterId ? c.characterId : ''; });
+    // one card per configured leader (the server sends 1–4 slots; an unassigned slot = '?')
+    var L = (leaders || []).slice(0, 4).map(function (c) { return c && c.characterId ? c.characterId : ''; });
     lastLeaders = leaders;
     var key = L.join('|'), nk = Object.keys(names).length;
     if (key === cardsKey && nk === cardsNames) return;
@@ -629,7 +630,7 @@
   var EDEF = { tvTitle: '結局', tvSub: '最後投票：有幾多人跟隨了真正的領袖？', meterLabel: '跟隨真正領袖', target: '目標 {t}%', count: '{x} / {n} 人（約 {p}%）',
     winTitle: '勝利！', winLine: '大家成功跟隨了真正的領袖！', loseTitle: '差一點點…', loseLine: '假領袖勝出…', votes: '{n} 票', trueTag: '真正領袖', fakeTag: '假領袖', waiting: '結局計算中…' };
   var ET = null;
-  fetch('../data/texts.json?v=10', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+  fetch('../data/texts.json?v=11', { cache: 'no-cache' }).then(function (r) { return r.json(); })
     .then(function (d) {
       if (d && d.ending) { ET = d.ending; endKey = ''; if (screen === 'ending') renderEnding(lastEnding); }
       if (d && d.howto) { HT = d.howto; hwKey = ''; if (screen === 'howto') renderHowto(lastHowto, lastHowtoList); }
@@ -917,10 +918,10 @@
   /* ---------- 玩法說明 (screen 'howto', before 身份揭曉): one slide per page, the host pages through them.
      mini/state howto = {page, pages, threshold (結局 %), quiz: {n, threshold, need}} — general rules only.
      The leader cards are mystery "?" cards: nobody is shown as a leader before Round 1. Copy: data/texts.json "howto"
-     (an array of {title, sub, l1, l2}; {t} {n} {q} {need} are filled in), defaults below. */
+     (an array of {title, sub, l1, l2}; {t} {n} {q} {need} {L} {T} {F} are filled in), defaults below. */
   var HDEF = [
     { title: '玩法說明', sub: 'Who Will You Follow? 你會跟隨誰？', l1: '一起找出真正的領袖！', l2: '遊戲大約 15 分鐘' },
-    { title: '遊戲目標', sub: '4 位領袖，只有 1 位是真的', l1: '4 位領袖：1 位真正領袖、3 位假領袖。', l2: '最後投票有 {t}% 或以上的人選中真正領袖，全體勝利！' },
+    { title: '遊戲目標', sub: '{L} 位領袖，只有 {T} 位是真的', l1: '{L} 位領袖：{T} 位真正領袖、{F} 位假領袖。', l2: '最後投票有 {t}% 或以上的人選中真正領袖，全體勝利！' },
     { title: '角色', sub: '領袖 · 平民', l1: '每位玩家的身份是「領袖」或「平民」。', l2: '身份只會顯示在你自己的手機上，請保密！' },
     { title: 'Round 1 聽佢講', sub: '每位領袖講 3 件關於自己的事', l1: '真正領袖 3 句全真；假領袖 2 真 1 假。', l2: '聽完之後，投票選出你相信的領袖！' },
     { title: 'Round 2 誰是真領袖？', sub: '神秘描述 · 領袖詞語', l1: '平民看神秘描述，領袖各有一個詞語。', l2: '聽領袖描述，猜猜誰是真領袖！' },
@@ -952,7 +953,7 @@
       return '<div class="hw-row hw-row--chars">' + ids.map(hwSpr).join('') + '</div>';
     }
     if (p === 1) {
-      for (k = 0; k < 4; k++) h += hwCard(k);
+      for (k = 0; k < o.L; k++) h += hwCard(k);
       return '<div class="hw-row">' + h + '</div><div class="hw-goal"><b lang="en">' + o.t + '%</b><span>選中真正領袖 → 全體勝利</span></div>';
     }
     if (p === 2) {
@@ -978,7 +979,7 @@
       return '<div class="hw-row hw-row--r3"><div class="hw-qs">' + h + '</div><div class="hw-lock"><svg viewBox="0 0 80 80"><path d="M24 36V24a16 16 0 0 1 31-5" fill="none" stroke="#6f5a43" stroke-width="7" stroke-linecap="round"/>' +
         '<rect x="14" y="36" width="52" height="38" rx="9" fill="#f6c94c" stroke="#6f5a43" stroke-width="4"/><circle cx="40" cy="52" r="5" fill="#6f5a43"/><rect x="37.5" y="54" width="5" height="10" rx="2.5" fill="#6f5a43"/></svg><span>最後的線索</span></div></div>';
     }
-    for (k = 0; k < 4; k++) h += hwCard(k, k === 2 ? ' hw-lc--flip' : '');
+    for (k = 0; k < o.L; k++) h += hwCard(k, k === Math.min(2, o.L - 1) ? ' hw-lc--flip' : '');
     return '<div class="hw-row hw-row--final">' + h + '</div>';
   }
   /* 自動播放: h.auto = {on, sec, left (ms to the next slide)} — relative to the reply, so no clock sync is needed. The TV keeps a
@@ -1009,9 +1010,11 @@
     bar.hidden = !pr;
     if (pr) $('hwProgFill').style.transform = 'scaleX(' + pr.frac.toFixed(3) + ')';
     var pages = h.pages || HDEF.length + 1, p = Math.max(0, Math.min(pages - 1, pr ? pr.page : h.page | 0)), q = h.quiz || {}, c = p - 1;
-    var o = { t: h.threshold != null ? h.threshold : 70, n: q.n || 5, q: q.threshold != null ? q.threshold : 60, need: q.need || 3 };
+    var ld = h.leaders || {};
+    var o = { t: h.threshold != null ? h.threshold : 70, n: q.n || 5, q: q.threshold != null ? q.threshold : 60, need: q.need || 3,
+      L: Math.max(1, Math.min(4, ld.total || 4)), T: ld.true != null ? ld.true : 1, F: ld.fake != null ? ld.fake : 3 };
     var chars = c === 0 ? lastHowtoList.map(function (x) { return x.characterId; }).join(',') : '';
-    var k = [p, pages, o.t, o.n, o.q, o.need, chars, HT ? 1 : 0].join('|');
+    var k = [p, pages, o.t, o.n, o.q, o.need, o.L, o.T, o.F, chars, HT ? 1 : 0].join('|');
     if (k === hwKey) return;
     var turn = hwPage !== p;
     hwKey = k; hwPage = p;

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wdth,wght@75..125,300..700&family=Chiron+GoRound+TC:wght@400..700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/admin.css?v=27" />
+  <link rel="stylesheet" href="../css/admin.css?v=28" />
 </head>
 <body>
   <header class="top">
@@ -53,6 +53,7 @@
           </div>
         </div>
         <div class="acc__body" id="accPlayersBody">
+          <div class="rc" id="roleCfg" aria-label="身份人數"></div>
           <ul class="warnings" id="warnings"></ul>
           <div class="grid is-locked" id="grid"></div>
           <p class="empty" id="empty" hidden>目前還沒有玩家加入</p>
@@ -275,7 +276,7 @@
             <input class="ct__in" id="ctMystF2" maxlength="20" />
             <label class="ct__lbl ct__lbl--sub" for="ctMystF3"><span id="ctFakeL3">假領袖詞語 3</span><em class="ct__ex" data-ex="f2" hidden>例子</em><small>（留空 = 用詞語 1）</small></label>
             <input class="ct__in" id="ctMystF3" maxlength="20" />
-            <p class="ct__note" id="ctFakeNote">每位假領袖只會看到自己那個詞語（按 TV 領袖卡次序：第 1、2、3 位假領袖）。</p>
+            <p class="ct__note" id="ctFakeNote">每位假領袖只會看到自己那個詞語（按 TV 領袖卡次序）。</p>
             <div class="ct__row">
               <label class="ct__lbl ct__lbl--in" for="ctPct">每題門檻</label><input class="ct__num" id="ctPct" type="number" min="1" max="100" inputmode="numeric" /><span class="ct__unit">% 答對</span>
               <label class="ct__lbl ct__lbl--in" for="ctNeed">成功</label><input class="ct__num" id="ctNeed" type="number" min="1" max="5" inputmode="numeric" /><span class="ct__unit">題解鎖</span>
@@ -314,6 +315,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="../js/api.js?v=11"></script>
-  <script src="../js/admin.js?v=31"></script>
+  <script src="../js/admin.js?v=33"></script>
 </body>
 </html>

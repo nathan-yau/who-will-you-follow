@@ -90,6 +90,7 @@
     $('sumLeaders').textContent = sum(L, s.assigned); $('sumLeadersMax').textContent = sum(L, s.roles);
     $('sumSup').textContent = sum(S, s.assigned); $('sumSupMax').textContent = sum(S, s.roles);
 
+    renderRoleCfg();
     renderGrid();
     renderPhase();
     renderReveal();
@@ -132,7 +133,7 @@
     $('phaseDot').classList.toggle('on', !started);
     $('phaseDot').classList.toggle('live', started);
     $('tvNote').textContent = started
-      ? '遊戲已開始：TV 顯示' + (sc === 'reveal' ? '「身份揭曉」畫面' : sc === 'howto' ? '「玩法說明」' : sc === 'final' ? '「最終揭曉」畫面' : sc === 'ending' ? '「結局」畫面' : rnd ? '「' + rnd + '」標題畫面（含四位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
+      ? '遊戲已開始：TV 顯示' + (sc === 'reveal' ? '「身份揭曉」畫面' : sc === 'howto' ? '「玩法說明」' : sc === 'final' ? '「最終揭曉」畫面' : sc === 'ending' ? '「結局」畫面' : rnd ? '「' + rnd + '」標題畫面（含' + leaderNum() + '位領袖卡）' : '「遊戲開始」') + '，手機按鈕已停用。'
       : '等候中：玩家可在手機按「避開啊／衝過去」玩 TV 上的泡泡大戰。';
     $('startGame').disabled = started;
     if (started) disarm();
@@ -940,14 +941,47 @@
     });
   }
   // 假領袖詞語 1–3: labelled with the character holding it once roles are assigned (state.fakeWords), else by slot
+  /* only as many 假領袖詞語 inputs as configured 假領袖 (max 3); hidden ones keep their saved value (sent unchanged) */
   function renderFakeLabels() {
     var fw = (state && state.fakeWords) || [];
+    var nf = state && state.roles ? Math.max(1, Math.min(3, state.roles['假領袖'] || 0)) : 3;
     for (var i = 0; i < 3; i++) {
       var el = $('ctFakeL' + (i + 1)); if (!el) continue;
       var t = '假領袖詞語 ' + (i + 1) + (fw[i] ? '（' + charName(fw[i]) + '）' : '');
       if (el.textContent !== t) el.textContent = t;
+      var lbl = el.parentNode, inp = $('ctMystF' + (i + 1)), hide = i >= nf;
+      if (lbl.hidden !== hide) { lbl.hidden = hide; inp.hidden = hide; }
     }
   }
+  /* ---------- 身份人數 (POST admin/config): 真正領袖 + 假領袖 = the leader cards on the TV (max 4); locked once roles are revealed ---------- */
+  var RC = [['真正領袖', '真領袖'], ['假領袖', '假領袖'], ['真領袖支持者', '真支持'], ['假領袖支持者', '假支持']], rcKey = '', rcBusy = false;
+  function leaderNum() { var n = state && state.leaderSlots; return ['', '一', '兩', '三', '四'][n] || (n ? String(n) : '四'); }
+  function rcRange(r, c) {
+    var max = state.maxLeaders || 4, tl = c['真正領袖'] || 0, fl = c['假領袖'] || 0;
+    if (r === '真正領袖') return [1, 1];   // the game has exactly one 真正領袖 (knock, final reveal, ending all assume it)
+    if (r === '假領袖') return [1, Math.max(1, max - tl)];
+    return [0, 4];
+  }
+  function renderRoleCfg() {
+    var c = state.roles || {}, off = !!(state.meta && state.meta.revealed) || rcBusy;
+    var k = RC.map(function (x) { return c[x[0]]; }).join(',') + (off ? '#off' : '');
+    if (k === rcKey) return;
+    rcKey = k;
+    $('roleCfg').innerHTML = RC.map(function (x) {
+      var n = c[x[0]] || 0, rg = rcRange(x[0], c);
+      return '<span class="rc__i"><span>' + x[1] + '</span><button class="rc__b" type="button" data-rc="' + x[0] + '" data-d="-1" aria-label="' + x[0] + ' 減一"' + (off || n <= rg[0] ? ' disabled' : '') + '>−</button>' +
+        '<b>' + n + '</b><button class="rc__b" type="button" data-rc="' + x[0] + '" data-d="1" aria-label="' + x[0] + ' 加一"' + (off || n >= rg[1] ? ' disabled' : '') + '>+</button></span>';
+    }).join('') + (state.meta && state.meta.revealed ? '<span class="rc__note">身份已揭曉：人數已鎖定（新一場可再改）</span>' : '');
+  }
+  $('roleCfg').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-rc]'); if (!b || b.disabled || !state || rcBusy) return;
+    var c = {}; RC.forEach(function (x) { c[x[0]] = state.roles[x[0]] || 0; });
+    var r = b.getAttribute('data-rc'), rg = rcRange(r, c), n = c[r] + (+b.getAttribute('data-d'));
+    if (n < rg[0] || n > rg[1]) return;
+    c[r] = n; rcBusy = true; rcKey = ''; renderRoleCfg();
+    WWYF.admin('POST', 'config', { roles: c }).then(function () { toast('身份人數已更新：領袖 ' + (c['真正領袖'] + c['假領袖']) + ' 位'); })
+      .catch(fail).then(function () { rcBusy = false; rcKey = ''; lastSig = ''; return refresh(); });
+  });
   function ctSetDirty(d) { ctDirty = d; $('ctForm').classList.toggle('is-dirty', d); $('ctSave').textContent = d ? '儲存內容 *' : '儲存內容'; }
   function ctRead() {
     var qs = [].map.call(document.querySelectorAll('.ct-q'), function (qe) {
