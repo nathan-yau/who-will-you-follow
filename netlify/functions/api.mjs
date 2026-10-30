@@ -774,7 +774,7 @@ async function adminVotes(s, meta, players) {
 
 /* ---------------- knocks (私下敲門) ----------------
    Once a round's vote has closed (封票 / timer / admin), the 真正領袖 — and only them — may knock ONCE for that round:
-   the server picks the targets (see pickKnock: 2 voters of the SAME fake leader, else 1 fake-leader voter, else none);
+   the server picks the targets (see pickKnock: 2 voters of the SAME fake leader, else 1 fake-leader voter, else none; 平民 only, never supporters);
    the true leader cannot choose. The notification only hints "you may not be following the right leader" — it never
    says who the true leader is, nor which fake leader they followed (admin sees both). Stored in meta.knocks[round] (kept for the
    final reveal; cleared by 新一場). The knocked players see a private notification via their own /me poll until they
@@ -788,13 +788,15 @@ function knockRound(meta) {
 }
 /** who gets knocked: voters of ONE fake leader. A 假領袖 with >= KNOCK_COUNT voters this round is picked at random
     among those that qualify, then KNOCK_COUNT of its voters at random. If none has that many: exactly 1 random player
-    who voted for any fake leader. Nobody voted for a fake leader -> nobody. Non-voters are never knocked. */
+    who voted for any fake leader. Nobody voted for a fake leader -> nobody. Non-voters are never knocked.
+    Only 平民 are candidates: 真領袖支持者 / 假領袖支持者 never count toward a fake leader's followers and are never
+    picked, so if no 平民 voted for a fake leader -> nobody. */
 function pickKnock(players, ballots, trueId) {
   const byId = new Map(players.map((q) => [q.id, q]));
   const by = new Map();   // fake leader id -> [voter ids]
   for (const b of ballots) {
     const voter = byId.get(b.voter), target = byId.get(b.target);
-    if (!canVote(voter) || !target || target.id === trueId || target.role !== FAKE_LEADER) continue;
+    if (!canVote(voter) || normalize(voter).role !== CIVILIAN || !target || target.id === trueId || target.role !== FAKE_LEADER) continue;
     if (!by.has(target.id)) by.set(target.id, []);
     by.get(target.id).push(voter.id);
   }
